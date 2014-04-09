@@ -1,0 +1,24 @@
+Default: &defaults
+  user: stackage_server
+  password: stackage-server
+  host: localhost
+  port: 5432
+  database: stackage_server
+  poolsize: 10
+
+Development:
+  <<: *defaults
+
+Testing:
+  database: stackage_server_test
+  <<: *defaults
+
+Staging:
+  database: stackage_server_staging
+  poolsize: 100
+  <<: *defaults
+
+Production:
+  database: stackage_server_production
+  poolsize: 100
+  <<: *defaults
