@@ -7,7 +7,6 @@ module Application
 
 import Import
 import Settings
-import Yesod.Auth
 import Yesod.Default.Config
 import Yesod.Default.Main
 import Yesod.Default.Handlers
@@ -21,10 +20,16 @@ import Control.Concurrent (forkIO, threadDelay)
 import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
 import Network.Wai.Logger (clockDateCacher)
 import Yesod.Core.Types (loggerSet, Logger (Logger))
+import qualified System.Random.MWC as MWC
+import qualified Network.Wai as Wai
+import Network.Wai.Middleware.MethodOverride (methodOverride)
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
 import Handler.Home
+import Handler.Profile
+import Handler.Email
+import Handler.ResetToken
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -51,7 +56,11 @@ makeApplication conf = do
     -- Create the WAI application and apply middlewares
     app <- toWaiAppPlain foundation
     let logFunc = messageLoggerSource foundation (appLogger foundation)
-    return (logWare app, logFunc)
+        middleware = logWare . defaultWAIMiddleware
+    return (middleware app, logFunc)
+
+defaultWAIMiddleware :: Wai.Middleware -- FIXME move upstream
+defaultWAIMiddleware = methodOverride
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
@@ -77,8 +86,18 @@ makeFoundation conf = do
             updateLoop
     _ <- forkIO updateLoop
 
+    gen <- MWC.createSystemRandom
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-        foundation = App conf s p manager dbconf logger
+        foundation = App
+            { settings = conf
+            , getStatic = s
+            , connPool = p
+            , httpManager = manager
+            , persistConfig = dbconf
+            , appLogger = logger
+            , genIO = gen
+            }
 
     -- Perform database migration using our application's logging settings.
     runLoggingT

@@ -1,12 +1,15 @@
 User
-    ident Text
-    password Text Maybe
-    UniqueUser ident
+    handle Slug
+    display Text
+    token Slug
+    UniqueHandle handle
+    UniqueToken token
     deriving Typeable
 Email
     email Text
-    user UserId Maybe
-    verkey Text Maybe
+    user UserId
     UniqueEmail email
 
- -- By default this file is used in Model.hs (which is imported by Foundation.hs)
+Verkey
+    email Text
+    verkey Text

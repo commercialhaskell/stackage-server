@@ -1,24 +1,22 @@
 module Foundation where
 
-import Prelude
-import Yesod
-import Yesod.Static
+import ClassyPrelude.Yesod
 import Yesod.Auth
 import Yesod.Auth.BrowserId
 import Yesod.Auth.GoogleEmail
 import Yesod.Default.Config
 import Yesod.Default.Util (addStaticContentExternal)
-import Network.HTTP.Client.Conduit (Manager, HasHttpManager (getHttpManager))
 import qualified Settings
 import Settings.Development (development)
 import qualified Database.Persist
-import Database.Persist.Sql (SqlPersistT)
 import Settings.StaticFiles
 import Settings (widgetFile, Extra (..))
 import Model
 import Text.Jasmine (minifym)
 import Text.Hamlet (hamletFile)
 import Yesod.Core.Types (Logger)
+import Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
+import qualified System.Random.MWC as MWC
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -31,7 +29,11 @@ data App = App
     , httpManager :: Manager
     , persistConfig :: Settings.PersistConf
     , appLogger :: Logger
+    , genIO :: !MWC.GenIO
     }
+
+instance HasGenIO App where
+    getGenIO = genIO
 
 instance HasHttpManager App where
     getHttpManager = httpManager
@@ -61,6 +63,7 @@ instance Yesod App where
     defaultLayout widget = do
         master <- getYesod
         mmsg <- getMessage
+        muser <- maybeAuth
 
         -- We break up the default layout into two components:
         -- default-layout is the contents of the body tag, and
@@ -74,6 +77,10 @@ instance Yesod App where
                 , css_bootstrap_css
                 ])
             $(widgetFile "default-layout")
+
+        mcurr <- getCurrentRoute
+        let notHome = mcurr /= Just HomeR
+
         giveUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
 
     -- This is done to provide an optimization for serving static files from
@@ -122,20 +129,72 @@ instance YesodAuth App where
     -- Where to send a user after logout
     logoutDest _ = HomeR
 
-    getAuthId creds = runDB $ do
-        x <- getBy $ UniqueUser $ credsIdent creds
-        case x of
-            Just (Entity uid _) -> return $ Just uid
+    getAuthId creds = do
+        muid <- maybeAuthId
+        join $ runDB $ case muid of
             Nothing -> do
-                fmap Just $ insert User
-                    { userIdent = credsIdent creds
-                    , userPassword = Nothing
-                    }
+                x <- getBy $ UniqueEmail $ credsIdent creds
+                case x of
+                    Just (Entity _ email) -> return $ return $ Just $ emailUser email
+                    Nothing -> do
+                        handle' <- getHandle (0 :: Int)
+                        token <- getToken
+                        userid <- insert User
+                            { userHandle = handle'
+                            , userDisplay = credsIdent creds
+                            , userToken = token
+                            }
+                        void $ insert Email
+                            { emailEmail = credsIdent creds
+                            , emailUser = userid
+                            }
+                        return $ return $ Just userid
+            Just uid -> do
+                memail <- getBy $ UniqueEmail $ credsIdent creds
+                case memail of
+                    Nothing -> do
+                        void $ insert Email
+                            { emailEmail = credsIdent creds
+                            , emailUser = uid
+                            }
+                        return $ do
+                            setMessage $ toHtml $ concat
+                                [ "Email address "
+                                , credsIdent creds
+                                , " added to your account."
+                                ]
+                            redirect ProfileR
+                    Just _  -> invalidArgs $ return $ concat
+                        [ "The email address "
+                        , credsIdent creds
+                        , " is already associated with a different account."
+                        ]
+      where
+        handleBase = takeWhile (/= '@') (credsIdent creds)
+        getHandle cnt | cnt > 50 = error "Could not get a unique slug"
+        getHandle cnt = do
+            slug <- lift $ safeMakeSlug handleBase (cnt > 0)
+            muser <- getBy $ UniqueHandle slug
+            case muser of
+                Nothing -> return slug
+                Just _  -> getHandle (cnt + 1)
 
     -- You can add other plugins like BrowserID, email or OAuth here
     authPlugins _ = [authBrowserId def, authGoogleEmail]
 
     authHttpManager = httpManager
+
+getToken :: YesodDB App Slug
+getToken =
+    go (0 :: Int)
+  where
+    go cnt | cnt > 50 = error "Could not get a unique token"
+    go cnt = do
+        slug <- lift $ randomSlug 25
+        muser <- getBy $ UniqueToken slug
+        case muser of
+            Nothing -> return slug
+            Just _  -> go (cnt + 1)
 
 -- This instance is required to use forms. You can modify renderMessage to
 -- achieve customized and internationalized form validation messages.

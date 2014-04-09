@@ -8,7 +8,10 @@ $newline never
     <head>
         <meta charset="UTF-8">
 
-        <title>#{pageTitle pc}
+        <title>
+            #{pageTitle pc}
+            $if notHome
+                :: Stackage Server
         <meta name="description" content="">
         <meta name="author" content="">
 

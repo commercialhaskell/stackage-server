@@ -10,6 +10,8 @@ import Yesod.Test
 import Test.Hspec (hspec)
 import Application (makeFoundation)
 
+import qualified Data.SlugSpec
+
 main :: IO ()
 main = do
     conf <- Yesod.Default.Config.loadConfig $ (configSettings Testing)
@@ -17,5 +19,6 @@ main = do
                 }
     foundation <- makeFoundation conf
     hspec $ do
+        Data.SlugSpec.spec
         yesodSpec foundation $ do
             return ()
