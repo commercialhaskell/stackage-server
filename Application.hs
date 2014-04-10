@@ -16,13 +16,16 @@ import Network.Wai.Middleware.RequestLogger
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import qualified Database.Persist
 import Control.Monad.Logger (runLoggingT)
+import Control.Monad.Reader (runReaderT)
 import Control.Concurrent (forkIO, threadDelay)
-import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize)
+import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
 import Network.Wai.Logger (clockDateCacher)
 import Yesod.Core.Types (loggerSet, Logger (Logger))
 import qualified System.Random.MWC as MWC
 import qualified Network.Wai as Wai
 import Network.Wai.Middleware.MethodOverride (methodOverride)
+import Data.BlobStore (fileStore)
+import Data.Hackage
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
@@ -30,6 +33,7 @@ import Handler.Home
 import Handler.Profile
 import Handler.Email
 import Handler.ResetToken
+import Handler.HackageSdist
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -83,6 +87,7 @@ makeFoundation conf = do
     let updateLoop = do
             threadDelay 1000000
             updater
+            flushLogStr loggerSet' -- FIXME include upstream!
             updateLoop
     _ <- forkIO updateLoop
 
@@ -97,12 +102,24 @@ makeFoundation conf = do
             , persistConfig = dbconf
             , appLogger = logger
             , genIO = gen
+            , blobStore =
+                case storeConfig $ appExtra conf of
+                    BSCFile root -> fileStore root
             }
 
     -- Perform database migration using our application's logging settings.
     runLoggingT
         (Database.Persist.runPool dbconf (runMigration migrateAll) p)
         (messageLoggerSource foundation logger)
+
+    -- Start the cabal file loader
+    void $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
+        when development $ liftIO $ threadDelay $ 5 * 60 * 1000000
+        eres <- tryAny $ runReaderT loadCabalFiles foundation
+        case eres of
+            Left e -> $logError $ tshow e
+            Right () -> return ()
+        liftIO $ threadDelay $ 30 * 60 * 1000000
 
     return foundation
 

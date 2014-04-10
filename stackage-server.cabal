@@ -20,10 +20,14 @@ library
                      Settings.StaticFiles
                      Settings.Development
                      Data.Slug
+                     Data.BlobStore
+                     Data.Hackage
+                     Types
                      Handler.Home
                      Handler.Profile
                      Handler.Email
                      Handler.ResetToken
+                     Handler.HackageSdist
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -47,6 +51,9 @@ library
                 ViewPatterns
                 TypeSynonymInstances
                 FlexibleInstances
+                RankNTypes
+                FunctionalDependencies
+                PatternGuards
 
     build-depends: base                          >= 4          && < 5
                  , yesod                         >= 1.2.5      && < 1.3
@@ -80,7 +87,11 @@ library
                  , mtl                           >= 2.1        && < 2.2
                  , blaze-markup                  >= 0.6        && < 0.7
                  , ghc-prim
-                 , ghc-prim
+                 , system-fileio
+                 , resourcet
+                 , aws                           >= 0.9        && < 0.10
+                 , conduit-extra
+                 , tar                           >= 0.4        && < 0.5
 
 executable         stackage-server
     if flag(library-only)

@@ -14,6 +14,8 @@ import Yesod.Default.Util
 import Data.Yaml
 import Settings.Development
 import Text.Hamlet
+import Data.Aeson (withText)
+import Types
 
 -- | Which Persistent backend this site is using.
 type PersistConf = PostgresConf
@@ -63,7 +65,22 @@ widgetFile = (if development then widgetFileReload
               widgetFileSettings
 
 data Extra = Extra
+    { storeConfig :: !BlobStoreConfig
+    , hackageRoot :: !HackageRoot
+    }
     deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
-parseExtra _ _o = return Extra
+parseExtra _ o = Extra
+    <$> o .: "blob-store"
+    <*> (HackageRoot <$> o .: "hackage-root")
+
+data BlobStoreConfig = BSCFile !FilePath
+    deriving Show
+
+instance FromJSON BlobStoreConfig where
+    parseJSON = withText "BlobStoreConfig" $ \t ->
+        case () of
+            ()
+                | Just root <- stripPrefix "file:" t -> return $ BSCFile $ fpFromText root
+                | otherwise -> fail $ "Invalid BlobStoreConfig: " ++ show t

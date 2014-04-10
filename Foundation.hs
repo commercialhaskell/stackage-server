@@ -17,6 +17,8 @@ import Text.Hamlet (hamletFile)
 import Yesod.Core.Types (Logger)
 import Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
 import qualified System.Random.MWC as MWC
+import Data.BlobStore
+import Types
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -30,13 +32,20 @@ data App = App
     , persistConfig :: Settings.PersistConf
     , appLogger :: Logger
     , genIO :: !MWC.GenIO
+    , blobStore :: !(BlobStore StoreKey)
     }
+
+instance HasBlobStore App StoreKey where
+    getBlobStore = blobStore
 
 instance HasGenIO App where
     getGenIO = genIO
 
 instance HasHttpManager App where
     getHttpManager = httpManager
+
+instance HasHackageRoot App where
+    getHackageRoot = hackageRoot . appExtra . settings
 
 -- This is where we define all of the routes in our application. For a full
 -- explanation of the syntax, please see:
