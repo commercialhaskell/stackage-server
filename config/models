@@ -13,3 +13,11 @@ Email
 Verkey
     email Text
     verkey Text
+
+Stackage
+    user UserId
+    ident PackageSetIdent
+    uploaded UTCTime
+    title Text
+    desc Text
+    UniqueStackage ident

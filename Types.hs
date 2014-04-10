@@ -3,13 +3,14 @@ module Types where
 import ClassyPrelude.Yesod
 import Data.BlobStore (ToPath (..))
 import Text.Blaze (ToMarkup)
+import Database.Persist.Sql (PersistFieldSql)
 
 newtype PackageName = PackageName { unPackageName :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)
 newtype Version = Version { unVersion :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)
 newtype PackageSetIdent = PackageSetIdent { unPackageSetIdent :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
 
 data StoreKey = HackageCabal !PackageName !Version
               | HackageSdist !PackageName !Version
