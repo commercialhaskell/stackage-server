@@ -22,8 +22,6 @@ import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
 import Network.Wai.Logger (clockDateCacher)
 import Yesod.Core.Types (loggerSet, Logger (Logger))
 import qualified System.Random.MWC as MWC
-import qualified Network.Wai as Wai
-import Network.Wai.Middleware.MethodOverride (methodOverride)
 import Data.BlobStore (fileStore)
 import Data.Hackage
 
@@ -63,11 +61,8 @@ makeApplication conf = do
     -- Create the WAI application and apply middlewares
     app <- toWaiAppPlain foundation
     let logFunc = messageLoggerSource foundation (appLogger foundation)
-        middleware = logWare . defaultWAIMiddleware
+        middleware = logWare . defaultMiddlewaresNoLogging
     return (middleware app, logFunc)
-
-defaultWAIMiddleware :: Wai.Middleware -- FIXME move upstream
-defaultWAIMiddleware = methodOverride
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
@@ -90,7 +85,7 @@ makeFoundation conf = do
     let updateLoop = do
             threadDelay 1000000
             updater
-            flushLogStr loggerSet' -- FIXME include upstream!
+            flushLogStr loggerSet'
             updateLoop
     _ <- forkIO updateLoop
 

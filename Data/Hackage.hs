@@ -97,7 +97,3 @@ sourceHackageSdist name version = do
             if exists
                 then storeRead key
                 else return Nothing
-
--- FIXME orphan
-instance MonadActive m => MonadActive (LoggingT m) where
-    monadActive = lift monadActive

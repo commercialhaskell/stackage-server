@@ -163,12 +163,3 @@ extractCabal lbs name version =
         , toPathPiece name
         , ".cabal"
         ]
-
--- FIXME orphan, move into yesod-core
-instance MonadCatch m => MonadCatch (HandlerT site m) where
-  catch (HandlerT m) c = HandlerT $ \r -> m r `catch` \e -> unHandlerT (c e) r
-  mask a = HandlerT $ \e -> mask $ \u -> unHandlerT (a $ q u) e
-    where q u (HandlerT b) = HandlerT (u . b)
-  uninterruptibleMask a =
-    HandlerT $ \e -> uninterruptibleMask $ \u -> unHandlerT (a $ q u) e
-      where q u (HandlerT b) = HandlerT (u . b)
