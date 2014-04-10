@@ -101,7 +101,7 @@ library
                  , exceptions
                  , byteable
                  , cryptohash
-                 , base64-bytestring
+                 , base16-bytestring
                  , zlib
                  , esqueleto
 

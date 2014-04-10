@@ -6,7 +6,7 @@ import Crypto.Hash.Conduit (sinkHash)
 import Control.Monad.Catch (MonadCatch (..))
 import Crypto.Hash (Digest, SHA1)
 import Data.Byteable (toBytes)
-import qualified Data.ByteString.Base64.URL as B64
+import qualified Data.ByteString.Base16 as B16
 import Yesod.Core.Types (HandlerT (HandlerT), unHandlerT)
 import Data.Conduit.Zlib (ungzip)
 import qualified Codec.Archive.Tar as Tar
@@ -38,7 +38,7 @@ putUploadStackageR = do
                    $$ getZipSink (ZipSink sinkHash <* ZipSink (ungzip =$ sinkHandle handleOut))
             liftIO $ hClose handleOut
             let bs = toBytes (digest :: Digest SHA1)
-                ident = PackageSetIdent $ decodeUtf8 $ B64.encode bs
+                ident = PackageSetIdent $ decodeUtf8 $ B16.encode bs
 
             -- Check for duplicates
             mstackage <- runDB $ getBy $ UniqueStackage ident
