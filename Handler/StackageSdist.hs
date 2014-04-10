@@ -1,11 +1,15 @@
-module Handler.HackageSdist where
+module Handler.StackageSdist where
 
 import Import
-import Data.Hackage
+import Data.BlobStore
 
-getHackageSdistR :: PackageName -> Version -> Handler TypedContent
-getHackageSdistR name version = do
-    msrc <- sourceHackageSdist name version
+getStackageSdistR :: PackageSetIdent -> PackageNameVersion -> Handler TypedContent
+getStackageSdistR ident (PackageNameVersion name version) = do
+    msrc1 <- storeRead (CustomSdist ident name version)
+    msrc <-
+        case msrc1 of
+            Just src -> return $ Just src
+            Nothing -> storeRead $ HackageSdist name version
     case msrc of
         Nothing -> notFound
         Just src -> do

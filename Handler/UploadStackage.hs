@@ -66,7 +66,8 @@ putUploadStackageR = do
                 let indexLBS = GZip.compress $ Tar.write entries
                 sourceLazy indexLBS $$ storeWrite (CabalIndex ident)
                 runDB $ insert stackage
-                sendResponseCreated HomeR -- FIXME $ StackageR ident
+                setMessage "Stackage created"
+                redirect $ StackageHomeR ident
   where
     loop Tar.Done = return ()
     loop (Tar.Fail e) = throwM e

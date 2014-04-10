@@ -8,5 +8,7 @@
 /profile ProfileR GET PUT
 /email/#EmailId EmailR DELETE
 /reset-token ResetTokenR POST
-/hackage/#PackageName/#Version HackageSdistR GET
 /upload UploadStackageR GET PUT
+/stackage/#PackageSetIdent StackageHomeR GET
+/stackage/#PackageSetIdent/00-index.tar.gz StackageIndexR GET
+/stackage/#PackageSetIdent/package/#PackageNameVersion StackageSdistR GET

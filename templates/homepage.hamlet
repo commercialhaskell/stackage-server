@@ -1,6 +1,11 @@
 <h2>Browse stackages
 
-FIXME!
+<ul>
+    $forall (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle) <- stackages
+        <li>
+            <a href=@{StackageHomeR ident}>
+                #{title}
+                <i>by #{display} (#{handle}) on #{show uploaded}
 
 <h2>Upload
 

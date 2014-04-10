@@ -27,8 +27,10 @@ library
                      Handler.Profile
                      Handler.Email
                      Handler.ResetToken
-                     Handler.HackageSdist
                      Handler.UploadStackage
+                     Handler.StackageHome
+                     Handler.StackageIndex
+                     Handler.StackageSdist
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -101,6 +103,7 @@ library
                  , cryptohash
                  , base64-bytestring
                  , zlib
+                 , esqueleto
 
 executable         stackage-server
     if flag(library-only)
