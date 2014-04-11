@@ -13,6 +13,15 @@ import Control.Monad.Reader (MonadReader, ask)
 import Control.Monad.Trans.Resource (release)
 import qualified Data.Text as T
 import Data.Conduit.Zlib (ungzip)
+import Text.XML.Cursor (($//), (&/), content, fromDocument, element, followingSibling)
+import Text.HTML.DOM (sinkDoc)
+import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
+import System.IO (IOMode (ReadMode), openBinaryFile)
+import Control.Monad.Catch (MonadCatch)
+import Model (Uploaded (Uploaded))
+import Filesystem (createTree)
+import Distribution.PackageDescription.Parse (showPackageDescription, parsePackageDescription, ParseResult (ParseOk))
+import Distribution.PackageDescription (GenericPackageDescription, PackageDescription)
 
 loadCabalFiles :: ( MonadActive m
                   , MonadBaseControl IO m
@@ -23,17 +32,24 @@ loadCabalFiles :: ( MonadActive m
                   , HasBlobStore env StoreKey
                   , HasHackageRoot env
                   , MonadLogger m
+                  , MonadCatch m
                   )
-               => m ()
-loadCabalFiles = do
+               => (PackageName -> Version -> m (Maybe UTCTime) -> m ()) -- ^ add upload
+               -> m ()
+loadCabalFiles addUpload = do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
-    withResponse req $ \res -> do
-        $logDebug $ "Got a response, processing"
-        bss <- lazyConsume $ responseBody res $= ungzip
-        loop $ Tar.read $ fromChunks bss
+    withSystemTempFile "hackage-index" $ \tempIndex handleOut -> do
+        $logDebug $ "Requesting: " ++ tshow req
+        withResponse req $ \res -> responseBody res $$ sinkHandle handleOut
+        liftIO $ hClose handleOut
+        withBinaryFile tempIndex ReadMode $ \handleIn -> do
+            bss <- lazyConsume $ sourceHandle handleIn $= ungzip
+            loop $ Tar.read $ fromChunks bss
   where
+    withBinaryFile fp mode = bracket (liftIO $ openBinaryFile fp mode) (liftIO . hClose)
+
     loop (Tar.Next entry entries) = go entry >> loop entries
     loop Tar.Done = return ()
     loop (Tar.Fail e) = throwM e
@@ -47,7 +63,39 @@ loadCabalFiles = do
                     store <- liftM getBlobStore ask
                     unless exists $ withAcquire (storeWrite' store key) $ \sink ->
                         sourceLazy lbs $$ sink
+                    setUploadDate name version addUpload
             _ -> return ()
+
+setUploadDate :: ( MonadBaseControl IO m
+                 , MonadThrow m
+                 , MonadIO m
+                 , MonadReader env m
+                 , HasHttpManager env
+                 , MonadLogger m
+                 )
+              => PackageName
+              -> Version
+              -> (PackageName -> Version -> m (Maybe UTCTime) -> m ())
+              -> m ()
+setUploadDate name version addUpload = addUpload name version $ do
+    req <- parseUrl url
+    $logDebug $ "Requesting: " ++ tshow req
+    lbs <- withResponse req $ \res -> responseBody res $$ sinkLazy
+    let uploadDateT = decodeUtf8 $ toStrict lbs
+    return $ parseTime defaultTimeLocale "%c" $ unpack uploadDateT
+  where
+    url = unpack $ concat
+        [ "http://hackage.haskell.org/package/"
+        , toPathPiece name
+        , "-"
+        , toPathPiece version
+        , "/upload-time"
+        ]
+
+    hasContent t c =
+        if T.concat (c $// content) == t
+            then [c]
+            else []
 
 parseFilePath :: String -> Maybe (PackageName, Version)
 parseFilePath s =
@@ -63,6 +111,7 @@ sourceHackageSdist :: ( MonadIO m
                       , HasHttpManager env
                       , HasHackageRoot env
                       , HasBlobStore env StoreKey
+                      , MonadLogger m
                       )
                    => PackageName
                    -> Version
@@ -88,6 +137,7 @@ sourceHackageSdist name version = do
                         ]
             req' <- parseUrl $ unpack url
             let req = req' { checkStatus = \_ _ _ -> Nothing }
+            $logDebug $ "Requesting: " ++ tshow req
             exists <- withResponse req $ \res ->
                 if responseStatus res == status200
                     then do
@@ -97,3 +147,47 @@ sourceHackageSdist name version = do
             if exists
                 then storeRead key
                 else return Nothing
+
+createView :: ( MonadResource m
+              , MonadCatch m
+              , MonadReader env m
+              , HasBlobStore env StoreKey
+              )
+           => (PackageName -> Version -> UTCTime -> GenericPackageDescription -> m PackageDescription)
+           -> Source m (Entity Uploaded)
+           -> Sink ByteString m ()
+           -> m ()
+createView modifyCabal src sink = withSystemTempDirectory "createview" $ \dir -> do
+    rels <- src $$ mapMC (\(Entity _ (Uploaded name version time)) -> do
+        let relfp = fpFromText (toPathPiece name)
+                </> fpFromText (toPathPiece version)
+                </> fpFromText (concat
+                        [ toPathPiece name
+                        , "-"
+                        , toPathPiece version
+                        , ".cabal"
+                        ])
+        msrc <- storeRead $ HackageCabal name version
+        case msrc of
+            Nothing -> return mempty
+            Just src -> do
+                orig <- src $$ sinkLazy
+                new <-
+                    case parsePackageDescription $ unpack $ decodeUtf8 orig of
+                        ParseOk _ gpd -> do
+                            gpd' <- modifyCabal name version time gpd
+                            return $ encodeUtf8 $ pack $ showPackageDescription gpd'
+                        _ -> return orig
+                let fp = fpFromString dir </> relfp
+                liftIO $ createTree $ directory fp
+                writeFile fp new
+                return $ asSet $ singletonSet relfp
+        ) =$ foldC
+    entries <- liftIO $ Tar.pack dir (map fpToString $ setToList rels)
+    sourceLazy (Tar.write entries) $$ sink
+
+viewNoBounds :: Monad m
+             => packageName -> version -> time
+             -> GenericPackageDescription
+             -> m GenericPackageDescription
+viewNoBounds gpd = undefined

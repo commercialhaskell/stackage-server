@@ -61,6 +61,7 @@ fileStore :: ToPath key
           -> BlobStore key
 fileStore root = BlobStore
     { storeWrite' = \key -> sinkHandle <$> mkAcquire
+        -- FIXME should be rewritten to allow for atomic writing
         (do
             let fp = toFP key
             F.createTree $ directory fp

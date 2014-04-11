@@ -104,6 +104,9 @@ library
                  , base16-bytestring
                  , zlib
                  , esqueleto
+                 , xml-conduit
+                 , html-conduit
+                 , Cabal
 
 executable         stackage-server
     if flag(library-only)

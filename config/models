@@ -21,3 +21,9 @@ Stackage
     title Text
     desc Text
     UniqueStackage ident
+
+Uploaded
+    name PackageName
+    version Version
+    uploaded UTCTime
+    UniqueUploaded name version

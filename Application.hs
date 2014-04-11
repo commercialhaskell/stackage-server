@@ -113,7 +113,15 @@ makeFoundation conf = do
     -- Start the cabal file loader
     void $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
         when development $ liftIO $ threadDelay $ 5 * 60 * 1000000
-        eres <- tryAny $ runReaderT loadCabalFiles foundation
+        eres <- tryAny $ flip runReaderT foundation $ loadCabalFiles
+            $ \name version mmtime ->
+                runResourceT $ flip (Database.Persist.runPool dbconf) p $ do
+                    mx <- getBy $ UniqueUploaded name version
+                    case mx of
+                        Just {} -> return ()
+                        Nothing -> do
+                            mtime <- lift $ lift mmtime
+                            forM_ mtime $ void . insertBy . Uploaded name version
         case eres of
             Left e -> $logError $ tshow e
             Right () -> return ()

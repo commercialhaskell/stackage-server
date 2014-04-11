@@ -7,9 +7,9 @@ import Database.Persist.Sql (PersistFieldSql)
 import qualified Data.Text as T
 
 newtype PackageName = PackageName { unPackageName :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
 newtype Version = Version { unVersion :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
 newtype PackageSetIdent = PackageSetIdent { unPackageSetIdent :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
 
