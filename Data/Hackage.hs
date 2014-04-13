@@ -2,6 +2,7 @@ module Data.Hackage
     ( loadCabalFiles
     , sourceHackageSdist
     , createView
+    , sourceHackageViewSdist
     ) where
 
 import ClassyPrelude.Yesod hiding (get)
@@ -153,6 +154,21 @@ sourceHackageSdist name version = do
                 then storeRead key
                 else return Nothing
 
+sourceHackageViewSdist :: ( MonadIO m
+                      , MonadThrow m
+                      , MonadBaseControl IO m
+                      , MonadResource m
+                      , MonadReader env m
+                      , HasHttpManager env
+                      , HasHackageRoot env
+                      , HasBlobStore env StoreKey
+                      , MonadLogger m
+                      , MonadActive m
+                      )
+                   => HackageView
+                   -> PackageName
+                   -> Version
+                   -> m (Maybe (Source m ByteString))
 sourceHackageViewSdist viewName name version = do
     let key = HackageViewSdist viewName name version
     msrc1 <- storeRead key
@@ -164,13 +180,13 @@ sourceHackageViewSdist viewName name version = do
                 Nothing -> return Nothing
                 Just cabalSrc -> do
                     cabalLBS <- cabalSrc $$ sinkLazy
-                    msrc <- storeRead $ HackageSdist name version
+                    msrc <- sourceHackageSdist name version
                     case msrc of
                         Nothing -> return Nothing
                         Just src -> do
-                            lbs <- fromChunks <$> lazyConsume src
+                            lbs <- fromChunks <$> lazyConsume (src $= ungzip)
                             let lbs' = Tar.write $ replaceCabal cabalLBS $ Tar.read lbs
-                            sourceLazy lbs' $$ storeWrite key
+                            sourceLazy lbs' $$ gzip =$ storeWrite key
                             storeRead key
   where
     cabalName = unpack $ concat
