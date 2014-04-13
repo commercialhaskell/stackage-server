@@ -7,11 +7,13 @@ import Database.Persist.Sql (PersistFieldSql)
 import qualified Data.Text as T
 
 newtype PackageName = PackageName { unPackageName :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql, IsString)
 newtype Version = Version { unVersion :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
 newtype PackageSetIdent = PackageSetIdent { unPackageSetIdent :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
+newtype HackageView = HackageView { unHackageView :: Text }
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql, IsString)
 
 data PackageNameVersion = PackageNameVersion !PackageName !Version
     deriving (Show, Read, Typeable, Eq, Ord)
@@ -29,6 +31,9 @@ data StoreKey = HackageCabal !PackageName !Version
               | HackageSdist !PackageName !Version
               | CabalIndex !PackageSetIdent
               | CustomSdist !PackageSetIdent !PackageName !Version
+              | HackageViewCabal !HackageView !PackageName !Version
+              | HackageViewSdist !HackageView !PackageName !Version
+              | HackageViewIndex !HackageView
 
 instance ToPath StoreKey where
     toPath (HackageCabal name version) = ["hackage", toPathPiece name, toPathPiece version ++ ".cabal"]
@@ -39,6 +44,23 @@ instance ToPath StoreKey where
         , toPathPiece ident
         , toPathPiece name
         , toPathPiece version ++ ".tar.gz"
+        ]
+    toPath (HackageViewCabal viewName name version) =
+        [ "hackage-view"
+        , toPathPiece viewName
+        , toPathPiece name
+        , toPathPiece version ++ ".cabal"
+        ]
+    toPath (HackageViewSdist viewName name version) =
+        [ "hackage-view"
+        , toPathPiece viewName
+        , toPathPiece name
+        , toPathPiece version ++ ".tar.gz"
+        ]
+    toPath (HackageViewIndex viewName) =
+        [ "hackage-view"
+        , toPathPiece viewName
+        , "00-index.tar.gz"
         ]
 
 newtype HackageRoot = HackageRoot { unHackageRoot :: Text }

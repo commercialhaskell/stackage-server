@@ -5,7 +5,7 @@ module Application
     , makeFoundation
     ) where
 
-import Import
+import Import hiding (catch)
 import Settings
 import Yesod.Default.Config
 import Yesod.Default.Main
@@ -22,8 +22,14 @@ import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
 import Network.Wai.Logger (clockDateCacher)
 import Yesod.Core.Types (loggerSet, Logger (Logger))
 import qualified System.Random.MWC as MWC
-import Data.BlobStore (fileStore)
+import Data.BlobStore (fileStore, storeWrite)
 import Data.Hackage
+import Data.Hackage.Views
+import Data.Conduit.Lazy (MonadActive, monadActive)
+import Control.Monad.Catch (MonadCatch (..))
+import Database.Persist.Sql (SqlPersistT (..))
+import Control.Monad.Trans.Resource.Internal (ResourceT (..))
+import Control.Monad.Reader (MonadReader (..))
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
@@ -35,6 +41,8 @@ import Handler.UploadStackage
 import Handler.StackageHome
 import Handler.StackageIndex
 import Handler.StackageSdist
+import Handler.HackageViewIndex
+import Handler.HackageViewSdist
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -113,8 +121,8 @@ makeFoundation conf = do
     -- Start the cabal file loader
     void $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
         when development $ liftIO $ threadDelay $ 5 * 60 * 1000000
-        eres <- tryAny $ flip runReaderT foundation $ loadCabalFiles
-            $ \name version mmtime ->
+        eres <- tryAny $ flip runReaderT foundation $ do
+            loadCabalFiles $ \name version mmtime ->
                 runResourceT $ flip (Database.Persist.runPool dbconf) p $ do
                     mx <- getBy $ UniqueUploaded name version
                     case mx of
@@ -122,12 +130,36 @@ makeFoundation conf = do
                         Nothing -> do
                             mtime <- lift $ lift mmtime
                             forM_ mtime $ void . insertBy . Uploaded name version
+            let views =
+                    [ ("pvp", viewPVP)
+                    , ("no-bounds", viewNoBounds)
+                    , ("unchanged", viewUnchanged)
+                    ]
+            forM_ views $ \(name, func) ->
+                runResourceT $ flip (Database.Persist.runPool dbconf) p $ createView
+                    name
+                    func
+                    (selectSource [] [])
+                    (storeWrite $ HackageViewIndex name)
         case eres of
             Left e -> $logError $ tshow e
             Right () -> return ()
         liftIO $ threadDelay $ 30 * 60 * 1000000
 
     return foundation
+
+instance MonadActive m => MonadActive (SqlPersistT m) where -- FIXME orphan upstream
+    monadActive = lift monadActive
+deriving instance MonadCatch m => MonadCatch (SqlPersistT m)
+instance MonadCatch m => MonadCatch (ResourceT m) where
+  catch (ResourceT m) c = ResourceT $ \r -> m r `catch` \e -> unResourceT (c e) r
+  mask a = ResourceT $ \e -> mask $ \u -> unResourceT (a $ q u) e
+    where q u (ResourceT b) = ResourceT (u . b)
+  uninterruptibleMask a =
+    ResourceT $ \e -> uninterruptibleMask $ \u -> unResourceT (a $ q u) e
+      where q u (ResourceT b) = ResourceT (u . b)
+instance MonadReader env m => MonadReader env (SqlPersistT m) where
+    ask = lift ask
 
 -- for yesod devel
 getApplicationDev :: IO (Int, Application)
