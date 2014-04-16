@@ -151,13 +151,6 @@ makeFoundation conf = do
 instance MonadActive m => MonadActive (SqlPersistT m) where -- FIXME orphan upstream
     monadActive = lift monadActive
 deriving instance MonadCatch m => MonadCatch (SqlPersistT m)
-instance MonadCatch m => MonadCatch (ResourceT m) where
-  catch (ResourceT m) c = ResourceT $ \r -> m r `catch` \e -> unResourceT (c e) r
-  mask a = ResourceT $ \e -> mask $ \u -> unResourceT (a $ q u) e
-    where q u (ResourceT b) = ResourceT (u . b)
-  uninterruptibleMask a =
-    ResourceT $ \e -> uninterruptibleMask $ \u -> unResourceT (a $ q u) e
-      where q u (ResourceT b) = ResourceT (u . b)
 instance MonadReader env m => MonadReader env (SqlPersistT m) where
     ask = lift ask
 

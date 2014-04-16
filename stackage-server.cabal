@@ -97,7 +97,7 @@ library
                  , ghc-prim
                  , system-fileio
                  , system-filepath
-                 , resourcet
+                 , resourcet                     >= 1.1.2
                  , aws                           >= 0.9        && < 0.10
                  , conduit-extra
                  , tar                           >= 0.4        && < 0.5
