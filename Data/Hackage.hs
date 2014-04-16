@@ -251,6 +251,8 @@ createView viewName modifyCabal src sink = withSystemTempDirectory "createview" 
                 return $ asSet $ singletonSet relfp
 
 -- FIXME put in conduit-combinators
+parMapMC _ = mapMC
+{- FIXME
 parMapMC :: (MonadIO m, MonadBaseControl IO m)
          => Int
          -> (i -> m o)
@@ -297,4 +299,4 @@ parMapMC threads f = evalStateC 0 $ do
             case mx of
                 Nothing -> return $ front []
                 Just x -> go $ front . (x:)
-
+-}
