@@ -262,29 +262,33 @@ createView viewName modifyCabal src sink = withSystemTempDirectory "createview" 
                         , toPathPiece version
                         , ".cabal"
                         ])
-        msrc <- storeRead $ HackageCabal name version
-        case msrc of
-            Nothing -> return mempty
-            Just src -> do
-                -- FIXME only create a new file if the old one doesn't exist?
-                orig <- src $$ sinkLazy
-                new <-
-                    case parsePackageDescription $ unpack $ decodeUtf8 orig of
-                        ParseOk _ gpd -> do
-                            gpd' <- modifyCabal name version time gpd
-                            let str = showGenericPackageDescription gpd'
-                            -- sanity check
-                            case parsePackageDescription str of
-                                ParseOk _ _ -> return $ encodeUtf8 $ pack str
-                                x -> do
-                                    $logError $ "Created cabal file that could not be parsed: " ++ tshow (x, str)
-                                    return orig
-                        _ -> return orig
-                sourceLazy new $$ storeWrite (HackageViewCabal viewName name version)
-                let fp = fpFromString dir </> relfp
-                liftIO $ createTree $ directory fp
-                writeFile fp new
-                return $ asSet $ singletonSet relfp
+        let key = HackageViewCabal viewName name version
+        exists <- storeExists key
+        if exists
+            then return mempty
+            else do
+                msrc <- storeRead $ HackageCabal name version
+                case msrc of
+                    Nothing -> return mempty
+                    Just src -> do
+                        orig <- src $$ sinkLazy
+                        new <-
+                            case parsePackageDescription $ unpack $ decodeUtf8 orig of
+                                ParseOk _ gpd -> do
+                                    gpd' <- modifyCabal name version time gpd
+                                    let str = showGenericPackageDescription gpd'
+                                    -- sanity check
+                                    case parsePackageDescription str of
+                                        ParseOk _ _ -> return $ encodeUtf8 $ pack str
+                                        x -> do
+                                            $logError $ "Created cabal file that could not be parsed: " ++ tshow (x, str)
+                                            return orig
+                                _ -> return orig
+                        sourceLazy new $$ storeWrite key
+                        let fp = fpFromString dir </> relfp
+                        liftIO $ createTree $ directory fp
+                        writeFile fp new
+                        return $ asSet $ singletonSet relfp
 
 sourceHistory :: Monad m => UploadHistory -> Producer m Uploaded
 sourceHistory =
