@@ -13,6 +13,7 @@ import qualified Filesystem as F
 import Control.Monad.Reader (MonadReader, ask)
 import Control.Monad.Trans.Resource (release)
 import qualified Aws
+import qualified System.IO as IO
 
 data BlobStore key = BlobStore
     { storeWrite'  :: !(forall m. MonadIO m => key -> Acquire (Sink ByteString m ()))
@@ -60,13 +61,20 @@ fileStore :: ToPath key
           => FilePath -- ^ root
           -> BlobStore key
 fileStore root = BlobStore
-    { storeWrite' = \key -> sinkHandle <$> mkAcquire
-        -- FIXME should be rewritten to allow for atomic writing
+    { storeWrite' = \key -> (sinkHandle . snd) <$> mkAcquireType
         (do
             let fp = toFP key
             F.createTree $ directory fp
-            F.openFile fp F.WriteMode)
-        hClose
+            IO.openBinaryTempFile
+                (fpToString $ directory fp)
+                (fpToString $ filename fp))
+        (\(fp, h) rt ->
+            case rt of
+                ReleaseException -> do
+                    hClose h `finally` F.removeFile (fpFromString fp)
+                _ -> do
+                    hClose h
+                    F.rename (fpFromString fp) (toFP key))
     , storeRead' = \key -> (fmap sourceHandle) <$> mkAcquire
         ((Just <$> F.openFile (toFP key) F.ReadMode)
             `catch` \e ->
