@@ -262,11 +262,15 @@ createView viewName modifyCabal src sink = withSystemTempDirectory "createview" 
                         , toPathPiece version
                         , ".cabal"
                         ])
-        let key = HackageViewCabal viewName name version
-        exists <- storeExists key
-        if exists
-            then return mempty
-            else do
+            fp = fpFromString dir </> relfp
+            key = HackageViewCabal viewName name version
+        mprev <- storeRead key
+        case mprev of
+            Just src -> do
+                liftIO $ createTree $ directory fp
+                src $$ sinkFile fp
+                return $ asSet $ singletonSet relfp
+            Nothing -> do
                 msrc <- storeRead $ HackageCabal name version
                 case msrc of
                     Nothing -> return mempty
@@ -285,7 +289,6 @@ createView viewName modifyCabal src sink = withSystemTempDirectory "createview" 
                                             return orig
                                 _ -> return orig
                         sourceLazy new $$ storeWrite key
-                        let fp = fpFromString dir </> relfp
                         liftIO $ createTree $ directory fp
                         writeFile fp new
                         return $ asSet $ singletonSet relfp
