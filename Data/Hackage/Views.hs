@@ -9,6 +9,7 @@ import Types hiding (Version (..))
 import qualified Types
 import Model
 import Data.NonNull (fromNullable) -- FIXME expose from ClassyPrelude
+import Data.Hackage (UploadHistory)
 
 viewUnchanged :: Monad m
               => packageName -> version -> time
@@ -63,14 +64,15 @@ viewNoBounds _ _ _ =
   where
     go (Dependency name _range) = return $ Dependency name anyVersion
 
-viewPVP :: ( Monad m
-           , PersistMonadBackend m ~ SqlBackend
-           , PersistQuery m
-           )
-        => packageName -> version -> UTCTime
+getAvailable name maxUploaded =
+    map fst . filter ((<= maxUploaded) . snd) . mapToList . fromMaybe mempty . lookup name
+
+viewPVP :: Monad m
+        => UploadHistory
+        -> packageName -> version -> UTCTime
         -> GenericPackageDescription
         -> m GenericPackageDescription
-viewPVP _ _ uploaded =
+viewPVP uploadHistory _ _ uploaded =
     helper go
   where
     wiredIn = asSet $ setFromList $ words "base ghc template-haskell"
@@ -80,8 +82,8 @@ viewPVP _ _ uploaded =
     go (Dependency name _) | toStr name `member` wiredIn = return $ Dependency name anyVersion
     go orig@(Dependency _ range) | hasUpperBound range = return orig
     go orig@(Dependency nameO@(toStr -> name) range) = do
-        available <- selectList [UploadedName ==. fromString name, UploadedUploaded <=. uploaded] []
-        case fromNullable $ mapMaybe (simpleParse . unpack . toPathPiece . uploadedVersion . entityVal) available of
+        let available = getAvailable (fromString name) uploaded uploadHistory
+        case fromNullable $ mapMaybe (simpleParse . unpack . toPathPiece) available of
             Nothing -> return orig
             Just vs ->
                 case pvpBump $ maximum vs of

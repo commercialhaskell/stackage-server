@@ -3,6 +3,10 @@ module Data.Hackage
     , sourceHackageSdist
     , createView
     , sourceHackageViewSdist
+    , sinkUploadHistory
+    , UploadState (..)
+    , UploadHistory
+    , sourceHistory
     ) where
 
 import ClassyPrelude.Yesod hiding (get)
@@ -26,8 +30,17 @@ import Distribution.PackageDescription.Parse (parsePackageDescription, ParseResu
 import Distribution.PackageDescription.PrettyPrint (showGenericPackageDescription)
 import Distribution.PackageDescription (GenericPackageDescription, PackageDescription, packageDescription)
 import Control.Exception (throw)
-import Control.Monad.State (modify, put, get)
+import Control.Monad.State.Strict (modify, put, get, execStateT, MonadState)
 import Control.Concurrent.Lifted (fork)
+
+sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
+sinkUploadHistory =
+    foldlC go mempty
+  where
+    go history (Entity _ (Uploaded name version time)) =
+        case lookup name history of
+            Nothing -> insertMap name (singletonMap version time) history
+            Just vhistory -> insertMap name (insertMap version time vhistory) history
 
 loadCabalFiles :: ( MonadActive m
                   , MonadBaseControl IO m
@@ -40,9 +53,9 @@ loadCabalFiles :: ( MonadActive m
                   , MonadLogger m
                   , MonadCatch m
                   )
-               => (PackageName -> Version -> m (Maybe UTCTime) -> m ()) -- ^ add upload
-               -> m ()
-loadCabalFiles addUpload = do
+               => UploadHistory -- ^ initial
+               -> m UploadState
+loadCabalFiles uploadHistory0 = flip execStateT (UploadState uploadHistory0 []) $ do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
@@ -65,30 +78,46 @@ loadCabalFiles addUpload = do
                     store <- liftM getBlobStore ask
                     unless exists $ withAcquire (storeWrite' store key) $ \sink ->
                         sourceLazy lbs $$ sink
-                    setUploadDate name version addUpload
+                    setUploadDate name version
             _ -> return ()
 
 tarSource Tar.Done = return ()
 tarSource (Tar.Fail e) = throwM e
 tarSource (Tar.Next e es) = yield e >> tarSource es
 
+type UploadHistory = HashMap PackageName (HashMap Version UTCTime)
+data UploadState = UploadState
+    { usHistory :: !UploadHistory
+    , usChanges :: ![Uploaded]
+    }
+
 setUploadDate :: ( MonadBaseControl IO m
                  , MonadThrow m
                  , MonadIO m
                  , MonadReader env m
+                 , MonadState UploadState m
                  , HasHttpManager env
                  , MonadLogger m
                  )
               => PackageName
               -> Version
-              -> (PackageName -> Version -> m (Maybe UTCTime) -> m ())
               -> m ()
-setUploadDate name version addUpload = addUpload name version $ do
-    req <- parseUrl url
-    $logDebug $ "Requesting: " ++ tshow req
-    lbs <- withResponse req $ \res -> responseBody res $$ sinkLazy
-    let uploadDateT = decodeUtf8 $ toStrict lbs
-    return $ parseTime defaultTimeLocale "%c" $ unpack uploadDateT
+setUploadDate name version = do
+    UploadState history changes <- get
+    case lookup name history >>= lookup version of
+        Just _ -> return ()
+        Nothing -> do
+            req <- parseUrl url
+            $logDebug $ "Requesting: " ++ tshow req
+            lbs <- withResponse req $ \res -> responseBody res $$ sinkLazy
+            let uploadDateT = decodeUtf8 $ toStrict lbs
+            case parseTime defaultTimeLocale "%c" $ unpack uploadDateT of
+                Nothing -> return ()
+                Just time -> do
+                    let vhistory = insertMap version time $ fromMaybe mempty $ lookup name history
+                        history' = insertMap name vhistory history
+                        changes' = Uploaded name version time : changes
+                    put $ UploadState history' changes'
   where
     url = unpack $ concat
         [ "http://hackage.haskell.org/package/"
@@ -215,7 +244,7 @@ createView :: ( MonadResource m
               )
            => HackageView
            -> (PackageName -> Version -> UTCTime -> GenericPackageDescription -> m GenericPackageDescription)
-           -> Source m (Entity Uploaded)
+           -> Source m Uploaded
            -> Sink ByteString m ()
            -> m ()
 createView viewName modifyCabal src sink = withSystemTempDirectory "createview" $ \dir -> do
@@ -224,7 +253,7 @@ createView viewName modifyCabal src sink = withSystemTempDirectory "createview" 
     entries <- liftIO $ Tar.pack dir (map fpToString $ setToList rels)
     sourceLazy (Tar.write entries) $$ gzip =$ sink
   where
-    uploadedConduit dir (Entity _ (Uploaded name version time)) = do
+    uploadedConduit dir (Uploaded name version time) = do
         let relfp = fpFromText (toPathPiece name)
                 </> fpFromText (toPathPiece version)
                 </> fpFromText (concat
@@ -249,6 +278,15 @@ createView viewName modifyCabal src sink = withSystemTempDirectory "createview" 
                 liftIO $ createTree $ directory fp
                 writeFile fp new
                 return $ asSet $ singletonSet relfp
+
+sourceHistory :: Monad m => UploadHistory -> Producer m Uploaded
+sourceHistory =
+    mapM_ go . mapToList
+  where
+    go (name, vhistory) =
+        mapM_ go' $ mapToList vhistory
+      where
+        go' (version, time) = yield $ Uploaded name version time
 
 -- FIXME put in conduit-combinators
 parMapMC _ = mapMC

@@ -15,8 +15,8 @@ import Network.Wai.Middleware.RequestLogger
     )
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import qualified Database.Persist
-import Control.Monad.Logger (runLoggingT)
-import Control.Monad.Reader (runReaderT)
+import Control.Monad.Logger (runLoggingT, LoggingT)
+import Control.Monad.Reader (runReaderT, ReaderT)
 import Control.Concurrent (forkIO, threadDelay)
 import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
 import Network.Wai.Logger (clockDateCacher)
@@ -120,18 +120,16 @@ makeFoundation conf = do
 
     -- Start the cabal file loader
     void $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
-        when development $ liftIO $ threadDelay $ 5 * 60 * 1000000
+        --when development $ liftIO $ threadDelay $ 5 * 60 * 1000000
         eres <- tryAny $ flip runReaderT foundation $ do
-            loadCabalFiles $ \name version mmtime ->
-                runResourceT $ flip (Database.Persist.runPool dbconf) p $ do
-                    mx <- getBy $ UniqueUploaded name version
-                    case mx of
-                        Just {} -> return ()
-                        Nothing -> do
-                            mtime <- lift $ lift mmtime
-                            forM_ mtime $ void . insertBy . Uploaded name version
+            let runDB' :: SqlPersistT (ResourceT (ReaderT App (LoggingT IO))) a
+                       -> ReaderT App (LoggingT IO) a
+                runDB' = runResourceT . flip (Database.Persist.runPool dbconf) p
+            uploadHistory0 <- runDB' $ selectSource [] [] $$ sinkUploadHistory
+            UploadState uploadHistory newUploads <- loadCabalFiles uploadHistory0
+            runDB' $ mapM_ insert newUploads
             let views =
-                    [ ("pvp", viewPVP)
+                    [ ("pvp", viewPVP uploadHistory)
                     , ("no-bounds", viewNoBounds)
                     , ("unchanged", viewUnchanged)
                     ]
@@ -139,7 +137,7 @@ makeFoundation conf = do
                 runResourceT $ flip (Database.Persist.runPool dbconf) p $ createView
                     name
                     func
-                    (selectSource [] [])
+                    (sourceHistory uploadHistory)
                     (storeWrite $ HackageViewIndex name)
         case eres of
             Left e -> $logError $ tshow e
