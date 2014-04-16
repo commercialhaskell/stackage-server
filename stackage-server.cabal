@@ -111,7 +111,8 @@ library
                  , esqueleto
                  , xml-conduit
                  , html-conduit
-                 , Cabal
+                 -- Avoid https://github.com/haskell/cabal/issues/1202
+                 , Cabal >= 1.18
                  , lifted-base
                  , mono-traversable
 
