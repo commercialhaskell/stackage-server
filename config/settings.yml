@@ -17,3 +17,4 @@ Staging:
 Production:
   #approot: "http://www.example.com"
   <<: *defaults
+  blob-store: file:/tmp/stackage-server
