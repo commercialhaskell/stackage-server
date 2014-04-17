@@ -1,7 +1,7 @@
 module Handler.UploadStackage where
 
 import Import hiding (catch, get)
-import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
+import System.IO.Temp (withSystemTempFile, withSystemTempDirectory, openBinaryTempFile)
 import Crypto.Hash.Conduit (sinkHash)
 import Control.Monad.Catch (MonadCatch (..))
 import Crypto.Hash (Digest, SHA1)
@@ -16,6 +16,8 @@ import Data.BlobStore
 import Filesystem (createTree)
 import Control.Monad.State.Strict (execStateT, get, put)
 import qualified Codec.Compression.GZip as GZip
+import Control.Monad.Trans.Resource (unprotect, allocate)
+import System.Directory (removeFile, getTemporaryDirectory)
 
 fileKey :: Text
 fileKey = "stackage"
@@ -33,10 +35,15 @@ putUploadStackageR = do
     mfile <- lookupFile fileKey
     case mfile of
         Nothing -> invalidArgs ["Upload missing"]
-        Just file -> withSystemTempFile "upload-stackage." $ \fp handleOut -> do
+        Just file -> do
+            tempDir <- liftIO getTemporaryDirectory
+            (releaseKey, (fp, handleOut)) <- allocate
+                (openBinaryTempFile tempDir "upload-stackage.")
+                (\(fp, h) -> hClose h `finally` removeFile fp)
             digest <- fileSource file
                    $$ getZipSink (ZipSink sinkHash <* ZipSink (ungzip =$ sinkHandle handleOut))
             liftIO $ hClose handleOut
+
             let bs = toBytes (digest :: Digest SHA1)
                 ident = PackageSetIdent $ decodeUtf8 $ B16.encode bs
 
@@ -44,38 +51,53 @@ putUploadStackageR = do
             mstackage <- runDB $ getBy $ UniqueStackage ident
             when (isJust mstackage) $ invalidArgs ["Stackage already exists"]
 
-            now <- liftIO getCurrentTime
-            let initial = Stackage
-                    { stackageUser = uid
-                    , stackageIdent = ident
-                    , stackageUploaded = now
-                    , stackageTitle = "Untitled Stackage"
-                    , stackageDesc = "No description provided"
-                    }
+            app <- getYesod
+            key <- atomicModifyIORef (nextProgressKey app) $ \i -> (i + 1, i + 1)
+            let updateHelper :: MonadBase IO m => Progress -> m ()
+                updateHelper p = atomicModifyIORef (progressMap app) $ \m -> (insertMap key p m, ())
+                update :: MonadBase IO m => Text -> m ()
+                update msg = updateHelper (ProgressWorking msg)
+                done msg url = updateHelper (ProgressDone msg url)
+                onExc e = done ("Exception occurred: " ++ tshow e) ProfileR
 
-            -- Evil lazy I/O thanks to tar package
-            lbs <- readFile $ fpFromString fp
-            withSystemTempDirectory "build00index." $ \dir -> do
-                LoopState _ stackage files _ <- execStateT (loop (Tar.read lbs)) LoopState
-                    { lsRoot = fpFromString dir
-                    , lsStackage = initial
-                    , lsFiles = mempty
-                    , lsIdent = ident
-                    }
-                entries <- liftIO $ Tar.pack dir $ map fpToString $ setToList files
-                let indexLBS = GZip.compress $ Tar.write entries
-                sourceLazy indexLBS $$ storeWrite (CabalIndex ident)
-                runDB $ insert stackage
-                setMessage "Stackage created"
-                redirect $ StackageHomeR ident
+            update "Starting"
+
+            forkHandler onExc $ do
+                now <- liftIO getCurrentTime
+                let initial = Stackage
+                        { stackageUser = uid
+                        , stackageIdent = ident
+                        , stackageUploaded = now
+                        , stackageTitle = "Untitled Stackage"
+                        , stackageDesc = "No description provided"
+                        }
+
+                -- Evil lazy I/O thanks to tar package
+                lbs <- readFile $ fpFromString fp
+                withSystemTempDirectory "build00index." $ \dir -> do
+                    LoopState _ stackage files _ <- execStateT (loop update (Tar.read lbs)) LoopState
+                        { lsRoot = fpFromString dir
+                        , lsStackage = initial
+                        , lsFiles = mempty
+                        , lsIdent = ident
+                        }
+                    entries <- liftIO $ Tar.pack dir $ map fpToString $ setToList files
+                    let indexLBS = GZip.compress $ Tar.write entries
+                    sourceLazy indexLBS $$ storeWrite (CabalIndex ident)
+                    runDB $ insert stackage
+
+                    done "Stackage created" $ StackageHomeR ident
+
+            redirect $ ProgressR key
   where
-    loop Tar.Done = return ()
-    loop (Tar.Fail e) = throwM e
-    loop (Tar.Next entry entries) = do
-        addEntry entry
-        loop entries
+    loop _ Tar.Done = return ()
+    loop _ (Tar.Fail e) = throwM e
+    loop update (Tar.Next entry entries) = do
+        addEntry update entry
+        loop update entries
 
-    addEntry entry = do
+    addEntry update entry = do
+        update $ "Processing file: " ++ pack (Tar.entryPath entry)
         case Tar.entryContent entry of
             Tar.NormalFile lbs _ ->
                 case filename $ fpFromString $ Tar.entryPath entry of
@@ -95,6 +117,12 @@ putUploadStackageR = do
                         case parseName line of
                             Just (name, version) -> do
                                 $logDebug $ "hackage: " ++ tshow (name, version)
+                                update $ concat
+                                    [ "Adding Hackage package: "
+                                    , toPathPiece name
+                                    , "-"
+                                    , toPathPiece version
+                                    ]
                                 msrc <- storeRead (HackageCabal name version)
                                 case msrc of
                                     Nothing -> invalidArgs ["Unknown Hackage name/version: " ++ tshow (name, version)]

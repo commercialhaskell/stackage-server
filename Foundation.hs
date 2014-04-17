@@ -33,7 +33,12 @@ data App = App
     , appLogger :: Logger
     , genIO :: !MWC.GenIO
     , blobStore :: !(BlobStore StoreKey)
+    , progressMap :: !(IORef (IntMap Progress))
+    , nextProgressKey :: !(IORef Int)
     }
+
+data Progress = ProgressWorking !Text
+              | ProgressDone !Text !(Route App)
 
 instance HasBlobStore App StoreKey where
     getBlobStore = blobStore
@@ -55,6 +60,8 @@ instance HasHackageRoot App where
 -- generates the rest of the code. Please see the linked documentation for an
 -- explanation for this split.
 mkYesodData "App" $(parseRoutesFile "config/routes")
+
+deriving instance Show Progress
 
 type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
 

@@ -45,6 +45,7 @@ import Handler.HackageViewIndex
 import Handler.HackageViewSdist
 import Handler.Aliases
 import Handler.Alias
+import Handler.Progress
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -100,6 +101,8 @@ makeFoundation conf = do
     _ <- forkIO updateLoop
 
     gen <- MWC.createSystemRandom
+    progressMap' <- newIORef mempty
+    nextProgressKey' <- newIORef 0
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
@@ -113,6 +116,8 @@ makeFoundation conf = do
             , blobStore =
                 case storeConfig $ appExtra conf of
                     BSCFile root -> fileStore root
+            , progressMap = progressMap'
+            , nextProgressKey = nextProgressKey'
             }
 
     -- Perform database migration using our application's logging settings.

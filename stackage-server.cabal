@@ -36,6 +36,7 @@ library
                      Handler.HackageViewSdist
                      Handler.Aliases
                      Handler.Alias
+                     Handler.Progress
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
