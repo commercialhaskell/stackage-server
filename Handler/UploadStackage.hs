@@ -134,6 +134,12 @@ putUploadStackageR = do
                        , Just (name, version) <- parseName (fpToText base) -> do
                             ident <- lsIdent <$> get
                             sourceLazy lbs $$ storeWrite (CustomSdist ident name version)
+                            update $ concat
+                                [ "Extracting cabal file for custom tarball: "
+                                , toPathPiece name
+                                , "-"
+                                , toPathPiece version
+                                ]
                             cabalLBS <- extractCabal lbs name version
                             addFile True name version $ sourceLazy cabalLBS
                     _ -> return ()
