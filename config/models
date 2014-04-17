@@ -27,3 +27,9 @@ Uploaded
     version Version
     uploaded UTCTime
     UniqueUploaded name version
+
+Alias
+    user UserId
+    name Slug
+    target PackageSetIdent
+    UniqueAlias user name

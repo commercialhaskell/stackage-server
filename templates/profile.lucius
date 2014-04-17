@@ -1,3 +1,9 @@
 .email > form {
     display: inline-block;
 }
+
+#aliases {
+    display: block;
+    width: 400px;
+    height: 200px;
+}

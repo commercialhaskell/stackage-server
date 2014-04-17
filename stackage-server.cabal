@@ -34,6 +34,8 @@ library
                      Handler.StackageSdist
                      Handler.HackageViewIndex
                      Handler.HackageViewSdist
+                     Handler.Aliases
+                     Handler.Alias
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

@@ -20,6 +20,21 @@ $else
         ^{userWidget}
     <button .btn>Update
 
+<h2>Aliases
+
+<form method=post action=@{AliasesR}?_method=PUT>
+    Format: alias name, package set ID
+    <textarea #aliases name=aliases>#{unlines $ map aliasToText aliases}
+    <button .btn>Update
+
+$if not $ null aliases
+    <dl>
+        $forall Entity _ alias <- aliases
+            <dt>#{aliasName alias}
+            <dd>
+                $with url <- AliasR (userHandle user) (aliasName alias) []
+                    <a href=@{url}>@{url}
+
 <h2>Security token
 
 <p>
