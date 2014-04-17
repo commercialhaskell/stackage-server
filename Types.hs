@@ -19,7 +19,7 @@ data PackageNameVersion = PackageNameVersion !PackageName !Version
     deriving (Show, Read, Typeable, Eq, Ord)
 
 instance PathPiece PackageNameVersion where
-    toPathPiece (PackageNameVersion x y) = concat [toPathPiece x, "-", toPathPiece y]
+    toPathPiece (PackageNameVersion x y) = concat [toPathPiece x, "-", toPathPiece y, ".tar.gz"]
     fromPathPiece t' | Just t <- stripSuffix ".tar.gz" t' =
         case T.breakOnEnd "-" t of
             ("", _) -> Nothing
