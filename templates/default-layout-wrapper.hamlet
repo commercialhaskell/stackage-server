@@ -11,7 +11,7 @@ $newline never
         <title>
             #{pageTitle pc}
             $if notHome
-                :: Stackage Server
+                \ :: Stackage Server
         <meta name="description" content="">
         <meta name="author" content="">
 
