@@ -84,11 +84,8 @@ viewPVP :: Monad m
 viewPVP uploadHistory _ _ uploaded =
     helper go
   where
-    wiredIn = asSet $ setFromList $ words "base ghc template-haskell"
-
     toStr (Distribution.Package.PackageName name) = name
 
-    go (Dependency name _) | toStr name `member` wiredIn = return $ Dependency name anyVersion
     go orig@(Dependency _ range) | hasUpperBound range = return orig
     go orig@(Dependency nameO@(toStr -> name) range) = do
         let available = getAvailable (fromString name) (addFuzz uploaded) uploadHistory
