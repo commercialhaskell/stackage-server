@@ -10,6 +10,7 @@ import qualified Types
 import Model
 import Data.NonNull (fromNullable) -- FIXME expose from ClassyPrelude
 import Data.Hackage (UploadHistory)
+import Data.Time (addUTCTime)
 
 viewUnchanged :: Monad m
               => packageName -> version -> time
@@ -67,6 +68,14 @@ viewNoBounds _ _ _ =
 getAvailable name maxUploaded =
     map fst . filter ((<= maxUploaded) . snd) . mapToList . fromMaybe mempty . lookup name
 
+-- | We want to allow a certain "fuzz factor" between upload dates, so that if,
+-- for example, foo and bar are released within a few seconds of each other,
+-- and bar depends on foo, bar can use that new version of foo, even though
+-- technically it "wasn't available" yet.
+--
+-- The actual value we should use is up for debate. I'm starting with 24 hours.
+addFuzz = addUTCTime (60 * 60 * 24)
+
 viewPVP :: Monad m
         => UploadHistory
         -> packageName -> version -> UTCTime
@@ -82,7 +91,7 @@ viewPVP uploadHistory _ _ uploaded =
     go (Dependency name _) | toStr name `member` wiredIn = return $ Dependency name anyVersion
     go orig@(Dependency _ range) | hasUpperBound range = return orig
     go orig@(Dependency nameO@(toStr -> name) range) = do
-        let available = getAvailable (fromString name) uploaded uploadHistory
+        let available = getAvailable (fromString name) (addFuzz uploaded) uploadHistory
         case fromNullable $ mapMaybe (simpleParse . unpack . toPathPiece) available of
             Nothing -> return orig
             Just vs ->

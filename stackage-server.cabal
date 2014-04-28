@@ -118,6 +118,7 @@ library
                  , Cabal >= 1.18
                  , lifted-base
                  , mono-traversable
+                 , time
 
 executable         stackage-server
     if flag(library-only)
