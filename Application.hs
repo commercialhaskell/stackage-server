@@ -155,7 +155,6 @@ makeFoundation conf = do
 
 instance MonadActive m => MonadActive (SqlPersistT m) where -- FIXME orphan upstream
     monadActive = lift monadActive
-deriving instance MonadCatch m => MonadCatch (SqlPersistT m)
 instance MonadReader env m => MonadReader env (SqlPersistT m) where
     ask = lift ask
 

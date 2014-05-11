@@ -23,7 +23,7 @@ import Text.XML.Cursor (($//), (&/), content, fromDocument, element, followingSi
 import Text.HTML.DOM (sinkDoc)
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
 import System.IO (IOMode (ReadMode), openBinaryFile)
-import Control.Monad.Catch (MonadCatch)
+import Control.Monad.Catch (MonadMask)
 import Model (Uploaded (Uploaded))
 import Filesystem (createTree)
 import Distribution.PackageDescription.Parse (parsePackageDescription, ParseResult (ParseOk))
@@ -51,7 +51,7 @@ loadCabalFiles :: ( MonadActive m
                   , HasBlobStore env StoreKey
                   , HasHackageRoot env
                   , MonadLogger m
-                  , MonadCatch m
+                  , MonadMask m
                   )
                => UploadHistory -- ^ initial
                -> m UploadState
@@ -236,7 +236,7 @@ sourceHackageViewSdist viewName name version = do
         | otherwise = e
 
 createView :: ( MonadResource m
-              , MonadCatch m
+              , MonadMask m
               , MonadReader env m
               , HasBlobStore env StoreKey
               , MonadBaseControl IO m
