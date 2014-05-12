@@ -10,7 +10,7 @@ putAliasesR = do
     aliases <- mapM (parseAlias uid) $ lines aliasesText
     runDB $ do
         deleteWhere [AliasUser ==. uid]
-        mapM_ insert aliases
+        mapM_ insert_ aliases
     setMessage "Aliases updated"
     redirect ProfileR
 

@@ -134,7 +134,7 @@ makeFoundation conf = do
                 runDB' = runResourceT . flip (Database.Persist.runPool dbconf) p
             uploadHistory0 <- runDB' $ selectSource [] [] $$ sinkUploadHistory
             UploadState uploadHistory newUploads <- loadCabalFiles uploadHistory0
-            runDB' $ mapM_ insert newUploads
+            runDB' $ mapM_ insert_ newUploads
             let views =
                     [ ("pvp", viewPVP uploadHistory)
                     , ("no-bounds", viewNoBounds)

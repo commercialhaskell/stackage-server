@@ -18,6 +18,8 @@ import Control.Monad.State.Strict (execStateT, get, put)
 import qualified Codec.Compression.GZip as GZip
 import Control.Monad.Trans.Resource (unprotect, allocate)
 import System.Directory (removeFile, getTemporaryDirectory)
+import System.Process (runProcess, waitForProcess)
+import System.Exit (ExitCode (ExitSuccess))
 
 fileKey :: Text
 fileKey = "stackage"
@@ -81,12 +83,22 @@ putUploadStackageR = do
                         , lsFiles = mempty
                         , lsIdent = ident
                         }
-                    entries <- liftIO $ Tar.pack dir $ map fpToString $ setToList files
-                    let indexLBS = GZip.compress $ Tar.write entries
-                    sourceLazy indexLBS $$ storeWrite (CabalIndex ident)
-                    runDB $ insert stackage
+                    withSystemTempFile "newindex" $ \fp h -> do
+                        ec <- liftIO $ do
+                            hClose h
+                            let args = "cfz"
+                                     : fp
+                                     : map fpToString (setToList files)
+                            ph <- runProcess "tar" args (Just dir) Nothing Nothing Nothing Nothing
+                            waitForProcess ph
+                        if ec == ExitSuccess
+                            then do
+                                sourceFile (fpFromString fp) $$ storeWrite (CabalIndex ident)
+                                runDB $ insert stackage
 
-                    done "Stackage created" $ StackageHomeR ident
+                                done "Stackage created" $ StackageHomeR ident
+                            else do
+                                done "Error creating index file" ProfileR
 
             redirect $ ProgressR key
   where

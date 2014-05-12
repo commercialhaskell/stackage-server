@@ -93,7 +93,7 @@ library
                  , fast-logger                   >= 2.1.4      && < 2.2
                  , wai                           >= 2.1        && < 2.2
                  , wai-logger                    >= 2.1        && < 2.2
-                 , classy-prelude-yesod          >= 0.9        && < 0.9.1
+                 , classy-prelude-yesod          >= 0.9.2      && < 0.9.3
                  , mwc-random                    >= 0.13       && < 0.14
                  , mtl                           >= 2.1        && < 2.2
                  , blaze-markup                  >= 0.6        && < 0.7
@@ -119,6 +119,7 @@ library
                  , lifted-base
                  , mono-traversable
                  , time
+                 , process
 
 executable         stackage-server
     if flag(library-only)
