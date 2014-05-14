@@ -37,6 +37,7 @@ library
                      Handler.Aliases
                      Handler.Alias
                      Handler.Progress
+                     Handler.System
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

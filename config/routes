@@ -17,3 +17,4 @@
 /aliases AliasesR PUT
 /alias/#Slug/#Slug/*Texts AliasR
 /progress/#Int ProgressR GET
+/system SystemR GET

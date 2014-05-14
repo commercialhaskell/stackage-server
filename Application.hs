@@ -30,6 +30,8 @@ import Control.Monad.Catch (MonadCatch (..))
 import Database.Persist.Sql (SqlPersistT (..))
 import Control.Monad.Trans.Resource.Internal (ResourceT (..))
 import Control.Monad.Reader (MonadReader (..))
+import Filesystem (getModified, removeTree)
+import Data.Time (diffUTCTime)
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
@@ -46,6 +48,7 @@ import Handler.HackageViewSdist
 import Handler.Aliases
 import Handler.Alias
 import Handler.Progress
+import Handler.System
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -127,6 +130,10 @@ makeFoundation conf = do
 
     -- Start the cabal file loader
     void $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
+        $logInfo "Cleaning up /tmp"
+        now <- liftIO getCurrentTime
+        runResourceT $ sourceDirectory "/tmp" $$ mapM_C (cleanupTemp now)
+
         --when development $ liftIO $ threadDelay $ 5 * 60 * 1000000
         eres <- tryAny $ flip runReaderT foundation $ do
             let runDB' :: SqlPersistT (ResourceT (ReaderT App (LoggingT IO))) a
@@ -152,6 +159,24 @@ makeFoundation conf = do
         liftIO $ threadDelay $ 30 * 60 * 1000000
 
     return foundation
+
+cleanupTemp :: UTCTime -> FilePath -> ResourceT (LoggingT IO) ()
+cleanupTemp now fp
+    | any (`isPrefixOf` name) prefixes = handleAny ($logError . tshow) $ do
+        modified <- liftIO $ getModified fp
+        when (diffUTCTime now modified > 60 * 60) $ do
+            $logInfo $ "Removing temp directory: " ++ fpToText fp
+            liftIO $ removeTree fp
+            $logInfo $ "Temp directory deleted: " ++ fpToText fp
+    | otherwise = return ()
+  where
+    name = fpToText $ filename fp
+    prefixes = asVector $ pack
+        [ "hackage-index"
+        , "createview"
+        , "build00index."
+        , "newindex"
+        ]
 
 instance MonadActive m => MonadActive (SqlPersistT m) where -- FIXME orphan upstream
     monadActive = lift monadActive
