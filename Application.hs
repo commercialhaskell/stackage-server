@@ -130,9 +130,10 @@ makeFoundation conf = do
 
     -- Start the cabal file loader
     void $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
-        $logInfo "Cleaning up /tmp"
+        $logInfoS "CLEANUP" "Cleaning up /tmp"
         now <- liftIO getCurrentTime
         runResourceT $ sourceDirectory "/tmp" $$ mapM_C (cleanupTemp now)
+        $logInfoS "CLEANUP" "Cleaning up complete"
 
         --when development $ liftIO $ threadDelay $ 5 * 60 * 1000000
         eres <- tryAny $ flip runReaderT foundation $ do
@@ -164,11 +165,13 @@ cleanupTemp :: UTCTime -> FilePath -> ResourceT (LoggingT IO) ()
 cleanupTemp now fp
     | any (`isPrefixOf` name) prefixes = handleAny ($logError . tshow) $ do
         modified <- liftIO $ getModified fp
-        when (diffUTCTime now modified > 60 * 60) $ do
-            $logInfo $ "Removing temp directory: " ++ fpToText fp
+        if (diffUTCTime now modified > 60 * 60)
+          then do
+            $logInfoS "CLEANUP" $ "Removing temp directory: " ++ fpToText fp
             liftIO $ removeTree fp
-            $logInfo $ "Temp directory deleted: " ++ fpToText fp
-    | otherwise = return ()
+            $logInfoS "CLEANUP" $ "Temp directory deleted: " ++ fpToText fp
+          else $logInfoS "CLEANUP" $ "Ignoring recent entry: " ++ fpToText fp
+    | otherwise = $logInfoS "CLEANUP" $ "Ignoring unmatched path: " ++ fpToText fp
   where
     name = fpToText $ filename fp
     prefixes = asVector $ pack
