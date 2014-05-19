@@ -1,7 +1,7 @@
 module Types where
 
 import ClassyPrelude.Yesod
-import Data.BlobStore (ToPath (..))
+import Data.BlobStore (ToPath (..), BackupToS3 (..))
 import Text.Blaze (ToMarkup)
 import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified Data.Text as T
@@ -70,6 +70,14 @@ instance ToPath StoreKey where
         , toPathPiece viewName
         , "00-index.tar.gz"
         ]
+instance BackupToS3 StoreKey where
+    shouldBackup HackageCabal{} = False
+    shouldBackup HackageSdist{} = False
+    shouldBackup CabalIndex{} = True
+    shouldBackup CustomSdist{} = True
+    shouldBackup HackageViewCabal{} = False
+    shouldBackup HackageViewSdist{} = False
+    shouldBackup HackageViewIndex{} = False
 
 newtype HackageRoot = HackageRoot { unHackageRoot :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)

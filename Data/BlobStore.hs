@@ -6,6 +6,7 @@ module Data.BlobStore
     , storeWrite
     , storeRead
     , storeExists
+    , BackupToS3 (..)
     ) where
 
 import ClassyPrelude.Yesod
@@ -97,7 +98,7 @@ cachedS3Store :: (BackupToS3 key, ToPath key)
 cachedS3Store cache bucket prefix = BlobStore
     { storeWrite' = \key -> 
     }
+-}
 
 class BackupToS3 key where
     shouldBackup :: key -> Bool
--}
