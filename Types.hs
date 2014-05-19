@@ -3,17 +3,25 @@ module Types where
 import ClassyPrelude.Yesod
 import Data.BlobStore (ToPath (..))
 import Text.Blaze (ToMarkup)
-import Database.Persist.Sql (PersistFieldSql)
+import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified Data.Text as T
 
 newtype PackageName = PackageName { unPackageName :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql, IsString)
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
+instance PersistFieldSql PackageName where
+    sqlType = sqlType . liftM unPackageName
 newtype Version = Version { unVersion :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField)
+instance PersistFieldSql Version where
+    sqlType = sqlType . liftM unVersion
 newtype PackageSetIdent = PackageSetIdent { unPackageSetIdent :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql)
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField)
+instance PersistFieldSql PackageSetIdent where
+    sqlType = sqlType . liftM unPackageSetIdent
 newtype HackageView = HackageView { unHackageView :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, PersistFieldSql, IsString)
+    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
+instance PersistFieldSql HackageView where
+    sqlType = sqlType . liftM unHackageView
 
 data PackageNameVersion = PackageNameVersion !PackageName !Version
     deriving (Show, Read, Typeable, Eq, Ord)

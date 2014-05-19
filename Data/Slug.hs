@@ -10,14 +10,16 @@ module Data.Slug
     ) where
 
 import ClassyPrelude.Yesod
-import Database.Persist.Sql (PersistFieldSql)
+import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified System.Random.MWC as MWC
 import Control.Monad.Reader (MonadReader, ask)
 import GHC.Prim (RealWorld)
 import Text.Blaze (ToMarkup)
 
 newtype Slug = Slug { unSlug :: Text }
-    deriving (Show, Read, Eq, Typeable, PersistField, PersistFieldSql, ToMarkup)
+    deriving (Show, Read, Eq, Typeable, PersistField, ToMarkup)
+instance PersistFieldSql Slug where
+    sqlType = sqlType . liftM unSlug
 
 mkSlug :: MonadThrow m => Text -> m Slug
 mkSlug t
