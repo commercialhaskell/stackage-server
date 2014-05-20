@@ -22,7 +22,7 @@ import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
 import Network.Wai.Logger (clockDateCacher)
 import Yesod.Core.Types (loggerSet, Logger (Logger))
 import qualified System.Random.MWC as MWC
-import Data.BlobStore (fileStore, storeWrite)
+import Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import Data.Hackage
 import Data.Hackage.Views
 import Data.Conduit.Lazy (MonadActive, monadActive)
@@ -32,6 +32,7 @@ import Control.Monad.Trans.Resource.Internal (ResourceT (..))
 import Control.Monad.Reader (MonadReader (..))
 import Filesystem (getModified, removeTree)
 import Data.Time (diffUTCTime)
+import qualified Aws
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
@@ -107,6 +108,16 @@ makeFoundation conf = do
     progressMap' <- newIORef mempty
     nextProgressKey' <- newIORef 0
 
+    blobStore' <-
+        case storeConfig $ appExtra conf of
+            BSCFile root -> return $ fileStore root
+            BSCAWS root access secret bucket prefix -> do
+                creds <- Aws.Credentials
+                    <$> pure (encodeUtf8 access)
+                    <*> pure (encodeUtf8 secret)
+                    <*> newIORef []
+                return $ cachedS3Store root creds bucket prefix manager
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
             { settings = conf
@@ -116,9 +127,7 @@ makeFoundation conf = do
             , persistConfig = dbconf
             , appLogger = logger
             , genIO = gen
-            , blobStore =
-                case storeConfig $ appExtra conf of
-                    BSCFile root -> fileStore root
+            , blobStore = blobStore'
             , progressMap = progressMap'
             , nextProgressKey = nextProgressKey'
             }

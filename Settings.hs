@@ -14,7 +14,7 @@ import Yesod.Default.Util
 import Data.Yaml
 import Settings.Development
 import Text.Hamlet
-import Data.Aeson (withText)
+import Data.Aeson (withText, withObject)
 import Types
 
 -- | Which Persistent backend this site is using.
@@ -76,11 +76,20 @@ parseExtra _ o = Extra
     <*> (HackageRoot <$> o .: "hackage-root")
 
 data BlobStoreConfig = BSCFile !FilePath
+                     | BSCAWS !FilePath !Text !Text !Text !Text
     deriving Show
 
 instance FromJSON BlobStoreConfig where
-    parseJSON = withText "BlobStoreConfig" $ \t ->
-        case () of
-            ()
-                | Just root <- stripPrefix "file:" t -> return $ BSCFile $ fpFromText root
-                | otherwise -> fail $ "Invalid BlobStoreConfig: " ++ show t
+    parseJSON v = file v <|> aws v
+      where
+        file = withText "BlobStoreConfig" $ \t ->
+            case () of
+                ()
+                    | Just root <- stripPrefix "file:" t -> return $ BSCFile $ fpFromText root
+                    | otherwise -> fail $ "Invalid BlobStoreConfig: " ++ show t
+        aws = withObject "BlobStoreConfig" $ \o -> BSCAWS
+            <$> (fpFromText <$> (o .: "local"))
+            <*> o .: "access"
+            <*> o .: "secret"
+            <*> o .: "bucket"
+            <*> o .:? "prefix" .!= ""

@@ -42,6 +42,7 @@ data StoreKey = HackageCabal !PackageName !Version
               | HackageViewCabal !HackageView !PackageName !Version
               | HackageViewSdist !HackageView !PackageName !Version
               | HackageViewIndex !HackageView
+    deriving (Show, Eq, Ord, Typeable)
 
 instance ToPath StoreKey where
     toPath (HackageCabal name version) = ["hackage", toPathPiece name, toPathPiece version ++ ".cabal"]
