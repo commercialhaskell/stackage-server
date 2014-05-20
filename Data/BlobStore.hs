@@ -116,11 +116,15 @@ cachedS3Store cache creds bucket prefix manager =
                         len <- getZipSink $ ZipSink (sinkHandle h) *> ZipSink lengthCE
                         liftIO $ hClose h
                         liftIO $ IO.withFile fp IO.ReadMode $ \inH -> runResourceT $ do
+                            -- FIXME the need for this separate manager
+                            -- indicates a serious bug in either aws or (more
+                            -- likely) http-client, must investigate!
+                            manager' <- newManager
                             res <- Aws.aws
                                 (Aws.Configuration Aws.Timestamp creds
                                     $ Aws.defaultLog Aws.Error)
                                 Aws.defServiceConfig
-                                manager
+                                manager'
                                 (Aws.putObject bucket (toS3Path key)
                                     $ requestBodySource len
                                     $ sourceHandle inH)
