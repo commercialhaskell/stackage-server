@@ -3,11 +3,9 @@ module Handler.UploadStackage where
 import Import hiding (catch, get)
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory, openBinaryTempFile)
 import Crypto.Hash.Conduit (sinkHash)
-import Control.Monad.Catch (MonadCatch (..))
 import Crypto.Hash (Digest, SHA1)
 import Data.Byteable (toBytes)
 import qualified Data.ByteString.Base16 as B16
-import Yesod.Core.Types (HandlerT (HandlerT), unHandlerT)
 import Data.Conduit.Zlib (ungzip)
 import qualified Codec.Archive.Tar as Tar
 import qualified Data.Text as T

@@ -5,9 +5,6 @@ import Distribution.Package
 import Distribution.PackageDescription
 import Distribution.Version (anyVersion, intersectVersionRanges, earlierVersion, Version (..), simplifyVersionRange, VersionRange (..))
 import Distribution.Text (simpleParse)
-import Types hiding (Version (..))
-import qualified Types
-import Model
 import Data.NonNull (fromNullable) -- FIXME expose from ClassyPrelude
 import Data.Hackage (UploadHistory)
 import Data.Time (addUTCTime)

@@ -13,14 +13,11 @@ import ClassyPrelude.Yesod hiding (get)
 import Types
 import Data.BlobStore
 import Data.Conduit.Lazy (MonadActive (..), lazyConsume)
-import Control.Monad.Logger (LoggingT)
 import qualified Codec.Archive.Tar as Tar
 import Control.Monad.Reader (MonadReader, ask)
-import Control.Monad.Trans.Resource (release)
 import qualified Data.Text as T
 import Data.Conduit.Zlib (ungzip, gzip)
 import Text.XML.Cursor (($//), (&/), content, fromDocument, element, followingSibling)
-import Text.HTML.DOM (sinkDoc)
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
 import System.IO (IOMode (ReadMode), openBinaryFile)
 import Control.Monad.Catch (MonadMask)
@@ -31,7 +28,6 @@ import Distribution.PackageDescription.PrettyPrint (showGenericPackageDescriptio
 import Distribution.PackageDescription (GenericPackageDescription, PackageDescription, packageDescription)
 import Control.Exception (throw)
 import Control.Monad.State.Strict (modify, put, get, execStateT, MonadState)
-import Control.Concurrent.Lifted (fork)
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =

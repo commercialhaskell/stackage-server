@@ -1,7 +1,6 @@
 module Handler.HackageViewSdist where
 
 import Import
-import Data.BlobStore
 import Data.Hackage
 import Data.Conduit.Lazy (MonadActive (..))
 

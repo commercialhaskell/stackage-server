@@ -26,9 +26,6 @@ import Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import Data.Hackage
 import Data.Hackage.Views
 import Data.Conduit.Lazy (MonadActive, monadActive)
-import Control.Monad.Catch (MonadCatch (..))
-import Database.Persist.Sql (SqlPersistT (..))
-import Control.Monad.Trans.Resource.Internal (ResourceT (..))
 import Control.Monad.Reader (MonadReader (..))
 import Filesystem (getModified, removeTree)
 import Data.Time (diffUTCTime)
