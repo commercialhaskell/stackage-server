@@ -17,6 +17,7 @@ import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import qualified Database.Persist
 import Control.Monad.Logger (runLoggingT, LoggingT)
 import Control.Monad.Reader (runReaderT, ReaderT)
+import Control.Monad.Trans.Control
 import Control.Concurrent (forkIO, threadDelay)
 import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
 import Network.Wai.Logger (clockDateCacher)
@@ -191,6 +192,9 @@ instance MonadActive m => MonadActive (SqlPersistT m) where -- FIXME orphan upst
     monadActive = lift monadActive
 instance MonadReader env m => MonadReader env (SqlPersistT m) where
     ask = lift ask
+    local f m =
+        do stT <- liftWith (\run -> local f (run m))
+           restoreT (return stT)
 
 -- for yesod devel
 getApplicationDev :: IO (Int, Application)
