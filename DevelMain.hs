@@ -23,7 +23,7 @@ main :: IO (Store (IORef Application))
 main =
   do s <- static "static"
      c <- newChan
-     (port,app) <- getApplicationDev
+     (port,app) <- getApplicationDev True
      ref <- newIORef app
      tid <- forkIO
               (runSettings
@@ -47,6 +47,6 @@ update =
             c <- readStore (Store 2)
             writeChan c ()
             s <- static "static"
-            (port,app) <- getApplicationDev
+            (port,app) <- getApplicationDev True
             writeIORef ref app
             return store
