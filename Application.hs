@@ -153,7 +153,7 @@ makeFoundation useEcho conf = do
         (messageLoggerSource foundation logger)
 
     -- Start the cabal file loader
-    {-void $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
+    void $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
         $logInfoS "CLEANUP" "Cleaning up /tmp"
         now <- liftIO getCurrentTime
         runResourceT $ sourceDirectory "/tmp" $$ mapM_C (cleanupTemp now)
@@ -181,7 +181,7 @@ makeFoundation useEcho conf = do
         case eres of
             Left e -> $logError $ tshow e
             Right () -> return ()
-        liftIO $ threadDelay $ 30 * 60 * 1000000 -}
+        liftIO $ threadDelay $ 30 * 60 * 1000000
     return foundation
 
 cleanupTemp :: UTCTime -> FilePath -> ResourceT (LoggingT IO) ()
