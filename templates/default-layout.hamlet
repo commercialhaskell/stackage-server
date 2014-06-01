@@ -15,7 +15,7 @@
                     <li>
                         <a href=@{ProfileR}>
                             <span .user-handle>
-                            #{userHandle user}
+                                #{userHandle user}
                     <li>
                         <a href=@{AuthR LogoutR}>Logout
                 $nothing
