@@ -15,7 +15,7 @@
                     <li>
                         <a href=@{ProfileR}>
                             <span .user-handle>
-                                #{userHandle user}
+                            #{userHandle user}
                     <li>
                         <a href=@{AuthR LogoutR}>Logout
                 $nothing
@@ -23,8 +23,7 @@
                         <a href=@{AuthR LoginR}>Login
 
 $maybe msg <- mmsg
-    <div .container>
-        <div .alert .alter-info>#{msg}
+    <div .alert .alter-info>#{msg}
 
 $case cur
   $of Just (AuthR _)
