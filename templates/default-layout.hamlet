@@ -1,13 +1,21 @@
 <nav .navbar .navbar-default role=navigation>
-    <p>
-        <a href=@{HomeR}>Home
-        $maybe Entity _ user <- muser
-            You are logged in as #{userDisplay user} (#{userHandle user}).
-            View public page
-            <a href=@{ProfileR}>Edit profile
-            <a href=@{AuthR LogoutR}>Logout
-        $nothing
-            <a href=@{AuthR LoginR}>Login
+    <div .container>
+        <div .navbar-header>
+            <div .navbar-brand>
+                <a href=@{HomeR}>
+                    Stackage
+        <ul .nav .navbar-nav>
+            <li>
+              <a href=@{HomeR}>Home
+            $maybe Entity _ user <- muser
+                <li>You are logged in as #{userDisplay user} (#{userHandle user}).
+                <li>
+                  <a href=@{ProfileR}>Edit profile
+                <li>
+                  <a href=@{AuthR LogoutR}>Logout
+            $nothing
+                <li>
+                  <a href=@{AuthR LoginR}>Login
 
 $maybe msg <- mmsg
     <div .alert .alter-info>#{msg}
