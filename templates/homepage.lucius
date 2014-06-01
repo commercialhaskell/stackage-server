@@ -8,3 +8,12 @@
     margin-top: 0.5em;
   }
 }
+
+.how-it-works {
+  .media .pull-left {
+    width: 100px;
+    height: 100px;
+    background: #eee;
+    border: 2px solid #eee;
+  }
+}

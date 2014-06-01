@@ -1,4 +1,6 @@
 <div .container>
+    <h1>
+        Profile
     <div .row>
         <div .span12>
             <h2>Email addresses

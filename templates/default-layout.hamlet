@@ -1,34 +1,43 @@
-<div .container>
-    <div .navbar role=navigation>
-        <div .navbar-inner>
-            <a .brand href=@{HomeR}>
-                Stackage
-            <ul .nav>
-                <li>
-                    <a href=@{AllSnapshotsR}>
-                        All Snapshots
-                <li>
-                    <a href=@{UploadStackageR}>
-                        Upload
-            <ul .nav .pull-right>
-                $maybe Entity _ user <- muser
-                    <li>
-                        <a href=@{ProfileR}>
-                            <span .user-handle>
-                                #{userHandle user}
-                    <li>
-                        <a href=@{AuthR LogoutR}>Logout
-                $nothing
-                    <li>
-                        <a href=@{AuthR LoginR}>Login
-
-$maybe msg <- mmsg
+<div .wrap>
     <div .container>
-        <div .alert .alter-info>#{msg}
+        <div .navbar role=navigation>
+            <div .navbar-inner>
+                <a .brand href=@{HomeR}>
+                    Stackage
+                <ul .nav>
+                    <li>
+                        <a href=@{AllSnapshotsR}>
+                            All Snapshots
+                    <li>
+                        <a href=@{UploadStackageR}>
+                            Upload
+                <ul .nav .pull-right>
+                    $maybe Entity _ user <- muser
+                        <li>
+                            <a href=@{ProfileR}>
+                                <span .user-handle>
+                                    #{userHandle user}
+                        <li>
+                            <a href=@{AuthR LogoutR}>Logout
+                    $nothing
+                        <li>
+                            <a href=@{AuthR LoginR}>Login
 
-$case cur
-  $of Just (AuthR _)
-      <div .container>
+    $maybe msg <- mmsg
+        <div .container>
+            <div .alert .alter-info>#{msg}
+
+    $case cur
+      $of Just (AuthR _)
+          <div .container>
+              ^{widget}
+      $of _
           ^{widget}
-  $of _
-      ^{widget}
+
+<div .footer>
+  <div .container>
+      <div .row>
+          <div .span12>
+              A service provided by
+              <a href="http://www.fpcomplete.com/">
+                  FP Complete

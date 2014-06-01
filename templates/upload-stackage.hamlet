@@ -1,5 +1,8 @@
 <div .container>
-    <form method=post action=@{UploadStackageR}?_method=PUT enctype=multipart/form-data>
-        Stackage file:
-        <input type=file name=#{fileKey}>
-        <button>Upload
+    <h1>Upload Snapshot
+    <div .row>
+        <div .span12>
+            <form method=post action=@{UploadStackageR}?_method=PUT enctype=multipart/form-data>
+                Stackage file:
+                <input type=file name=#{fileKey}>
+                <button>Upload

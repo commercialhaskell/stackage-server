@@ -1,4 +1,5 @@
 <div .container>
+    <h1>All Snapshots
     <ul>
         $forall (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle) <- stackages
             <li>

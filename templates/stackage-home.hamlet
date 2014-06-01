@@ -1,8 +1,10 @@
-<hgroup>
-    <h1>#{stackageTitle stackage}
-    <h2>Uploaded by #{userDisplay user} (#{userHandle user}) on #{tshow $ stackageUploaded stackage}
-<p>#{stackageDesc stackage}
-<hr>
-<p>To use, add a line like the following to ~/.cabal/config:
+<div .container>
+    <h1>Hello!
+    <hgroup>
+        <h1>#{stackageTitle stackage}
+        <h2>Uploaded by #{userDisplay user} (#{userHandle user}) on #{tshow $ stackageUploaded stackage}
+    <p>#{stackageDesc stackage}
+    <hr>
+    <p>To use, add a line like the following to ~/.cabal/config:
 
-<pre>remote-repo: stackage:@{StackageHomeR ident}
+    <pre>remote-repo: stackage:@{StackageHomeR ident}
