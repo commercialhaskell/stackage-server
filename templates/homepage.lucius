@@ -1,0 +1,10 @@
+.snapshots {
+  margin-left: 0;
+  padding-left: 0;
+  li {
+    list-style-type: none;
+  }
+  li + li {
+    margin-top: 0.5em;
+  }
+}
