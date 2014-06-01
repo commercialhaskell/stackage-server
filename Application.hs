@@ -5,49 +5,53 @@ module Application
     , makeFoundation
     ) where
 
-import Import hiding (catch)
-import Settings
-import Yesod.Default.Config
-import Yesod.Default.Main
-import Yesod.Default.Handlers
-import Network.Wai.Middleware.RequestLogger
+import qualified Aws
+import           Control.Concurrent (forkIO, threadDelay)
+import           Control.Monad.Logger (runLoggingT, LoggingT)
+import           Control.Monad.Reader (MonadReader (..))
+import           Control.Monad.Reader (runReaderT, ReaderT)
+import           Control.Monad.Trans.Control
+import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
+import           Data.Conduit.Lazy (MonadActive, monadActive)
+import           Data.Hackage
+import           Data.Hackage.Views
+
+import           Data.Time (diffUTCTime)
+import qualified Database.Persist
+import           Filesystem (getModified, removeTree)
+import           Import hiding (catch)
+import           Language.Haskell.TH.Syntax (Loc(..))
+import           Network.Wai.Logger (clockDateCacher)
+import           Network.Wai.Middleware.RequestLogger
     ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination
     )
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
-import qualified Database.Persist
-import Control.Monad.Logger (runLoggingT, LoggingT)
-import Control.Monad.Reader (runReaderT, ReaderT)
-import Control.Monad.Trans.Control
-import Control.Concurrent (forkIO, threadDelay)
-import System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, flushLogStr)
-import Network.Wai.Logger (clockDateCacher)
-import Yesod.Core.Types (loggerSet, Logger (Logger))
+import           Settings
+import           System.Log.FastLogger (newStdoutLoggerSet, newFileLoggerSet, defaultBufSize, flushLogStr, fromLogStr)
 import qualified System.Random.MWC as MWC
-import Data.BlobStore (fileStore, storeWrite, cachedS3Store)
-import Data.Hackage
-import Data.Hackage.Views
-import Data.Conduit.Lazy (MonadActive, monadActive)
-import Control.Monad.Reader (MonadReader (..))
-import Filesystem (getModified, removeTree)
-import Data.Time (diffUTCTime)
-import qualified Aws
+import           Yesod.Core.Types (loggerSet, Logger (Logger))
+import           Yesod.Default.Config
+import           Yesod.Default.Handlers
+import           Yesod.Default.Main
+
+import qualified Echo
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
-import Handler.Home
-import Handler.Profile
-import Handler.Email
-import Handler.ResetToken
-import Handler.UploadStackage
-import Handler.StackageHome
-import Handler.StackageIndex
-import Handler.StackageSdist
-import Handler.HackageViewIndex
-import Handler.HackageViewSdist
-import Handler.Aliases
-import Handler.Alias
-import Handler.Progress
-import Handler.System
+import           Handler.Home
+import           Handler.Profile
+import           Handler.Email
+import           Handler.ResetToken
+import           Handler.UploadStackage
+import           Handler.StackageHome
+import           Handler.StackageIndex
+import           Handler.StackageSdist
+import           Handler.HackageViewIndex
+import           Handler.HackageViewSdist
+import           Handler.Aliases
+import           Handler.Alias
+import           Handler.Progress
+import           Handler.System
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -58,10 +62,21 @@ mkYesodDispatch "App" resourcesApp
 -- performs initialization and creates a WAI application. This is also the
 -- place to put your migrate statements to have automatic database
 -- migrations handled by Yesod.
-makeApplication :: AppConfig DefaultEnv Extra -> IO (Application, LogFunc)
-makeApplication conf = do
-    foundation <- makeFoundation conf
-
+makeApplication :: Bool -- ^ Use Echo.
+                -> AppConfig DefaultEnv Extra -> IO (Application, LogFunc)
+makeApplication echo@True conf = do
+   foundation <- makeFoundation echo conf
+   app <- toWaiAppPlain foundation
+   logWare <- mkRequestLogger def
+       { destination = RequestLogger.Callback (const (return ()))
+       }
+   Echo.clear
+   return (logWare (defaultMiddlewaresNoLogging app),logFunc)
+ where logFunc (Loc filename _pkg _mod (line,_) _) source level str =
+           Echo.write (filename,line) (show source ++ ": " ++ show level ++ ": " ++ toStr str)
+       toStr = unpack . decodeUtf8 . fromLogStr
+makeApplication echo@False conf = do
+    foundation <- makeFoundation echo conf
     -- Initialize the logging middleware
     logWare <- mkRequestLogger def
         { outputFormat =
@@ -70,7 +85,6 @@ makeApplication conf = do
                 else Apache FromSocket
         , destination = RequestLogger.Logger $ loggerSet $ appLogger foundation
         }
-
     -- Create the WAI application and apply middlewares
     app <- toWaiAppPlain foundation
     let logFunc = messageLoggerSource foundation (appLogger foundation)
@@ -79,8 +93,8 @@ makeApplication conf = do
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
-makeFoundation :: AppConfig DefaultEnv Extra -> IO App
-makeFoundation conf = do
+makeFoundation :: Bool -> AppConfig DefaultEnv Extra -> IO App
+makeFoundation useEcho conf = do
     manager <- newManager
     s <- staticSite
     dbconf <- withYamlEnvironment "config/postgresql.yml" (appEnv conf)
@@ -88,7 +102,9 @@ makeFoundation conf = do
               Database.Persist.applyEnv
     p <- Database.Persist.createPoolConfig (dbconf :: Settings.PersistConf)
 
-    loggerSet' <- newStdoutLoggerSet defaultBufSize
+    loggerSet' <- if useEcho
+                     then newFileLoggerSet defaultBufSize "/dev/null"
+                     else newStdoutLoggerSet defaultBufSize
     (getter, updater) <- clockDateCacher
 
     -- If the Yesod logger (as opposed to the request logger middleware) is
@@ -197,9 +213,9 @@ instance MonadReader env m => MonadReader env (SqlPersistT m) where
            restoreT (return stT)
 
 -- for yesod devel
-getApplicationDev :: IO (Int, Application)
-getApplicationDev =
-    defaultDevelApp loader (fmap fst . makeApplication)
+getApplicationDev :: Bool -> IO (Int, Application)
+getApplicationDev useEcho =
+    defaultDevelApp loader (fmap fst . makeApplication useEcho)
   where
     loader = Yesod.Default.Config.loadConfig (configSettings Development)
         { csParseExtra = parseExtra

@@ -10,7 +10,7 @@ import Control.Concurrent (threadDelay)
 main :: IO ()
 main = do
     putStrLn "Starting devel application"
-    (port, app) <- getApplicationDev
+    (port, app) <- getApplicationDev False
     forkIO $ runSettings (setPort port defaultSettings) app
     loop
 
