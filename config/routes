@@ -5,6 +5,7 @@
 /robots.txt RobotsR GET
 
 / HomeR GET
+/snapshots AllSnapshotsR GET
 /profile ProfileR GET PUT
 /email/#EmailId EmailR DELETE
 /reset-token ResetTokenR POST

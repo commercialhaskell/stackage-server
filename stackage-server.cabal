@@ -25,6 +25,7 @@ library
                      Data.Hackage.Views
                      Types
                      Handler.Home
+                     Handler.Snapshots
                      Handler.Profile
                      Handler.Email
                      Handler.ResetToken

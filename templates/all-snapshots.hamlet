@@ -1,7 +1,4 @@
 <div .container>
-    <p>
-        Stackage is an infrastructure to create stable builds of complete package sets. Think “stable Hackage”.
-    <h2>Recommended Snapshots
     <ul>
         $forall (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle) <- stackages
             <li>

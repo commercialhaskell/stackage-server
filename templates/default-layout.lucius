@@ -1,3 +1,16 @@
-.brand {
-
+.navbar .nav > li > a  {
+  color: #0088cc
+}
+.navbar .navbar-inner {
+  border: 0;
+  background: inherit;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.navbar .user-handle {
+  max-width: 15em;
+  overflow: hidden;
+  white-space: nowrap;
+  display: inline-block;
+  text-overflow:ellipsis;
 }
