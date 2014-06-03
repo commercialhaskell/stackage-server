@@ -1,27 +1,26 @@
 <div .wrap>
     <div .container>
-        <div .navbar role=navigation>
-            <div .navbar-inner>
-                <a .brand href=@{HomeR}>
-                    Stackage
-                <ul .nav>
-                    <li>
-                        <a href=@{AllSnapshotsR}>
-                            All Snapshots
-                    <li>
-                        <a href=@{UploadStackageR}>
-                            Upload
-                <ul .nav .pull-right>
-                    $maybe Entity _ user <- muser
-                        <li>
-                            <a href=@{ProfileR}>
-                                <span .user-handle>
-                                    #{userHandle user}
-                        <li>
-                            <a href=@{AuthR LogoutR}>Logout
-                    $nothing
-                        <li>
-                            <a href=@{AuthR LoginR}>Login
+        <a .logo href=@{HomeR}>
+            <img src=@{StaticR img_logo_png}>
+
+        <div .navbar .navbar-default role=navigation>
+            <ul .nav>
+                <li>
+                    <a href=@{AllSnapshotsR}>
+                        All Snapshots
+                <li>
+                    <a href=@{UploadStackageR}>
+                        Upload
+                 $maybe Entity _ user <- muser
+                     <li>
+                         <a href=@{ProfileR}>
+                             <span .user-handle>
+                                 #{userHandle user}
+                     <li>
+                         <a href=@{AuthR LogoutR}>Logout
+                 $nothing
+                     <li>
+                         <a href=@{AuthR LoginR}>Login
 
     $maybe msg <- mmsg
         <div .container>

@@ -7,6 +7,7 @@ $newline never
 <html class="no-js" lang="en"> <!--<![endif]-->
     <head>
         <meta charset="UTF-8">
+        <link rel="shortcut icon" href=@{StaticR img_favicon_ico} />
 
         <title>
             #{pageTitle pc}
@@ -16,7 +17,7 @@ $newline never
         <meta name="author" content="">
 
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <link href="//fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet" type="text/css">
+
 
         ^{pageHead pc}
 

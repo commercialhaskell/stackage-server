@@ -1,24 +1,25 @@
 module Foundation where
 
-import ClassyPrelude.Yesod
-import Yesod.Auth
-import Yesod.Auth.BrowserId
-import Yesod.Auth.GoogleEmail
-import Yesod.Default.Config
-import Yesod.Default.Util (addStaticContentExternal)
-import qualified Settings
-import Settings.Development (development)
+import           ClassyPrelude.Yesod
+import           Data.BlobStore
+import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
+import           Data.Text (Text)
 import qualified Database.Persist
-import Settings.StaticFiles
-import Settings (widgetFile, Extra (..))
-import Model
-import Text.Jasmine (minifym)
-import Text.Hamlet (hamletFile)
-import Yesod.Core.Types (Logger)
-import Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
+import           Model
+import qualified Settings
+import           Settings (widgetFile, Extra (..))
+import           Settings.Development (development)
+import           Settings.StaticFiles
 import qualified System.Random.MWC as MWC
-import Data.BlobStore
-import Types
+import           Text.Hamlet (hamletFile)
+import           Text.Jasmine (minifym)
+import           Types
+import           Yesod.Auth
+import           Yesod.Auth.BrowserId
+import           Yesod.Auth.GoogleEmail
+import           Yesod.Core.Types (Logger)
+import           Yesod.Default.Config
+import           Yesod.Default.Util (addStaticContentExternal)
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application

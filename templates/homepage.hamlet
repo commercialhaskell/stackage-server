@@ -1,87 +1,67 @@
 <div .container>
+    <h2 .recommended-snapshots>Recommended Snapshots
+    <ul .snapshots>
+        $forall (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle) <- stackages
+            <li>
+                <a href=@{StackageHomeR ident}>
+                    #{title}
+
     <h1>
-        Stackage is an infrastructure to create stable builds of complete package sets. Think “stable Hackage”.
-    <div .recommended-snapshots>
-        <h2>Recommended Snapshots
-        <ul .snapshots>
-            $forall (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle) <- stackages
-                <li>
-                    <a href=@{StackageHomeR ident}>
-                        #{title}
-    <div .how-it-works>
-        <h2>How Stackage Works
-        <div .row .media-top>
-          <div .span12>
-            <div .media>
-              <a .pull-left>
-                <img .media-object src=@{StaticR img_open_pr_png}>
-              <div .media-body>
-                <h4 .media-heading>
-                  Submission
-                <div .media>
-                  A contributor (either an author of a package, or a kind
-                  soul) submits a patch to the Github repository. The pack
-                  will be checked and then be merged in.
-            <div .media>
-              <a .pull-left>
-                <img .media-object src=@{StaticR img_jenkins_png}>
-              <div .media-body>
-                <h4 .media-heading>
-                  Testing
-                <div .media>
-                  The update is sent to a Jenkins build system at
-                  <a href="http://jenkins.stackage.org/">
-                    jenkins.stackage.org
-                  in the cloud. There is a daily build which takes
-                  about 8 hours.
-            <div .media>
-              <a .pull-left>
-                <img .media-object src=@{StaticR img_bump_png}>
-              <div .media-body>
-                <h4 .media-heading>
-                  Notification
-                <div .media>
-                  If a build failure occurs, the submitter is notified
-                   via a Github issue and pinged via their
-                   <code>@name</code>. Also, any authors of packages
-                   which now fail to build will be notified.
-            <div .media>
-              <a .pull-left>
-                <img .media-object src=@{StaticR img_stackage_png}>
-              <div .media-body>
-                <h4 .media-heading>
-                  Snapshot
-                <div .media>
-                  If the build succeeds, a new snapshot is created. The new
-                   snapshot is used by the community.
-    <div .contributing>
-        <h2>Contributing
-        <p>The steps are simple:
-        <ul>
-            <li>
-                Open the
-                <a href="https://github.com/fpco/stackage">
-                    Stackage project on Github.
-            <li>Fork it.
-            <li>
-                <a href="https://github.com/fpco/stackage#get-your-package-included">
-                    Add a line to the
-                    <code>
-                        Stackage.Config
-                    module.
-            <li>Push to your fork.
-            <li>Open a pull request.
-        <p> Once you have submitted the pull request, a build will be
-            started. There is a dedicated jenkins server at this location:
-            <a href="http://jenkins.stackage.org/">
-                    jenkins.stackage.org.
-            From here you can track the progress, status and results
-            of Stackage builds.
-    <div .businesses>
-        <h2>Stackage for businesses
-        <p> We're offering custom installations for businesses who want to
-            build their development platform upon Stackage. If you're
-            considering this for your business and want to find out more,
-            please email us at:
-            <a href="mailto:sales@fpcomplete.com">
-                sales@fpcomplete.com
+        Stackage is an infrastructure to create stable builds
+        of complete package sets. Think “stable Hackage”.
+
+    <h2 .how-stackage-works>How Stackage Works
+    <div .row .stackage-process>
+        <div .span3>
+            <img src=@{StaticR img_github_png} .github>
+        <div .span9>
+            <p>
+                Open a pull request on the Github repository.
+    <div .row .stackage-process>
+        <div .span9>
+            <p>
+                Once checked, it's merged and run through Jenkins.
+        <div .span3>
+            <img src=@{StaticR img_jenkins_png} .jenkins>
+    <div .row .stackage-process>
+        <div .span3>
+            <img src=@{StaticR img_ping_png} .ping>
+        <div .span9>
+            <p>
+                Authors are notified on Github if any problems arise with their package.
+    <div .row .stackage-process>
+        <div .span9>
+            <p>
+                If the build succeeds, a new Stackage snapshot is created.
+        <div .span3>
+            <img src=@{StaticR img_stackage_png} .stackage>
+    <div .row .stackage-process>
+        <div .span3>
+            <img src=@{StaticR img_haskell_png} .haskell>
+        <div .span9>
+            <p>
+                The community can start using the new snapshot immediately!
+
+    <div .row .steps-to-contribute>
+        <div .span12>
+            <h2>Steps to Contribute
+            <ul>
+                <li>Open the Stackage project on Github.
+                <li>Fork it.
+                <li>Add a line to the Stackage.Config module.
+                <li>Push to your fork.
+                <li>Open a pull request.
+            <p>
+                Once you have submitted the pull request, a build will be started.
+                There is a dedicated jenkins server at this location: jenkins.stackage.org
+                From there you can track the progress, status and
+                results of Stackage builds.
+
+    <div .row .businesses>
+        <div .span12>
+            <h2>Stackage for businesses
+            <p>
+                We're offering custom installations for businesses who want to
+                build their development platform upon Stackage. If you're
+                considering this for your business and want to find out more,
+                please email us at: sales@fpcomplete.com

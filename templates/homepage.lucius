@@ -1,19 +1,62 @@
+h1 {
+  margin-top: 50px;
+}
+
+.recommended-snapshots {
+  margin-top: 30px;
+}
+
+.how-stackage-works {
+  margin-bottom: 50px;
+}
+
 .snapshots {
   margin-left: 0;
   padding-left: 0;
   li {
     list-style-type: none;
-  }
-  li + li {
-    margin-top: 0.5em;
+    margin-left: 0;
+    padding-left: 0;
+    font-weight: bold;
   }
 }
 
-.how-it-works {
-  .media .pull-left {
+.stackage-process {
+  p {
+    font-size: 30px;
+    line-height: 35px;
+  }
+  .github {
+    width: 150px;
+  }
+  .jenkins {
     width: 100px;
-    height: 100px;
-    background: #eee;
-    border: 2px solid #eee;
+  }
+  .ping {
+    width: 100px;
+  }
+  .stackage {
+    width: 100px;
+  }
+  .haskell {
+    width: 120px;
   }
 }
+
+.stackage-process + .stackage-process {
+  margin-top: 50px;
+}
+
+/* .steps-to-contribute { */
+/*   ul { */
+/*     margin-top: 30px; */
+/*     text-align: left; */
+/*   } */
+/*   ul, li, p { */
+/*     font-size: 20px; */
+/*     line-height: 25px; */
+/*   } */
+/*   li { */
+/*     margin-bottom: 0.5em */
+/* } */
+/* } */

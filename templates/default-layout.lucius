@@ -8,132 +8,101 @@ html {
 }
 
 body {
-  background: #fff;
+  background: #f0f0f0;
   margin:0 0 4em;
   padding:0;
-  font-family: 'Open Sans';
+  /* font-family: 'Open Sans'; */
+  font-family: Sawasdee;
+  text-shadow: 1px 1px 1px #ffffff;
+  font-size: 20px;
+  line-height: 24px;
 }
 
-.wrap {
-  background:#fff;
-  padding-bottom:2em;
-  padding-left: 15px;
-  padding-right: 15px;
-}
-
-h1 {
-  font-size: 30px;
-  line-height: 40px;
-  font-weight: normal;
-}
-
-h2 {
-  font-size: 25px;
-  margin-top: 15px;
-}
-
-.media-top {
+p {
   margin-top: 20px;
 }
 
-h3 {
-  font-size: 15px;
+.wrap {
+  padding-top: 2em;
+  padding-left: 15px;
+  padding-right: 15px;
+  padding-bottom: 2em;
 }
 
-code {
-  color: #9f1ec0;
+h1 {
+  font-weight: normal;
+  font-size: 50px;
+  line-height: 55px;
+  margin-bottom: 30px;
 }
 
-a code {
-  color: inherit;
-  background: 0;
-  padding: 0;
+h2 {
+  font-weight: normal;
+  color: #06537d;
+  font-size: 45px;
+  margin-top: 50px;
+  margin-bottom: 40px;
+}
+
+li + li {
+  margin-top: 0.5em;
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+   Logo
+   */
+
+.logo {
+  display: block;
+  width: 300px;
   border: 0;
 }
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-   Navigation
+   Navbar
    */
 
+.navbar .nav > li > a {
+  padding-left: 0;
+  color: #0981c3 !important;
+}
+
 .navbar {
-  margin-top: 10px;
-  margin-bottom: 0;
-  .brand {
-    color: #0088cc;
-    padding-left: 0;
+  margin-top: 20px;
+  font-size: 25px;
+  .nav {
+    margin: auto;
   }
-  .nav > li > a {
-    color: #0088cc;
-  }
-  .navbar-inner {
-    box-shadow: none;
-    border: 0;
-    background: inherit;
-    border-top-left-radius: 0;
-    border-top-right-radius: 0;
-  }
-  .user-handle {
-    max-width: 15em;
-    overflow: hidden;
-    white-space: nowrap;
-    display: inline-block;
-    text-overflow: ellipsis;
+  li {
+    margin-top: 0;
   }
 }
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
    Footer
    */
 
 .footer {
+  text-shadow: none;
+  background: #0981c3;
   border-top: 1px solid #ddd;
-  background-color: #eee;
-  color: #777;
+  color: #fff;
   position: absolute;
   bottom: 0;
   width: 100%;
   height: 4em;
   line-height: 2em;
+  text-align: center;
+
+  a {
+    color: #fff;
+    font-weight: bold;
+  }
 
   .span12 {
     padding: 0px 15px 0 0;
     line-height: 4em;
-  }
-}
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-   Responsiveness
-   */
-
-.container {
-  max-width: 724px;
-}
-
-.span12 {
-  width: auto;
-}
-
-@media (max-width: 979px) {
-  .navbar-inner {
-    padding-left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .navbar .nav.pull-right {
-    float: none;
-    display: block;
-    clear: left;
-    margin-left: -15px;
-  }
-}
-
-@media (max-width: 480px) {
-  .navbar .brand + .nav {
-    float: none;
-    display: block;
-    clear: left;
-    margin-left: -15px;
   }
 }
