@@ -8,6 +8,7 @@ $newline never
     <head>
         <meta charset="UTF-8">
         <link rel="shortcut icon" href=@{StaticR img_favicon_ico} />
+        <link href="http://fonts.googleapis.com/css?family=Lato:400,700" rel="stylesheet" type="text/css">
 
         <title>
             #{pageTitle pc}

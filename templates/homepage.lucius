@@ -1,5 +1,6 @@
-h1 {
+h2 {
   margin-top: 50px;
+  margin-bottom: 40px;
 }
 
 .recommended-snapshots {

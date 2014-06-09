@@ -1,9 +1,27 @@
+$newline never
 <div .container>
     <hgroup>
         <h1>#{stackageTitle stackage}
-        <p>Uploaded by #{userDisplay user} (#{userHandle user}) on #{tshow $ stackageUploaded stackage}
-    <p>#{stackageDesc stackage}
+        <p>
+            #{userDisplay user} (#{userHandle user})
+        <p>
+            #{stackageDesc stackage}
+        <p>
+            Uploaded on #{tshow $ stackageUploaded stackage}
     <hr>
-    <p>To use, add a line like the following to ~/.cabal/config:
+    <p>To use, copy the following to your #
+        <code>~/.cabal/config
+        \:
 
     <pre>remote-repo: stackage:@{StackageHomeR ident}
+
+    <small>
+        Note: Remove or comment out any existing #
+        <code>remote-repo
+        \ line.
+
+    <p>
+        Run the following to update your packages:
+    <pre>
+        <code>
+            \$ cabal update

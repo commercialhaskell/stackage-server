@@ -11,15 +11,18 @@ body {
   background: #f0f0f0;
   margin:0 0 4em;
   padding:0;
-  /* font-family: 'Open Sans'; */
-  font-family: Sawasdee;
+  font-family: 'Lato', sans-serif;
   text-shadow: 1px 1px 1px #ffffff;
   font-size: 20px;
-  line-height: 24px;
+  line-height: 30px;
 }
 
 p {
   margin-top: 20px;
+}
+
+code {
+  color: #555;
 }
 
 .wrap {
@@ -29,19 +32,10 @@ p {
   padding-bottom: 2em;
 }
 
-h1 {
-  font-weight: normal;
-  font-size: 50px;
-  line-height: 55px;
-  margin-bottom: 30px;
-}
-
-h2 {
+h1,h2 {
   font-weight: normal;
   color: #06537d;
   font-size: 45px;
-  margin-top: 50px;
-  margin-bottom: 40px;
 }
 
 li + li {
