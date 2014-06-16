@@ -1,6 +1,6 @@
 <div .container>
     <h1>All Snapshots
-    <ul>
+    <ul .snapshots>
         $forall (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle) <- stackages
             <li>
                 <a href=@{StackageHomeR ident}>

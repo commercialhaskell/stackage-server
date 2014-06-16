@@ -4,9 +4,9 @@ $newline never
         <h1>#{stackageTitle stackage}
         <p>
             #{userDisplay user} (#{userHandle user})
-        <p>
+        <p .date>
             #{stackageDesc stackage}
-        <p>
+        <p .date>
             Uploaded on #{tshow $ stackageUploaded stackage}
     <hr>
     <p>To use, copy the following to your #
@@ -16,9 +16,10 @@ $newline never
     <pre>remote-repo: stackage:@{StackageHomeR ident}
 
     <small>
-        Note: Remove or comment out any existing #
-        <code>remote-repo
-        \ line.
+        <em>
+            Note: Remove or comment out any existing #
+            <code>remote-repo
+            \ line.
 
     <p>
         Run the following to update your packages:

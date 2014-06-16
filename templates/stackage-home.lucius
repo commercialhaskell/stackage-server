@@ -1,3 +1,12 @@
 h1 {
   font-size: 30px !important;
 }
+
+.date {
+  font-size: 15px;
+  line-height: 15px;
+}
+
+hr {
+  border: 1px solid #ddd
+}

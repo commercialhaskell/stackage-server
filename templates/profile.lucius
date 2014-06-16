@@ -7,3 +7,7 @@
     width: 400px;
     height: 200px;
 }
+
+h2 {
+  font-size: 30px !important;
+}
