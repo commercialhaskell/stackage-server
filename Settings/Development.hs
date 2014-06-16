@@ -10,5 +10,13 @@ development =
   False
 #endif
 
+cabalFileLoader :: Bool
+cabalFileLoader =
+#if INGHCI
+  False
+#else
+  True
+#endif
+
 production :: Bool
 production = not development
