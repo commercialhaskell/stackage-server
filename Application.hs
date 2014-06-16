@@ -8,14 +8,13 @@ module Application
 import qualified Aws
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Monad.Logger (runLoggingT, LoggingT)
+import           Control.Monad.Reader (runReaderT, ReaderT)
 import           Control.Monad.Reader (MonadReader (..))
-
 import           Control.Monad.Trans.Control
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Conduit.Lazy (MonadActive, monadActive)
-
-
-
+import           Data.Hackage
+import           Data.Hackage.Views
 import           Data.Time (diffUTCTime)
 import qualified Database.Persist
 import           Filesystem (getModified, removeTree)
