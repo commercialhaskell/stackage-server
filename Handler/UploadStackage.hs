@@ -18,6 +18,7 @@ import Control.Monad.Trans.Resource (unprotect, allocate)
 import System.Directory (removeFile, getTemporaryDirectory)
 import System.Process (runProcess, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
+import Data.Slug (mkSlug)
 
 fileKey :: Text
 fileKey = "stackage"
@@ -31,11 +32,23 @@ getUploadStackageR = do
 
 putUploadStackageR :: Handler TypedContent
 putUploadStackageR = do
-    uid <- requireAuthId
+    mtoken <- lookupHeader "authorization"
+    uid <- case decodeUtf8 <$> mtoken of
+        Nothing -> requireAuthId
+        Just token -> do
+            case mkSlug token of
+                Nothing -> invalidArgs ["Invalid token: " ++ token]
+                Just token' -> do
+                    muser <- runDB $ getBy $ UniqueToken token'
+                    case muser of
+                        Nothing -> invalidArgs ["Unknown token: " ++ token]
+                        Just (Entity uid _) -> return uid
     mfile <- lookupFile fileKey
     case mfile of
         Nothing -> invalidArgs ["Upload missing"]
         Just file -> do
+            malias <- lookupPostParam "alias"
+
             tempDir <- liftIO getTemporaryDirectory
             (releaseKey, (fp, handleOut)) <- allocate
                 (openBinaryTempFile tempDir "upload-stackage.")
@@ -59,6 +72,14 @@ putUploadStackageR = do
                 update msg = updateHelper (ProgressWorking msg)
                 done msg url = updateHelper (ProgressDone msg url)
                 onExc e = done ("Exception occurred: " ++ tshow e) ProfileR
+                setAlias = do
+                    forM_ (malias >>= mkSlug) $ \alias -> runDB $ do
+                        deleteWhere [AliasUser ==. uid, AliasName ==. alias]
+                        insert_ Alias
+                            { aliasUser = uid
+                            , aliasName = alias
+                            , aliasTarget = ident
+                            }
 
             update "Starting"
 
@@ -93,6 +114,8 @@ putUploadStackageR = do
                             then do
                                 sourceFile (fpFromString fp) $$ storeWrite (CabalIndex ident)
                                 runDB $ insert stackage
+
+                                setAlias
 
                                 done "Stackage created" $ StackageHomeR ident
                             else do
