@@ -137,7 +137,7 @@ cachedS3Store cache creds bucket prefix manager =
                     case msrc of
                         Just src -> return $ Just src
                         Nothing -> do
-                            liftIO $ runResourceT $ do
+                            join $ liftIO $ handle (\S3Error{} -> return $ return Nothing) $ runResourceT $ do
                                 res <- Aws.aws
                                     (Aws.Configuration Aws.Timestamp creds
                                         $ Aws.defaultLog Aws.Error)
@@ -146,6 +146,7 @@ cachedS3Store cache creds bucket prefix manager =
                                     (Aws.getObject bucket (toS3Path key))
                                 gor <- Aws.readResponseIO res
                                 let fp = toFP cache key
+                                liftIO $ F.createTree $ directory fp
                                 bracketOnError
                                     (liftIO $ IO.openBinaryTempFile
                                         (fpToString $ directory fp)
@@ -158,7 +159,7 @@ cachedS3Store cache creds bucket prefix manager =
                                         liftIO $ do
                                             hClose h
                                             F.rename (fpFromString fpTmp) fp
-                            storeRead' (fileStore cache) key -- FIXME optimize?
+                                return $ storeRead' (fileStore cache) key -- FIXME optimize?
                 else storeRead' (fileStore cache) key
         , storeExists' = \key ->
             if shouldBackup key
