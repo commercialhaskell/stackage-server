@@ -1,8 +1,8 @@
 {-# LANGUAGE TupleSections, OverloadedStrings #-}
 module Handler.Home where
 
-import Import
 import qualified Database.Esqueleto as E
+import           Import
 
 -- This is a handler function for the GET request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in
@@ -16,6 +16,7 @@ getHomeR = do
     stackages <- runDB $ E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
         E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
         E.orderBy [E.desc $ stackage E.^. StackageUploaded]
+        E.where_ (E.like (user E.^. UserDisplay) (E.val "%@fpcomplete.com"))
         return
             ( stackage E.^. StackageIdent
             , stackage E.^. StackageTitle
