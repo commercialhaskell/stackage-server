@@ -33,3 +33,9 @@ Alias
     name Slug
     target PackageSetIdent
     UniqueAlias user name
+
+Package
+    stackage StackageId
+    name' PackageName sql=name
+    version Version
+    overwrite Bool

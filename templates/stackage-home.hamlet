@@ -26,3 +26,12 @@ $newline never
     <pre>
         <code>
             \$ cabal update
+
+    $if hasBundle
+        <p>
+            <a href=@{StackageMetadataR ident}>View metadata on this snapshot
+            , such as package versions.
+        <p>
+            <a href=@{StackageBundleR ident}>Download the original bundle file.
+            \ #
+            <i>This is useful for making modifications to an existing snapshot.

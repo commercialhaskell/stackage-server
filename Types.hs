@@ -42,6 +42,7 @@ data StoreKey = HackageCabal !PackageName !Version
               | HackageViewCabal !HackageView !PackageName !Version
               | HackageViewSdist !HackageView !PackageName !Version
               | HackageViewIndex !HackageView
+              | SnapshotBundle !PackageSetIdent
     deriving (Show, Eq, Ord, Typeable)
 
 instance ToPath StoreKey where
@@ -71,6 +72,10 @@ instance ToPath StoreKey where
         , toPathPiece viewName
         , "00-index.tar.gz"
         ]
+    toPath (SnapshotBundle ident) =
+        [ "bundle"
+        , toPathPiece ident ++ ".tar.gz"
+        ]
 instance BackupToS3 StoreKey where
     shouldBackup HackageCabal{} = False
     shouldBackup HackageSdist{} = False
@@ -79,6 +84,7 @@ instance BackupToS3 StoreKey where
     shouldBackup HackageViewCabal{} = False
     shouldBackup HackageViewSdist{} = False
     shouldBackup HackageViewIndex{} = False
+    shouldBackup SnapshotBundle{} = True
 
 newtype HackageRoot = HackageRoot { unHackageRoot :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)

@@ -6,7 +6,7 @@ import Crypto.Hash.Conduit (sinkHash)
 import Crypto.Hash (Digest, SHA1)
 import Data.Byteable (toBytes)
 import qualified Data.ByteString.Base16 as B16
-import Data.Conduit.Zlib (ungzip)
+import Data.Conduit.Zlib (gzip, ungzip)
 import qualified Codec.Archive.Tar as Tar
 import qualified Data.Text as T
 import Filesystem.Path (splitExtension)
@@ -96,11 +96,12 @@ putUploadStackageR = do
                 -- Evil lazy I/O thanks to tar package
                 lbs <- readFile $ fpFromString fp
                 withSystemTempDirectory "build00index." $ \dir -> do
-                    LoopState _ stackage files _ <- execStateT (loop update (Tar.read lbs)) LoopState
+                    LoopState _ stackage files _ contents <- execStateT (loop update (Tar.read lbs)) LoopState
                         { lsRoot = fpFromString dir
                         , lsStackage = initial
                         , lsFiles = mempty
                         , lsIdent = ident
+                        , lsContents = []
                         }
                     withSystemTempFile "newindex" $ \fp' h -> do
                         ec <- liftIO $ do
@@ -113,7 +114,15 @@ putUploadStackageR = do
                         if ec == ExitSuccess
                             then do
                                 sourceFile (fpFromString fp') $$ storeWrite (CabalIndex ident)
-                                runDB $ insert_ stackage
+                                sourceFile (fpFromString fp) $$ gzip =$ storeWrite (SnapshotBundle ident)
+                                runDB $ do
+                                    sid <- insert stackage
+                                    forM_ contents $ \(name, version, overwrite) -> insert_ Package
+                                        { packageStackage = sid
+                                        , packageName' = name
+                                        , packageVersion = version
+                                        , packageOverwrite = overwrite
+                                        }
 
                                 setAlias
 
@@ -184,7 +193,12 @@ putUploadStackageR = do
                 let fp' = lsRoot ls </> fp
                 liftIO $ createTree $ directory fp'
                 src $$ sinkFile fp'
-                put ls { lsFiles = insertSet fp $ lsFiles ls }
+                put ls
+                    { lsFiles = insertSet fp $ lsFiles ls
+                    , lsContents
+                        = (name, version, isOverride)
+                        : lsContents ls
+                    }
           where
             fp = mkFP name version
 
@@ -209,7 +223,11 @@ data LoopState = LoopState
     , lsStackage :: !Stackage
     , lsFiles :: !(Set FilePath)
     , lsIdent :: !PackageSetIdent
+
+    , lsContents :: ![(PackageName, Version, IsOverride)] -- FIXME use SnocVector when ready
     }
+
+type IsOverride = Bool
 
 extractCabal :: (MonadLogger m, MonadThrow m)
              => LByteString
