@@ -4,7 +4,7 @@
         of complete package sets. Think “stable Hackage”.
     <h2 .recommended-snapshots>Recommended Snapshots
     <ul .snapshots>
-        $forall (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle) <- stackages
+        $forall (E.Value ident, E.Value title, E.Value _uploaded, E.Value _display, E.Value _handle) <- stackages
             <li>
                 <a href=@{StackageHomeR ident}>
                     #{title}

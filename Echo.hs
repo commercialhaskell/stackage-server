@@ -43,4 +43,5 @@ write (file,line) it =
         loc = file ++ ":" ++ show line
         fmt = formatTime defaultTimeLocale "%T%Q"
 
+clear :: IO ()
 clear = writeFile "/tmp/echo" ""

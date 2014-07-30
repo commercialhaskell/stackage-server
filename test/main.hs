@@ -17,7 +17,7 @@ main = do
     conf <- Yesod.Default.Config.loadConfig $ (configSettings Testing)
                 { csParseExtra = parseExtra
                 }
-    foundation <- makeFoundation conf
+    foundation <- makeFoundation False conf
     hspec $ do
         Data.SlugSpec.spec
         yesodSpec foundation $ do

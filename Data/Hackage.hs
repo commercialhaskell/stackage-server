@@ -17,7 +17,6 @@ import qualified Codec.Archive.Tar as Tar
 import Control.Monad.Reader (MonadReader, ask)
 import qualified Data.Text as T
 import Data.Conduit.Zlib (ungzip, gzip)
-import Text.XML.Cursor (($//), (&/), content, fromDocument, element, followingSibling)
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
 import System.IO (IOMode (ReadMode), openBinaryFile)
 import Control.Monad.Catch (MonadMask)
@@ -25,9 +24,9 @@ import Model (Uploaded (Uploaded))
 import Filesystem (createTree)
 import Distribution.PackageDescription.Parse (parsePackageDescription, ParseResult (ParseOk))
 import Distribution.PackageDescription.PrettyPrint (showGenericPackageDescription)
-import Distribution.PackageDescription (GenericPackageDescription, PackageDescription, packageDescription)
+import Distribution.PackageDescription (GenericPackageDescription)
 import Control.Exception (throw)
-import Control.Monad.State.Strict (modify, put, get, execStateT, MonadState)
+import Control.Monad.State.Strict (put, get, execStateT, MonadState)
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -77,6 +76,9 @@ loadCabalFiles uploadHistory0 = flip execStateT (UploadState uploadHistory0 []) 
                     setUploadDate name version
             _ -> return ()
 
+tarSource :: (Exception e, MonadThrow m)
+          => Tar.Entries e
+          -> Producer m Tar.Entry
 tarSource Tar.Done = return ()
 tarSource (Tar.Fail e) = throwM e
 tarSource (Tar.Next e es) = yield e >> tarSource es
@@ -122,11 +124,6 @@ setUploadDate name version = do
         , toPathPiece version
         , "/upload-time"
         ]
-
-    hasContent t c =
-        if T.concat (c $// content) == t
-            then [c]
-            else []
 
 parseFilePath :: String -> Maybe (PackageName, Version)
 parseFilePath s =
@@ -262,16 +259,16 @@ createView viewName modifyCabal src sink = withSystemTempDirectory "createview" 
             key = HackageViewCabal viewName name version
         mprev <- storeRead key
         case mprev of
-            Just src -> do
+            Just src' -> do
                 liftIO $ createTree $ directory fp
-                src $$ sinkFile fp
+                src' $$ sinkFile fp
                 return $ asSet $ singletonSet relfp
             Nothing -> do
                 msrc <- storeRead $ HackageCabal name version
                 case msrc of
                     Nothing -> return mempty
-                    Just src -> do
-                        orig <- src $$ sinkLazy
+                    Just src' -> do
+                        orig <- src' $$ sinkLazy
                         new <-
                             case parsePackageDescription $ unpack $ decodeUtf8 orig of
                                 ParseOk _ gpd -> do
@@ -299,6 +296,10 @@ sourceHistory =
         go' (version, time) = yield $ Uploaded name version time
 
 -- FIXME put in conduit-combinators
+parMapMC :: (MonadIO m, MonadBaseControl IO m)
+         => Int
+         -> (i -> m o)
+         -> Conduit i m o
 parMapMC _ = mapMC
 {- FIXME
 parMapMC :: (MonadIO m, MonadBaseControl IO m)

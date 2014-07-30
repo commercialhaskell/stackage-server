@@ -1,6 +1,6 @@
 module Handler.UploadStackage where
 
-import Import hiding (catch, get)
+import Import hiding (catch, get, update)
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory, openBinaryTempFile)
 import Crypto.Hash.Conduit (sinkHash)
 import Crypto.Hash (Digest, SHA1)
@@ -14,7 +14,7 @@ import Data.BlobStore
 import Filesystem (createTree)
 import Control.Monad.State.Strict (execStateT, get, put)
 import qualified Codec.Compression.GZip as GZip
-import Control.Monad.Trans.Resource (unprotect, allocate)
+import Control.Monad.Trans.Resource (allocate)
 import System.Directory (removeFile, getTemporaryDirectory)
 import System.Process (runProcess, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
@@ -50,7 +50,7 @@ putUploadStackageR = do
             malias <- lookupPostParam "alias"
 
             tempDir <- liftIO getTemporaryDirectory
-            (releaseKey, (fp, handleOut)) <- allocate
+            (_releaseKey, (fp, handleOut)) <- allocate
                 (openBinaryTempFile tempDir "upload-stackage.")
                 (\(fp, h) -> hClose h `finally` removeFile fp)
             digest <- fileSource file
@@ -102,18 +102,18 @@ putUploadStackageR = do
                         , lsFiles = mempty
                         , lsIdent = ident
                         }
-                    withSystemTempFile "newindex" $ \fp h -> do
+                    withSystemTempFile "newindex" $ \fp' h -> do
                         ec <- liftIO $ do
                             hClose h
                             let args = "cfz"
-                                     : fp
+                                     : fp'
                                      : map fpToString (setToList files)
                             ph <- runProcess "tar" args (Just dir) Nothing Nothing Nothing Nothing
                             waitForProcess ph
                         if ec == ExitSuccess
                             then do
-                                sourceFile (fpFromString fp) $$ storeWrite (CabalIndex ident)
-                                runDB $ insert stackage
+                                sourceFile (fpFromString fp') $$ storeWrite (CabalIndex ident)
+                                runDB $ insert_ stackage
 
                                 setAlias
 
@@ -130,7 +130,7 @@ putUploadStackageR = do
         loop update entries
 
     addEntry update entry = do
-        update $ "Processing file: " ++ pack (Tar.entryPath entry)
+        _ <- update $ "Processing file: " ++ pack (Tar.entryPath entry)
         case Tar.entryContent entry of
             Tar.NormalFile lbs _ ->
                 case filename $ fpFromString $ Tar.entryPath entry of
@@ -150,7 +150,7 @@ putUploadStackageR = do
                         case parseName line of
                             Just (name, version) -> do
                                 $logDebug $ "hackage: " ++ tshow (name, version)
-                                update $ concat
+                                _ <- update $ concat
                                     [ "Adding Hackage package: "
                                     , toPathPiece name
                                     , "-"
@@ -167,7 +167,7 @@ putUploadStackageR = do
                        , Just (name, version) <- parseName (fpToText base) -> do
                             ident <- lsIdent <$> get
                             sourceLazy lbs $$ storeWrite (CustomSdist ident name version)
-                            update $ concat
+                            _ <- update $ concat
                                 [ "Extracting cabal file for custom tarball: "
                                 , toPathPiece name
                                 , "-"
@@ -211,6 +211,11 @@ data LoopState = LoopState
     , lsIdent :: !PackageSetIdent
     }
 
+extractCabal :: (MonadLogger m, MonadThrow m)
+             => LByteString
+             -> PackageName -- ^ name
+             -> Version -- ^ version
+             -> m LByteString
 extractCabal lbs name version =
     loop $ Tar.read $ GZip.decompress lbs
   where
@@ -219,7 +224,7 @@ extractCabal lbs name version =
     loop (Tar.Next e es) = do
         $logDebug $ tshow (Tar.entryPath e, fp)
         case Tar.entryContent e of
-            Tar.NormalFile lbs _ | Tar.entryPath e == fp -> return lbs
+            Tar.NormalFile lbs' _ | Tar.entryPath e == fp -> return lbs'
             _ -> loop es
 
     fp = unpack $ concat

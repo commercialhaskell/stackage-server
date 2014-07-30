@@ -72,8 +72,8 @@ makeApplication echo@True conf = do
        }
    Echo.clear
    return (logWare (defaultMiddlewaresNoLogging app),logFunc)
- where logFunc (Loc filename _pkg _mod (line,_) _) source level str =
-           Echo.write (filename,line) (show source ++ ": " ++ show level ++ ": " ++ toStr str)
+ where logFunc (Loc filename' _pkg _mod (line,_) _) source level str =
+           Echo.write (filename',line) (show source ++ ": " ++ show level ++ ": " ++ toStr str)
        toStr = unpack . decodeUtf8 . fromLogStr
 makeApplication echo@False conf = do
     foundation <- makeFoundation echo conf

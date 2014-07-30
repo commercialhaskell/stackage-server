@@ -3,7 +3,6 @@ module Import
     ) where
 
 import ClassyPrelude.Yesod as Import
-import Data.Text as Import (Text)
 import Foundation as Import
 import Model as Import
 import Settings as Import

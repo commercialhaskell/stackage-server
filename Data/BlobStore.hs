@@ -91,6 +91,7 @@ fileStore root = BlobStore
     , storeExists' = liftIO . F.isFile . toFP root
     }
 
+toFP :: ToPath a => FilePath -> a -> FilePath
 toFP root key = foldl' (\x y -> x </> fpFromText y) root (toPath key)
 
 -- | Note: Only use with data which will never be modified!

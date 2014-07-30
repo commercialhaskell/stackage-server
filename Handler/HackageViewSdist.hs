@@ -2,7 +2,6 @@ module Handler.HackageViewSdist where
 
 import Import
 import Data.Hackage
-import Data.Conduit.Lazy (MonadActive (..))
 
 getHackageViewSdistR :: HackageView -> PackageNameVersion -> Handler TypedContent
 getHackageViewSdistR viewName (PackageNameVersion name version) = do
@@ -18,6 +17,3 @@ getHackageViewSdistR viewName (PackageNameVersion name version) = do
                 , ".tar.gz"
                 ]
             respondSource "application/x-gzip" $ mapOutput (Chunk . toBuilder) src
-
-instance MonadActive m => MonadActive (HandlerT site m) where -- FIXME upstream
-    monadActive = lift monadActive

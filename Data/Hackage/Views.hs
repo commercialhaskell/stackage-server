@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
 module Data.Hackage.Views where
 
 import ClassyPrelude.Yesod
@@ -8,6 +9,7 @@ import Distribution.Text (simpleParse)
 import Data.NonNull (fromNullable) -- FIXME expose from ClassyPrelude
 import Data.Hackage (UploadHistory)
 import Data.Time (addUTCTime)
+import qualified Types
 
 viewUnchanged :: Monad m
               => packageName -> version -> time
@@ -62,6 +64,10 @@ viewNoBounds _ _ _ =
   where
     go (Dependency name _range) = return $ Dependency name anyVersion
 
+getAvailable :: Types.PackageName
+             -> UTCTime
+             -> HashMap Types.PackageName (HashMap Types.Version UTCTime)
+             -> [Types.Version]
 getAvailable name maxUploaded =
     map fst . filter ((<= maxUploaded) . snd) . mapToList . fromMaybe mempty . lookup name
 
@@ -71,6 +77,7 @@ getAvailable name maxUploaded =
 -- technically it "wasn't available" yet.
 --
 -- The actual value we should use is up for debate. I'm starting with 24 hours.
+addFuzz :: UTCTime -> UTCTime
 addFuzz = addUTCTime (60 * 60 * 24)
 
 viewPVP :: Monad m

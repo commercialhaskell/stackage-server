@@ -3,7 +3,6 @@ module Foundation where
 import           ClassyPrelude.Yesod
 import           Data.BlobStore
 import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
-import           Data.Text (Text)
 import qualified Database.Persist
 import           Model
 import qualified Settings
@@ -78,7 +77,6 @@ instance Yesod App where
         "config/client_session_key.aes"
 
     defaultLayout widget = do
-        master <- getYesod
         mmsg <- getMessage
         muser <- maybeAuth
 

@@ -4,7 +4,7 @@ import Import
 import Data.Slug (slugField)
 
 userForm :: User -> Form User
-userForm user = renderBootstrap $ User
+userForm user = renderBootstrap2 $ User
     <$> areq slugField "User handle"
             { fsTooltip = Just "Used for URLs"
             } (Just $ userHandle user)
