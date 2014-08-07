@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections, OverloadedStrings #-}
 module Handler.Home where
 
+import           Data.Slug
 import qualified Database.Esqueleto as E
 import           Import
 
@@ -13,11 +14,12 @@ import           Import
 -- inclined, or create a single monolithic file.
 getHomeR :: Handler Html
 getHomeR = do
+    fpHandle <- mkSlug "fpcomplete"
     stackages <- runDB $ E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
         E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
         E.orderBy [E.desc $ stackage E.^. StackageUploaded]
         E.where_ (E.like (user E.^. UserDisplay) (E.val "%@fpcomplete.com") E.||.
-                  E.like (user E.^. UserHandle) (E.val "fpcomplete"))
+                  user E.^. UserHandle E.==. E.val fpHandle)
         E.limit 4
         return
             ( stackage E.^. StackageIdent
