@@ -17,7 +17,7 @@ getHomeR = do
         E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
         E.orderBy [E.desc $ stackage E.^. StackageUploaded]
         E.where_ (E.like (user E.^. UserDisplay) (E.val "%@fpcomplete.com") E.||.
-                  E.like (user E.^. UserDisplay) (E.val "fpcomplete"))
+                  E.like (user E.^. UserHandle) (E.val "fpcomplete"))
         E.limit 4
         return
             ( stackage E.^. StackageIdent
