@@ -16,7 +16,8 @@ getHomeR = do
     stackages <- runDB $ E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
         E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
         E.orderBy [E.desc $ stackage E.^. StackageUploaded]
-        E.where_ (E.like (user E.^. UserDisplay) (E.val "%@fpcomplete.com"))
+        E.where_ (E.like (user E.^. UserDisplay) (E.val "%@fpcomplete.com") E.||.
+                  E.like (user E.^. UserDisplay) (E.val "fpcomplete"))
         E.limit 4
         return
             ( stackage E.^. StackageIdent
