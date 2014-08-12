@@ -27,6 +27,11 @@ $newline never
         <code>
             \$ cabal update
 
+    <p>
+        For information about clearing your existing package set, or using with sandboxes,
+        see
+        <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ">the FAQ.
+
     $if hasBundle
         <p>
             <a href=@{StackageMetadataR ident}>View metadata on this snapshot
