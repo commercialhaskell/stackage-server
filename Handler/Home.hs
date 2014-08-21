@@ -1,11 +1,11 @@
 {-# LANGUAGE TupleSections, OverloadedStrings #-}
 module Handler.Home where
 
-import           Data.Slug
-import qualified Database.Esqueleto as E
-import           Import
+import Data.Slug
+import Database.Esqueleto as E
+import Import hiding ((=.),on,(||.),(==.))
 
--- This is a handler function for the GET request method on the HomeR
+-- This is a handler function for the G request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in
 -- config/routes
 --
@@ -15,19 +15,33 @@ import           Import
 getHomeR :: Handler Html
 getHomeR = do
     fpHandle <- mkSlug "fpcomplete"
-    stackages <- runDB $ E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
-        E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
-        E.orderBy [E.desc $ stackage E.^. StackageUploaded]
-        E.where_ (E.like (user E.^. UserDisplay) (E.val "%@fpcomplete.com") E.||.
-                  user E.^. UserHandle E.==. E.val fpHandle)
-        E.limit 4
+    stackages <- runDB $ select $ from $ \(stackage `InnerJoin` user) -> do
+        on (stackage ^. StackageUser ==. user ^. UserId)
+        orderBy [desc $ stackage ^. StackageUploaded]
+        where_ (like (user ^. UserDisplay) (val "%@fpcomplete.com") ||.
+                  user ^. UserHandle ==. val fpHandle)
+        limit 4
         return
-            ( stackage E.^. StackageIdent
-            , stackage E.^. StackageTitle
-            , stackage E.^. StackageUploaded
-            , user E.^. UserDisplay
-            , user E.^. UserHandle
+            ( stackage ^. StackageIdent
+            , stackage ^. StackageTitle
+            , stackage ^. StackageUploaded
+            , user ^. UserDisplay
+            , user ^. UserHandle
             )
+    windowsLatest <- linkFor "unstable-ghc78hp-inclusive"
+    restLatest    <- linkFor "unstable-ghc78-inclusive"
     defaultLayout $ do
         setTitle "Stackage Server"
         $(widgetFile "homepage")
+  where
+      linkFor name =
+          do slug <- mkSlug name
+             selecting (\alias ->
+                            do where_ (alias ^. AliasName ==. val slug)
+                               return (alias ^. AliasTarget))
+        where selecting =
+                  fmap (fmap unValue . listToMaybe) .
+                  runDB .
+                  select .
+                  from
+                where unValue (Value e) = e

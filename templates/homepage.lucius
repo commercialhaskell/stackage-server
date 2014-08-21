@@ -57,6 +57,14 @@ h2 {
   }
 }
 
+.operating-systems {
+  margin-top: 1em;
+}
+
+.getting-started {
+  margin-bottom: 0;
+}
+
 /*   ul { */
 /*     margin-top: 30px; */
 /*     text-align: left; */

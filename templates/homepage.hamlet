@@ -8,6 +8,19 @@
             <li>
                 <a href=@{StackageHomeR ident}>
                     #{title}
+    <h2 .getting-started>
+        Getting Started
+    <p>
+        To start using Stackage, choose your operating system below:
+    <ul .operating-systems>
+        $maybe win <- windowsLatest
+           <li>
+               <a href=@{StackageHomeR win}>
+                   Windows & OS X (Haskell Platform-based snapshot)
+        $maybe rest <- restLatest
+           <li>
+               <a href=@{StackageHomeR rest}>
+                   Linux & non-Haskell Platform users
 
     <h2 .how-stackage-works>How Stackage Works
     <div .row .stackage-process>
