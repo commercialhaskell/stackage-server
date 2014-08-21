@@ -48,7 +48,15 @@ h2 {
   margin-top: 50px;
 }
 
-/* .steps-to-contribute { */
+.steps-to-contribute {
+  h2 {
+    margin-bottom: 0;
+  }
+  h2 + p {
+    margin-bottom: 1em;
+  }
+}
+
 /*   ul { */
 /*     margin-top: 30px; */
 /*     text-align: left; */

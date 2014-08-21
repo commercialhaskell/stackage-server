@@ -44,6 +44,10 @@
     <div .row .steps-to-contribute>
         <div .span12>
             <h2>Steps to Contribute
+            <p>
+                For
+                <em>package authors
+                to contribute to Stackage, follow these instructions:
             <ul>
                 <li>
                     Open
@@ -69,7 +73,7 @@
 
     <div .row .businesses>
         <div .span12>
-            <h2>Stackage for businesses
+            <h2>Stackage for Businesses
             <p>
                 We're offering custom installations for businesses who want to
                 build their development platform upon Stackage. If you're
