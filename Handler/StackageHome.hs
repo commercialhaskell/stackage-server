@@ -1,7 +1,7 @@
 module Handler.StackageHome where
 
-import Import
 import Data.BlobStore (storeExists)
+import Import
 
 getStackageHomeR :: PackageSetIdent -> Handler Html
 getStackageHomeR ident = do
@@ -41,3 +41,5 @@ getStackageMetadataR ident = do
         , toPathPiece version
         , "\n"
         ]
+
+yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"

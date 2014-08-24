@@ -1,42 +1,104 @@
 $newline never
 <div .container>
-    <hgroup>
-        <h1>#{stackageTitle stackage}
-        <p>
-            #{userDisplay user} (#{userHandle user})
-        <p .date>
-            #{stackageDesc stackage}
-        <p .date>
-            Uploaded on #{tshow $ stackageUploaded stackage}
-    <hr>
-    <p>To use, copy the following to your #
-        <code>~/.cabal/config
-        \:
+    <h1>
+        #{stackageTitle stackage}
+    <p>
+        Published on #{yearMonthDay (stackageUploaded stackage)}
+        <span .separator>
+        $if True
+           <span>
+               <a href=@{StackageMetadataR ident} title="View metadata on this snapshot, such as package versions">
+                   \Metadata
+           <span .separator>
+           <span>
+               <a href=@{StackageBundleR ident} title="This is useful for making modifications to an existing snapshot">
+                   \Bundle
+    <p>
+        <pre>
+            remote-repo: stackage:@{StackageHomeR ident}
+    <h3>
+        Setup guide #
+            <small>
+                (click to expand)
+    <div class="accordion" id="accordion2">
 
-    <pre>remote-repo: stackage:@{StackageHomeR ident}
-
-    <small>
-        <em>
-            Note: Remove or comment out any existing #
+      <div class="accordion-group">
+        <div class="accordion-heading">
+          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#collapse1">
+            <span .number>1
+            Copy the
             <code>remote-repo
-            \ line.
+            line to your Cabal configuration file
+        <div id="collapse1" class="accordion-body collapse">
+          <div class="accordion-inner">
+            <p>
+                Your #
+                <code>config
+                \ file for Cabal should be in your user home directory. For example:
+            <ul>
+                <li>Linux: #
+                    <code>
+                        /home/alonzo/.cabal/config
+                <li>Windows: #
+                    <code>
+                        C:\Users\alonzo\AppData\Roaming\cabal\config
+            <p>Once you have this open, find the line that says:
+            <pre>
+                remote-repo: hackage.haskell.org:http://hackage.haskell.org/packages/archive
+            <p>
+                Replace it with the #
+                <code>remote-repo
+                \ code sample above.
 
-    <p>
-        Run the following to update your packages:
-    <pre>
-        <code>
-            \$ cabal update
+      <div class="accordion-group">
+        <div class="accordion-heading">
+          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#collapse2">
+            <span .number>2
+            Remove any existing package config
+        <div id="collapse2" class="accordion-body collapse">
+          <div class="accordion-inner">
+            <p>
+                If you already have installed some packages from Hackage
+                \ or elsewhere and you want to start from a fresh package
+                \ set, you can remove your
+                <code>ghc/&lt;os&gt;-&lt;ghc-version&gt;
+                \ directory.
 
-    <p>
-        For information about clearing your existing package set, or using with sandboxes,
-        see
-        <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ">the FAQ.
+            <ul>
+                <li>
+                   In Linux, the directory is #
+                   <code>~/.ghc
 
-    $if hasBundle
-        <p>
-            <a href=@{StackageMetadataR ident}>View metadata on this snapshot
-            , such as package versions.
-        <p>
-            <a href=@{StackageBundleR ident}>Download the original bundle file.
-            \ #
-            <i>This is useful for making modifications to an existing snapshot.
+                <li>
+                   On Windows the #
+                   <code>.ghc
+                   \ directory, similar to the Cabal
+                   \ configuration, will be under something like: #
+                   <code>
+                       C:\Users\alonzo\AppData\Roaming\ghc
+
+            <p>
+                To clear the GHC 7.2.2. environment, all the
+                \ user-installed packages, you can remove the directory #
+                <code>x86_64-linux-7.2.2
+                .
+                <em> Be careful
+                \ that you are sure
+                \ that you want to clear your package set (re-installing
+                \ packages takes time!) and that you clear the right one.
+
+      <div class="accordion-group">
+        <div class="accordion-heading">
+          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion3" href="#collapse3">
+            <span .number>3
+            Run
+                <code>
+                    cabal update
+        <div id="collapse3" class="accordion-body collapse">
+          <div class="accordion-inner">
+            <p>
+                This will download the package index from Stackage and
+                \ update your local one.
+
+            <p>
+                Now you're ready to install packages!

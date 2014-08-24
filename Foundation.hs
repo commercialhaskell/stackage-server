@@ -93,6 +93,10 @@ instance Yesod App where
                 , css_bootstrap_css
                 , css_bootstrap_responsive_css
                 ])
+            $((combineScripts 'StaticR
+                              [ js_jquery_js
+                              , js_bootstrap_js
+                              ]))
             $(widgetFile "default-layout")
 
         mcurr <- getCurrentRoute
