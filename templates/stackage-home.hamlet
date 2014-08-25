@@ -1,7 +1,7 @@
 $newline never
 <div .container>
     <h1>
-        #{stackageTitle stackage}, inclusive
+        #{stackageTitle stackage}
     <p>
         Published on #{yearMonthDay (stackageUploaded stackage)}
         $if hasBundle
