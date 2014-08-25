@@ -10,6 +10,7 @@
                     #{title}
     <h2 .getting-started>
         Getting Started
+    <p>For prerequisites and compiler installation instructions, please see the wiki page <a href="https://github.com/fpco/stackage/wiki/Preparing-your-system-to-use-Stackage">Preparing your system to use Stackage</a>.
     <p>
         To start using Stackage, choose your operating system below:
     <ul .operating-systems>
