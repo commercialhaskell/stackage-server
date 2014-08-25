@@ -172,8 +172,7 @@ makeFoundation useEcho conf = do
                     , ("no-bounds", viewNoBounds)
                     , ("unchanged", viewUnchanged)
                     ]
-            forM_ views $ \(name, func) ->
-                runResourceT $ flip (Database.Persist.runPool dbconf) p $ createView
+            forM_ views $ \(name, func) -> runResourceT $ createView
                     name
                     func
                     (sourceHistory uploadHistory)
