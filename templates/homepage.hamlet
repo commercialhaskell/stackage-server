@@ -31,7 +31,7 @@
             <img src=@{StaticR img_github_png} .github>
         <div .span9>
             <p>
-                Open a pull request on the Github repository.
+                Package authors: Open a pull request on the Github repository.
     <div .row .stackage-process>
         <div .span9>
             <p>
