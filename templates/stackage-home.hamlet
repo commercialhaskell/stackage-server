@@ -44,10 +44,10 @@ $newline never
                    $if inclusive
                        This means that it contains packages from Hackage too,
                        \ which are not guaranteed to build.
-                   $if not inclusive
+                   $else
                        This means that it contains only packages that build
                        \ and have been tested (excludes packages from Hackage
-                       \ that <em>may</em> or may not build.
+                       \ that <em>may</em> or may not build).
                <p>
                    For a detailed explanation of the differences and reasons for inclusive and exclusive snapshots, see <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#whats-the-difference-between-inclusive-and-exclusive-snapshots">the FAQ on this topic</a>.
 
