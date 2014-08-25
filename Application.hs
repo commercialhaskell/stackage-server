@@ -130,6 +130,7 @@ makeFoundation useEcho conf = do
                     <$> pure (encodeUtf8 access)
                     <*> pure (encodeUtf8 secret)
                     <*> newIORef []
+                    <*> pure Nothing
                 return $ cachedS3Store root creds bucket prefix manager
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
