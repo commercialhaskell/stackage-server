@@ -1,11 +1,11 @@
 $newline never
 <div .container>
     <h1>
-        #{stackageTitle stackage}
+        #{stackageTitle stackage}, inclusive
     <p>
         Published on #{yearMonthDay (stackageUploaded stackage)}
-        <span .separator>
-        $if True
+        $if hasBundle
+           <span .separator>
            <span>
                <a href=@{StackageMetadataR ident} title="View metadata on this snapshot, such as package versions">
                    \Metadata
@@ -16,7 +16,7 @@ $newline never
     <p>
         <pre>
             remote-repo: stackage:@{StackageHomeR ident}
-    $if isInclusiveOrExclusive
+    $maybe _ <- minclusive
         <p>
             <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#whats-the-difference-between-inclusive-and-exclusive-snapshots">What's the difference between inclusive and exclusive snapshots?</a>
     <h3>
@@ -25,10 +25,36 @@ $newline never
                 (click to expand)
     <div class="accordion" id="accordion2">
 
+      $maybe inclusive <- minclusive
+         <div class="accordion-group">
+           <div class="accordion-heading">
+             <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#collapse1">
+               <span .number>#{base + 0}
+               Check whether you want an inclusive or exclusive snapshot
+           <div id="collapse1" class="accordion-body collapse">
+             <div class="accordion-inner">
+               <p>
+                   This snapshot is: #
+                       <strong>
+                         $if inclusive
+                             inclusive
+                         $else
+                             exclusive
+               <p>
+                   $if inclusive
+                       This means that it contains packages from Hackage too,
+                       \ which are not guaranteed to build.
+                   $if not inclusive
+                       This means that it contains only packages that build
+                       \ and have been tested (excludes packages from Hackage
+                       \ that <em>may</em> or may not build.
+               <p>
+                   For a detailed explanation of the differences and reasons for inclusive and exclusive snapshots, see <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#whats-the-difference-between-inclusive-and-exclusive-snapshots">the FAQ on this topic</a>.
+
       <div class="accordion-group">
         <div class="accordion-heading">
           <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#collapse1">
-            <span .number>1
+            <span .number>#{base + 1}
             Copy the
             <code>remote-repo
             line to your Cabal configuration file
@@ -56,7 +82,7 @@ $newline never
       <div class="accordion-group">
         <div class="accordion-heading">
           <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#collapse2">
-            <span .number>2
+            <span .number>#{base + 2}
             Remove any existing package config
         <div id="collapse2" class="accordion-body collapse">
           <div class="accordion-inner">
@@ -93,7 +119,7 @@ $newline never
       <div class="accordion-group">
         <div class="accordion-heading">
           <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion3" href="#collapse3">
-            <span .number>3
+            <span .number>#{base + 3}
             Run
                 <code>
                     cabal update
