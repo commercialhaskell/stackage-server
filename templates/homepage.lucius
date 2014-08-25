@@ -77,3 +77,7 @@ h2 {
 /*     margin-bottom: 0.5em */
 /* } */
 /* } */
+
+h2.getting-started {
+  margin-top: 0.7em;
+}
