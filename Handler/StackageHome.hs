@@ -11,6 +11,9 @@ getStackageHomeR ident = do
         return (stackage, user)
 
     hasBundle <- storeExists $ SnapshotBundle ident
+    let isInclusiveOrExclusive =
+            "inclusive" `isSuffixOf` stackageTitle stackage ||
+            "exclusive" `isSuffixOf` stackageTitle stackage
     defaultLayout $ do
         setTitle $ toHtml $ stackageTitle stackage
         $(widgetFile "stackage-home")

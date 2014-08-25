@@ -8,6 +8,8 @@
             <li>
                 <a href=@{StackageHomeR ident}>
                     #{title}
+    <p>
+        <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#whats-the-difference-between-inclusive-and-exclusive-snapshots">What's the difference between inclusive and exclusive snapshots?</a>
     <h2 .getting-started>
         Getting Started
     <p>For prerequisites and compiler installation instructions, please see the wiki page <a href="https://github.com/fpco/stackage/wiki/Preparing-your-system-to-use-Stackage">Preparing your system to use Stackage</a>.
