@@ -28,10 +28,10 @@ $newline never
       $maybe inclusive <- minclusive
          <div class="accordion-group">
            <div class="accordion-heading">
-             <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#collapse1">
+             <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion0" href="#collapse0">
                <span .number>#{base + 0}
                Check whether you want an inclusive or exclusive snapshot
-           <div id="collapse1" class="accordion-body collapse">
+           <div id="collapse0" class="accordion-body collapse">
              <div class="accordion-inner">
                <p>
                    This snapshot is: #
@@ -53,7 +53,7 @@ $newline never
 
       <div class="accordion-group">
         <div class="accordion-heading">
-          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion1" href="#collapse1">
+          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse1">
             <span .number>#{base + 1}
             Copy the
             <code>remote-repo
@@ -81,7 +81,7 @@ $newline never
 
       <div class="accordion-group">
         <div class="accordion-heading">
-          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion2" href="#collapse2">
+          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse2">
             <span .number>#{base + 2}
             Remove any existing package config
         <div id="collapse2" class="accordion-body collapse">
@@ -118,7 +118,7 @@ $newline never
 
       <div class="accordion-group">
         <div class="accordion-heading">
-          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion3" href="#collapse3">
+          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse3">
             <span .number>#{base + 3}
             Run
                 <code>
