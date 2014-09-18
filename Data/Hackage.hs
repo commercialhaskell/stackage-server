@@ -27,6 +27,8 @@ import Distribution.PackageDescription.PrettyPrint (showGenericPackageDescriptio
 import Distribution.PackageDescription (GenericPackageDescription)
 import Control.Exception (throw)
 import Control.Monad.State.Strict (put, get, execStateT, MonadState)
+import Crypto.Hash.Conduit (sinkHash)
+import Crypto.Hash (Digest, SHA256)
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -69,9 +71,23 @@ loadCabalFiles uploadHistory0 = flip execStateT (UploadState uploadHistory0 []) 
             Tar.NormalFile lbs _
                 | Just (name, version) <- parseFilePath (Tar.entryPath entry) -> do
                     let key = HackageCabal name version
-                    exists <- storeExists key
+                    -- It's not longer sufficient to simply check if the cabal
+                    -- file exists, since Hackage now allows updating in place.
+                    -- Instead, we have to check if it matches what we have
+                    -- and, if not, update it.
                     store <- liftM getBlobStore ask
-                    unless exists $ withAcquire (storeWrite' store key) $ \sink ->
+                    toStore <- withAcquire (storeRead' store key) $ \mcurr ->
+                        case mcurr of
+                            Nothing -> return True
+                            Just curr -> do
+                                -- Check if it matches. This is cheaper than
+                                -- always writing, since it can take advantage
+                                -- of the local filesystem cache and not go to
+                                -- S3 each time.
+                                currDigest <- curr $$ sinkHash
+                                newDigest <- sourceLazy lbs $$ sinkHash
+                                return $ currDigest /= (newDigest :: Digest SHA256)
+                    when toStore $ withAcquire (storeWrite' store key) $ \sink ->
                         sourceLazy lbs $$ sink
                     setUploadDate name version
             _ -> return ()
