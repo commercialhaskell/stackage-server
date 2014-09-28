@@ -169,11 +169,7 @@ sourceHackageSdist name version = do
             HackageRoot root <- liftM getHackageRoot ask
             let url = concat
                         [ root
-                        , "/"
-                        , toPathPiece name
-                        , "/"
-                        , toPathPiece version
-                        , "/"
+                        , "/package/"
                         , toPathPiece name
                         , "-"
                         , toPathPiece version
