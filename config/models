@@ -39,3 +39,11 @@ Package
     name' PackageName sql=name
     version Version
     overwrite Bool
+
+Download
+    ident PackageSetIdent Maybe
+    view HackageView Maybe
+    timestamp UTCTime
+    package PackageName
+    version Version
+    userAgent Text Maybe

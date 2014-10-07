@@ -69,6 +69,7 @@ library
                 PatternGuards
                 StandaloneDeriving
                 UndecidableInstances
+                RecordWildCards
 
     build-depends: 
                    base                          >= 4

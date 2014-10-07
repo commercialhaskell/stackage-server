@@ -2,9 +2,11 @@ module Handler.HackageViewSdist where
 
 import Import
 import Data.Hackage
+import Handler.StackageSdist (addDownload)
 
 getHackageViewSdistR :: HackageView -> PackageNameVersion -> Handler TypedContent
 getHackageViewSdistR viewName (PackageNameVersion name version) = do
+    addDownload Nothing (Just viewName) name version
     msrc <- sourceHackageViewSdist viewName name version
     case msrc of
         Nothing -> notFound

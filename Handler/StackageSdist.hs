@@ -6,6 +6,7 @@ import Data.Hackage
 
 getStackageSdistR :: PackageSetIdent -> PackageNameVersion -> Handler TypedContent
 getStackageSdistR ident (PackageNameVersion name version) = do
+    addDownload (Just ident) Nothing name version
     msrc1 <- storeRead (CustomSdist ident name version)
     msrc <-
         case msrc1 of
@@ -22,3 +23,13 @@ getStackageSdistR ident (PackageNameVersion name version) = do
                 , ".tar.gz"
                 ]
             respondSource "application/x-gzip" $ mapOutput (Chunk . toBuilder) src
+
+addDownload :: Maybe PackageSetIdent
+            -> Maybe HackageView
+            -> PackageName
+            -> Version
+            -> Handler ()
+addDownload downloadIdent downloadView downloadPackage downloadVersion = do
+    downloadUserAgent <- fmap decodeUtf8 <$> lookupHeader "user-agent"
+    downloadTimestamp <- liftIO getCurrentTime
+    runDB $ insert_ Download {..}
