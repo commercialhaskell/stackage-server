@@ -12,6 +12,7 @@
 /upload UploadStackageR GET PUT
 /stackage/#PackageSetIdent StackageHomeR GET
 /stackage/#PackageSetIdent/metadata StackageMetadataR GET
+/stackage/#PackageSetIdent/cabal.config StackageCabalConfigR GET
 /stackage/#PackageSetIdent/00-index.tar.gz StackageIndexR GET
 /stackage/#PackageSetIdent/bundle StackageBundleR GET
 /stackage/#PackageSetIdent/package/#PackageNameVersion StackageSdistR GET
