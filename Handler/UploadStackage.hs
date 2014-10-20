@@ -32,17 +32,7 @@ getUploadStackageR = do
 
 putUploadStackageR :: Handler TypedContent
 putUploadStackageR = do
-    mtoken <- lookupHeader "authorization"
-    uid <- case decodeUtf8 <$> mtoken of
-        Nothing -> requireAuthId
-        Just token -> do
-            case mkSlug token of
-                Nothing -> invalidArgs ["Invalid token: " ++ token]
-                Just token' -> do
-                    muser <- runDB $ getBy $ UniqueToken token'
-                    case muser of
-                        Nothing -> invalidArgs ["Unknown token: " ++ token]
-                        Just (Entity uid _) -> return uid
+    uid <- requireAuthIdOrToken
     mfile <- lookupFile fileKey
     case mfile of
         Nothing -> invalidArgs ["Upload missing"]
@@ -131,6 +121,7 @@ putUploadStackageR = do
                             else do
                                 done "Error creating index file" ProfileR
 
+            addHeader "X-Stackage-Ident" $ toPathPiece ident
             redirect $ ProgressR key
   where
     loop _ Tar.Done = return ()

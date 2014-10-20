@@ -18,10 +18,10 @@ form = renderDivs $ areq fileField "tarball containing docs"
 
 getUploadHaddockR, putUploadHaddockR :: PackageSetIdent -> Handler Html
 getUploadHaddockR ident = do
-    uid <- requireAuthId
+    uid <- requireAuthIdOrToken
     Entity sid Stackage {..} <- runDB $ getBy404 $ UniqueStackage ident
     unless (uid == stackageUser) $ permissionDenied "You do not control this snapshot"
-    ((res, widget), enctype) <- runFormPost form
+    ((res, widget), enctype) <- runFormPostNoToken form
     case res of
         FormSuccess fileInfo -> do
             fileSource fileInfo $$ storeWrite (HaddockBundle ident)

@@ -10,8 +10,23 @@ import Settings.Development as Import
 import Settings.StaticFiles as Import
 import Types as Import
 import Yesod.Auth as Import
+import Data.Slug (mkSlug)
 
 getHaddockDir :: PackageSetIdent -> Handler FilePath
 getHaddockDir ident = do
     master <- getYesod
     return $ haddockRootDir master </> fpFromText (toPathPiece ident)
+
+requireAuthIdOrToken :: Handler UserId
+requireAuthIdOrToken = do
+    mtoken <- lookupHeader "authorization"
+    case decodeUtf8 <$> mtoken of
+        Nothing -> requireAuthId
+        Just token -> do
+            case mkSlug token of
+                Nothing -> invalidArgs ["Invalid token: " ++ token]
+                Just token' -> do
+                    muser <- runDB $ getBy $ UniqueToken token'
+                    case muser of
+                        Nothing -> invalidArgs ["Unknown token: " ++ token]
+                        Just (Entity uid _) -> return uid

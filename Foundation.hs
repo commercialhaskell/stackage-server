@@ -142,7 +142,7 @@ instance Yesod App where
     makeLogger = return . appLogger
 
     maximumContentLength _ (Just UploadStackageR) = Just 50000000
-    maximumContentLength _ (Just UploadHaddockR{}) = Just 50000000
+    maximumContentLength _ (Just UploadHaddockR{}) = Just 100000000
     maximumContentLength _ _ = Just 2000000
 
 -- How to run database actions.
