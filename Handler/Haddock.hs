@@ -28,6 +28,7 @@ getUploadHaddockR ident = do
             runDB $ update sid [StackageHasHaddocks =. True]
             master <- getYesod
             getHaddockDir ident >>= liftIO . void . tryIO . removeTree
+            void $ liftIO $ forkIO $ haddockUnpacker master ident
             setMessage "Haddocks uploaded"
             redirect $ StackageHomeR ident
         _ -> defaultLayout $ do
