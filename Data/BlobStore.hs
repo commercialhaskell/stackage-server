@@ -130,6 +130,9 @@ cachedS3Store cache creds bucket prefix manager =
                                     $ requestBodySource len
                                     $ sourceHandle inH)
                             void $ Aws.readResponseIO res
+                        liftIO $ IO.withFile fp IO.ReadMode $ \inH -> withAcquire
+                            (storeWrite' (fileStore cache) key)
+                            (sourceHandle inH $$)
                 else storeWrite' (fileStore cache) key
         , storeRead' = \key ->
             if shouldBackup key
