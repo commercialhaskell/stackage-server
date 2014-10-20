@@ -10,3 +10,8 @@ import Settings.Development as Import
 import Settings.StaticFiles as Import
 import Types as Import
 import Yesod.Auth as Import
+
+getHaddockDir :: PackageSetIdent -> Handler FilePath
+getHaddockDir ident = do
+    master <- getYesod
+    return $ haddockRootDir master </> fpFromText (toPathPiece ident)

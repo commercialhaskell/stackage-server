@@ -6,10 +6,11 @@ import Data.Time (FormatTime)
 
 getStackageHomeR :: PackageSetIdent -> Handler Html
 getStackageHomeR ident = do
-    (stackage, user) <- runDB $ do
+    muid <- maybeAuthId
+    stackage <- runDB $ do
         Entity _ stackage <- getBy404 $ UniqueStackage ident
-        user <- get404 $ stackageUser stackage
-        return (stackage, user)
+        return stackage
+    let isOwner = muid == Just (stackageUser stackage)
 
     hasBundle <- storeExists $ SnapshotBundle ident
     let minclusive =

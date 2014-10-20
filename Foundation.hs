@@ -35,6 +35,12 @@ data App = App
     , blobStore :: !(BlobStore StoreKey)
     , progressMap :: !(IORef (IntMap Progress))
     , nextProgressKey :: !(IORef Int)
+    , haddockRootDir :: !FilePath
+    , haddockUnpacker :: !(PackageSetIdent -> IO ())
+    -- ^ We have a dedicated thread so that (1) we don't try to unpack too many
+    -- things at once, (2) we never unpack the same thing twice at the same
+    -- time, and (3) so that even if the client connection dies, we finish the
+    -- unpack job.
     }
 
 data Progress = ProgressWorking !Text
@@ -136,6 +142,7 @@ instance Yesod App where
     makeLogger = return . appLogger
 
     maximumContentLength _ (Just UploadStackageR) = Just 50000000
+    maximumContentLength _ (Just UploadHaddockR{}) = Just 50000000
     maximumContentLength _ _ = Just 2000000
 
 -- How to run database actions.

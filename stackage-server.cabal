@@ -41,6 +41,7 @@ library
                      Handler.Alias
                      Handler.Progress
                      Handler.System
+                     Handler.Haddock
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -128,6 +129,7 @@ library
                  , process
                  , old-locale
                  , th-lift
+                 , mime-types
 
 executable         stackage-server
     if flag(library-only)

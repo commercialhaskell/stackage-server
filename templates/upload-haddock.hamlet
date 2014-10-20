@@ -1,0 +1,13 @@
+<div .container>
+    <h1>Upload Haddocks
+
+    <p>
+        <a href=@{StackageHomeR ident}>Return to snapshot
+
+    $if stackageHasHaddocks
+        <div .alert .alert-warning>You have already uploaded Haddocks. Uploading against will delete the old contents.
+
+    <form method=POST action=@{UploadHaddockR ident}?_method=PUT enctype=#{enctype}>
+        ^{widget}
+        <div>
+            <button .btn>Upload

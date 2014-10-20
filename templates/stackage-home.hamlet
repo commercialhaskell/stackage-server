@@ -17,6 +17,15 @@ $newline never
            <span>
                <a href=@{StackageCabalConfigR ident} title="If you want to stick with upstream Hackage but get a stable package set">
                    \cabal.config
+           $if stackageHasHaddocks stackage
+               <span .separator>
+               <span>
+                   <a href=@{HaddockR ident []}>Haddocks
+    $if isOwner
+        <p>
+            You are the owner of this snapshot. You can #
+            <a href=@{UploadHaddockR ident}>upload haddocks#
+            .
     <p>
         <pre>
             remote-repo: stackage:@{StackageHomeR ident}

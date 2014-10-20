@@ -20,6 +20,7 @@ Stackage
     uploaded UTCTime
     title Text
     desc Text
+    hasHaddocks Bool default=false
     UniqueStackage ident
 
 Uploaded

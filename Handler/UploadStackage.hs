@@ -91,6 +91,7 @@ putUploadStackageR = do
                         , stackageUploaded = now
                         , stackageTitle = "Untitled Stackage"
                         , stackageDesc = "No description provided"
+                        , stackageHasHaddocks = False
                         }
 
                 -- Evil lazy I/O thanks to tar package
