@@ -44,4 +44,3 @@ getHomeR = do
                   runDB .
                   select .
                   from
-                where unValue (Value e) = e
