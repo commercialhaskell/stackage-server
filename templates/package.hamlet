@@ -15,7 +15,7 @@
         <ul>
             $forall (Value version, Value title, Value ident, Value hasHaddocks) <- packages
                 <li>
-                    <a href=@{StackageHomeR ident}>#{title}
+                    <a href=@{StackageHomeR ident}>#{fromMaybe title $ stripSuffix ", exclusive" title}
                     (version #{version})
                     $if hasHaddocks
                         <a href=@{haddocksLink ident version}>(haddocks)

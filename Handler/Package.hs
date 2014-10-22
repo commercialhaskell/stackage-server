@@ -17,6 +17,7 @@ getPackageR pn = do
         packages <- E.select $ E.from $ \(p, s) -> do
             E.where_ $ (p ^. PackageStackage E.==. s ^. StackageId)
                    &&. (p ^. PackageName' E.==. E.val pn)
+                   &&. (s ^. StackageTitle `E.like` E.val "%, exclusive")
             E.orderBy [E.desc $ s ^. StackageUploaded]
             E.limit maxSnaps
             --selectList [PackageName' ==. pn] [LimitTo 10, Desc PackageStackage]
