@@ -1,0 +1,5 @@
+<div .container>
+    <ul>
+        $forall name <- names
+            <li>
+                <a href=@{PackageR name}>#{name}

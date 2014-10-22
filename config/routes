@@ -25,3 +25,4 @@
 /system SystemR GET
 /haddock/#PackageSetIdent/*Texts HaddockR GET
 /package/#PackageName PackageR GET
+/package PackageListR GET

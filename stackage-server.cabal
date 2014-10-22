@@ -43,6 +43,7 @@ library
                      Handler.System
                      Handler.Haddock
                      Handler.Package
+                     Handler.PackageList
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
