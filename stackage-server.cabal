@@ -42,6 +42,7 @@ library
                      Handler.Progress
                      Handler.System
                      Handler.Haddock
+                     Handler.Package
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

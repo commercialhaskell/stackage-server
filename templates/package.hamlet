@@ -1,0 +1,27 @@
+<div .container>
+    <div .alert .alert-warn>
+        <b>NOTHING TO SEE HERE MOVE ALONG
+        We'll announce when this is ready
+    <h1>#{pn}
+    <h2>Latest uploaded version: #{latestVersion}
+
+    $if null packages
+        <p>Not included in any snapshots
+    $else
+        $if length packages == maxSnaps
+            <h2>Last #{asInt maxSnaps} snapshots included in
+        $else
+            <h2>Snapshots included in
+        <ul>
+            $forall (Value version, Value title, Value ident, Value hasHaddocks) <- packages
+                <li>
+                    <a href=@{StackageHomeR ident}>#{title}
+                    (version #{version})
+                    $if hasHaddocks
+                        <a href=@{haddocksLink ident version}>(haddocks)
+    <h2>FIXME
+    <ul>
+        <li>Make the page look decent
+        <li>Add: tags, upvote/downvote a tag, submit new tags. Tags could be used for stability, category, etc
+        <li>Add: disqus comments
+        <li>Add: vote on package
