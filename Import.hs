@@ -15,7 +15,7 @@ import Data.Slug (mkSlug)
 getHaddockDir :: PackageSetIdent -> Handler FilePath
 getHaddockDir ident = do
     master <- getYesod
-    return $ haddockRootDir master </> fpFromText (toPathPiece ident)
+    return $ haddockRootDir master </> "idents" </> fpFromText (toPathPiece ident)
 
 requireAuthIdOrToken :: Handler UserId
 requireAuthIdOrToken = do

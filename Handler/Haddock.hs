@@ -103,7 +103,7 @@ createHaddockUnpacker root store = do
       where
         dir = mkDir ident
 
-    mkDir ident = root </> fpFromText (toPathPiece ident)
+    mkDir ident = root </> "idents" </> fpFromText (toPathPiece ident)
 
     -- Procedure is to:
     --
