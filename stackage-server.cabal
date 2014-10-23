@@ -132,6 +132,7 @@ library
                  , old-locale
                  , th-lift
                  , mime-types
+                 , unix
 
 executable         stackage-server
     if flag(library-only)

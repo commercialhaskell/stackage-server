@@ -2,14 +2,21 @@ module Handler.Haddock where
 
 import Import
 import Data.BlobStore
-import Filesystem (removeTree, isDirectory, createTree, isFile)
+import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile)
 import Control.Concurrent (forkIO)
 import Control.Concurrent.Chan
-import System.IO.Temp (withSystemTempFile)
+import System.IO.Temp (withSystemTempFile, withTempFile)
 import Control.Exception (mask)
 import System.Process (createProcess, proc, cwd, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
 import Network.Mime (defaultMimeLookup)
+import Crypto.Hash.Conduit (sinkHash)
+import System.IO (IOMode (ReadMode), withBinaryFile)
+import Data.Conduit.Zlib (gzip)
+import System.Posix.Files (createLink)
+import qualified Data.ByteString.Base16 as B16
+import Data.Byteable (toBytes)
+import Crypto.Hash (Digest, SHA1)
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"
@@ -48,10 +55,16 @@ getHaddockR ident rest = do
 
     whenM (liftIO $ isDirectory fp)
         $ redirect $ HaddockR ident $ rest ++ ["index.html"]
-    unlessM (liftIO $ isFile fp) notFound
 
-    let mime = defaultMimeLookup $ fpToText $ filename fp
-    sendFile mime $ fpToString fp
+    let fpgz = fp <.> "gz"
+        mime = defaultMimeLookup $ fpToText $ filename fp
+    whenM (liftIO $ isFile fpgz) $ do
+        addHeader "Content-Encoding" "gzip"
+        sendFile mime $ fpToString fpgz
+
+    whenM (liftIO $ isFile fp) $ sendFile mime $ fpToString fp
+
+    notFound
   where
     sanitize p
         | ("/" `isInfixOf` p) || p `member` (asHashSet $ setFromList ["", ".", ".."]) =
@@ -67,6 +80,7 @@ createHaddockUnpacker root store = do
     mask $ \restore -> void $ forkIO $ forever $ do
         (ident, res) <- readChan chan
         try (restore $ go ident) >>= putMVar res
+        restore (gzipHash ident) `catch` (print . asSomeException)
     return $ \ident -> do
         res <- newEmptyMVar
         writeChan chan (ident, res)
@@ -87,4 +101,35 @@ createHaddockUnpacker root store = do
         ec <- waitForProcess ph
         if ec == ExitSuccess then return () else throwM ec
       where
-        dir = root </> fpFromText (toPathPiece ident)
+        dir = mkDir ident
+
+    mkDir ident = root </> fpFromText (toPathPiece ident)
+
+    -- Procedure is to:
+    --
+    -- * Traverse the entire directory
+    -- * Gzip each file to a temp file, and get a hash of the contents
+    -- * If that hash doesn't exist in the cache, move the new file to the cache
+    -- * Create a hard link from /orig/file.gz to the file in the cache
+    -- * Delete /orig/file
+    gzipHash ident = do
+        createTree cachedir
+        runResourceT $ sourceDirectoryDeep False dir
+                    $$ mapM_C (liftIO . handle (print . asIOException) . oneFile)
+      where
+        dir = mkDir ident
+        cachedir = root </> "cache-dir"
+
+        oneFile fp = withTempFile (fpToString cachedir) "haddock-file.gz" $ \tempfp temph -> do
+            digest <- withBinaryFile (fpToString fp) ReadMode $ \inh ->
+                sourceHandle inh
+                $= gzip
+                $$ (getZipSink $
+                    ZipSink (sinkHandle temph) *>
+                    ZipSink sinkHash)
+            hClose temph
+            let name = decodeUtf8 $ B16.encode $ toBytes (digest :: Digest SHA1)
+            let fpcache = cachedir </> fpFromText name <.> "gz"
+            unlessM (isFile fpcache) $ rename (fpFromString tempfp) fpcache
+            createLink (fpToString fpcache) (fpToString $ fp <.> "gz")
+            removeFile fp
