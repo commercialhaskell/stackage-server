@@ -107,12 +107,31 @@ createCompressor rawdir gzdir cachedir = do
       where
         Just suffix = F.stripPrefix (rawdir </> "") fp
 
+-- Procedure is to:
+--
+-- * Gzip the src file to a temp file, and get a hash of the gzipped contents
+-- * If that hash doesn't exist in the cache, move the new file to the cache
+-- * Create a hard link from dst to the file in the cache
+-- * Delete src
 gzipHash :: FilePath -- ^ cache directory
          -> FilePath -- ^ source
          -> FilePath -- ^ destination
          -> IO ()
 gzipHash cachedir src dst = do
-    putStrLn $ tshow ("gzipHash", cachedir, src, dst) ++ "\n"
+    withTempFile (fpToString cachedir) "haddock-file.gz" $ \tempfp temph -> do
+        digest <- withBinaryFile (fpToString src) ReadMode $ \inh ->
+            sourceHandle inh
+            $= gzip
+            $$ (getZipSink $
+                ZipSink (sinkHandle temph) *>
+                ZipSink sinkHash)
+        hClose temph
+        let name = decodeUtf8 $ B16.encode $ toBytes (digest :: Digest SHA1)
+        let fpcache = cachedir </> fpFromText name <.> "gz"
+        unlessM (isFile fpcache) $ rename (fpFromString tempfp) fpcache
+        createLink (fpToString fpcache) (fpToString dst)
+        removeFile src
+
 
 -- Should have two threads: one to unpack, one to convert. Never serve the
 -- uncompressed files, only the compressed files. When serving, convert on
@@ -162,35 +181,3 @@ createHaddockUnpacker root store = do
 
     mkDir ident = root </> "idents" </> fpFromText (toPathPiece ident)
     -}
-
-    -- Procedure is to:
-    --
-    -- * Traverse the entire directory
-    -- * Gzip each file to a temp file, and get a hash of the contents
-    -- * If that hash doesn't exist in the cache, move the new file to the cache
-    -- * Create a hard link from /orig/file.gz to the file in the cache
-    -- * Delete /orig/file
-    {-
-    gzipHash ident = do
-        createTree cachedir
-        runResourceT $ sourceDirectoryDeep False dir
-                    $= filterC (not . flip hasExtension "gz")
-                    $$ mapM_C (liftIO . handle (print . asIOException) . oneFile)
-      where
-        dir = mkDir ident
-        cachedir = root </> "cache-dir"
-
-        oneFile fp = withTempFile (fpToString cachedir) "haddock-file.gz" $ \tempfp temph -> do
-            digest <- withBinaryFile (fpToString fp) ReadMode $ \inh ->
-                sourceHandle inh
-                $= gzip
-                $$ (getZipSink $
-                    ZipSink (sinkHandle temph) *>
-                    ZipSink sinkHash)
-            hClose temph
-            let name = decodeUtf8 $ B16.encode $ toBytes (digest :: Digest SHA1)
-            let fpcache = cachedir </> fpFromText name <.> "gz"
-            unlessM (isFile fpcache) $ rename (fpFromString tempfp) fpcache
-            createLink (fpToString fpcache) (fpToString $ fp <.> "gz")
-            removeFile fp
-            -}
