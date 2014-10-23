@@ -39,6 +39,7 @@ putUploadHaddockR = getUploadHaddockR
 
 getHaddockR :: PackageSetIdent -> [Text] -> Handler ()
 getHaddockR ident rest = do
+    sanitize $ toPathPiece ident
     mapM_ sanitize rest
     dir <- getHaddockDir ident
     master <- getYesod
