@@ -27,3 +27,4 @@
         <li>Add: tags, upvote/downvote a tag, submit new tags. Tags could be used for stability, category, etc
         <li>Add: disqus comments
         <li>Add: vote on package
+        <li>Add: README, changelog, dependencies

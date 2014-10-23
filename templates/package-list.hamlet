@@ -3,3 +3,4 @@
         $forall name <- names
             <li>
                 <a href=@{PackageR name}>#{name}
+                <b>FIXME SYNOPSIS

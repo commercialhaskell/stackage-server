@@ -28,5 +28,6 @@ cachedWidget diff key widget = do
             $logDebug "Not using cached widget"
             WidgetT $ \hd -> do
                 ((), gw) <- unWidgetT widget hd
+                -- FIXME render the builders in gw for more efficiency
                 atomicModifyIORef' ref $ \m -> (insertMap key (addUTCTime diff now, gw) m, ())
                 return ((), gw)
