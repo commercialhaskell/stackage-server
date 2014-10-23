@@ -139,6 +139,7 @@ instance Yesod App where
 
     -- What messages should be logged. The following includes all messages when
     -- in development, and warnings and errors in production.
+    shouldLog _ "CLEANUP" _ = False
     shouldLog _ source level =
         development || level == LevelWarn || level == LevelError || source == "CLEANUP"
 
