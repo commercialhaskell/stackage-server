@@ -17,6 +17,7 @@ import System.Posix.Files (createLink)
 import qualified Data.ByteString.Base16 as B16
 import Data.Byteable (toBytes)
 import Crypto.Hash (Digest, SHA1)
+import qualified Filesystem.Path.CurrentOS as F
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"
@@ -34,8 +35,7 @@ getUploadHaddockR ident = do
             fileSource fileInfo $$ storeWrite (HaddockBundle ident)
             runDB $ update sid [StackageHasHaddocks =. True]
             master <- getYesod
-            getHaddockDir ident >>= liftIO . void . tryIO . removeTree
-            void $ liftIO $ forkIO $ haddockUnpacker master ident
+            void $ liftIO $ forkIO $ haddockUnpacker master True ident
             setMessage "Haddocks uploaded"
             redirect $ StackageHomeR ident
         _ -> defaultLayout $ do
@@ -46,23 +46,28 @@ putUploadHaddockR = getUploadHaddockR
 
 getHaddockR :: PackageSetIdent -> [Text] -> Handler ()
 getHaddockR ident rest = do
+    error "getHaddockR"
+    {-
     sanitize $ toPathPiece ident
     mapM_ sanitize rest
-    dir <- getHaddockDir ident
+    (gzdir, rawdir) <- getHaddockDir ident
     master <- getYesod
     liftIO $ unlessM (isDirectory dir) $ haddockUnpacker master ident
-    let fp = mconcat $ dir : map fpFromText rest
 
-    whenM (liftIO $ isDirectory fp)
+    let rawfp = mconcat $ rawdir : map fpFromText rest
+        gzfp  = mconcat $ gzdir  : map fpFromText rest
+        mime = defaultMimeLookup $ fpToText $ filename rawfp
+
+    whenM (liftIO $ isDirectory rawfp)
+        $ redirect $ HaddockR ident $ rest ++ ["index.html"]
+    whenM (liftIO $ isDirectory gzfp)
         $ redirect $ HaddockR ident $ rest ++ ["index.html"]
 
-    let fpgz = fp <.> "gz"
-        mime = defaultMimeLookup $ fpToText $ filename fp
-    whenM (liftIO $ isFile fpgz) $ do
+    whenM (liftIO $ isFile gzfp) $ do
         addHeader "Content-Encoding" "gzip"
-        sendFile mime $ fpToString fpgz
+        sendFile mime $ fpToString gzfp
 
-    whenM (liftIO $ isFile fp) $ sendFile mime $ fpToString fp
+    whenM (liftIO $ isFile rawfp) $ sendFile mime $ fpToString rawfp
 
     notFound
   where
@@ -70,24 +75,76 @@ getHaddockR ident rest = do
         | ("/" `isInfixOf` p) || p `member` (asHashSet $ setFromList ["", ".", ".."]) =
             permissionDenied "Invalid request"
         | otherwise = return ()
+        -}
 
+getHaddockDir :: PackageSetIdent -> Handler (FilePath, FilePath)
+getHaddockDir ident = do
+    master <- getYesod
+    return $ mkDirPair (haddockRootDir master) ident
+
+mkDirPair :: FilePath -- ^ root
+          -> PackageSetIdent
+          -> (FilePath, FilePath) -- ^ compressed, uncompressed
+mkDirPair root ident =
+    ( root </> "idents-raw" </> fpFromText (toPathPiece ident)
+    , root </> "idents-gz"  </> fpFromText (toPathPiece ident)
+    )
+
+createCompressor
+    :: FilePath -- ^ uncompressed dir
+    -> FilePath -- ^ compressed dir
+    -> FilePath -- ^ cache dir
+    -> IO (IO ()) -- ^ action to kick off compressor again
+createCompressor rawdir gzdir cachedir = do
+    baton <- newMVar ()
+    mask $ \restore -> void $ forkIO $ forever $ do
+        takeMVar baton
+        runResourceT $ sourceDirectoryDeep False rawdir $$ mapM_C go
+    return $ void $ tryPutMVar baton ()
+  where
+    go fp = liftIO $ handle (print . asSomeException) $ do
+        gzipHash cachedir fp (gzdir </> fp)
+      where
+        Just suffix = F.stripPrefix (rawdir </> "") fp
+
+gzipHash :: FilePath -- ^ cache directory
+         -> FilePath -- ^ source
+         -> FilePath -- ^ destination
+         -> IO ()
+gzipHash cachedir src dst = do
+    putStrLn $ tshow ("gzipHash", cachedir, src, dst) ++ "\n"
+
+-- Should have two threads: one to unpack, one to convert. Never serve the
+-- uncompressed files, only the compressed files. When serving, convert on
+-- demand.
 createHaddockUnpacker :: FilePath -- ^ haddock root
                       -> BlobStore StoreKey
-                      -> IO (PackageSetIdent -> IO ())
+                      -> IO (ForceUnpack -> PackageSetIdent -> IO ())
 createHaddockUnpacker root store = do
     chan <- newChan
+    compressor <- createCompressor
+        (root </> "idents-raw")
+        (root </> "idents-gz")
+        cacehdir
 
     mask $ \restore -> void $ forkIO $ forever $ do
-        (ident, res) <- readChan chan
-        try (restore $ go ident) >>= putMVar res
-        restore (gzipHash ident) `catch` (print . asSomeException)
-    return $ \ident -> do
+        (forceUnpack, ident, res) <- readChan chan
+        try (restore $ go forceUnpack ident) >>= putMVar res
+        compressor
+    return $ \forceUnpack ident -> do
         res <- newEmptyMVar
-        writeChan chan (ident, res)
+        writeChan chan (forceUnpack, ident, res)
         takeMVar res >>= either (throwM . asSomeException) return
   where
-    go ident = unlessM (isDirectory dir) $
-               withSystemTempFile "haddock-bundle.tar.xz" $ \tempfp temph -> do
+    cacehdir = root </> "cachedir"
+    gzipHash = error "gzipHash"
+    go forceUnpack ident = do
+        error "go"
+    {- FIXME
+            unlessM (isDirectory dir) $
+            withSystemTempFile "haddock-bundle.tar.xz" $ \tempfp temph -> do
+        when forceUnpack
+            $ liftIO $ mapM_ (void . tryIO . removeTree) [dir1, dir2]
         withAcquire (storeRead' store (HaddockBundle ident)) $ \msrc ->
             case msrc of
                 Nothing -> error "No haddocks exist for that snapshot"
@@ -104,6 +161,7 @@ createHaddockUnpacker root store = do
         dir = mkDir ident
 
     mkDir ident = root </> "idents" </> fpFromText (toPathPiece ident)
+    -}
 
     -- Procedure is to:
     --
@@ -112,6 +170,7 @@ createHaddockUnpacker root store = do
     -- * If that hash doesn't exist in the cache, move the new file to the cache
     -- * Create a hard link from /orig/file.gz to the file in the cache
     -- * Delete /orig/file
+    {-
     gzipHash ident = do
         createTree cachedir
         runResourceT $ sourceDirectoryDeep False dir
@@ -134,3 +193,4 @@ createHaddockUnpacker root store = do
             unlessM (isFile fpcache) $ rename (fpFromString tempfp) fpcache
             createLink (fpToString fpcache) (fpToString $ fp <.> "gz")
             removeFile fp
+            -}

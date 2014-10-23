@@ -136,7 +136,7 @@ makeFoundation useEcho conf = do
                     <*> pure Nothing
                 return $ cachedS3Store root creds bucket prefix manager
 
-    let haddockRootDir' = "/tmp/stackage-server-haddocks"
+    let haddockRootDir' = "/tmp/stackage-server-haddocks2"
     unpacker <- createHaddockUnpacker haddockRootDir' blobStore'
     widgetCache' <- newIORef mempty
 

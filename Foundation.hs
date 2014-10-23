@@ -36,13 +36,15 @@ data App = App
     , progressMap :: !(IORef (IntMap Progress))
     , nextProgressKey :: !(IORef Int)
     , haddockRootDir :: !FilePath
-    , haddockUnpacker :: !(PackageSetIdent -> IO ())
+    , haddockUnpacker :: !(ForceUnpack -> PackageSetIdent -> IO ())
     -- ^ We have a dedicated thread so that (1) we don't try to unpack too many
     -- things at once, (2) we never unpack the same thing twice at the same
     -- time, and (3) so that even if the client connection dies, we finish the
     -- unpack job.
     , widgetCache :: !(IORef (HashMap Text (UTCTime, GWData (Route App))))
     }
+
+type ForceUnpack = Bool
 
 data Progress = ProgressWorking !Text
               | ProgressDone !Text !(Route App)

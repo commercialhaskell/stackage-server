@@ -12,11 +12,6 @@ import Types as Import
 import Yesod.Auth as Import
 import Data.Slug (mkSlug)
 
-getHaddockDir :: PackageSetIdent -> Handler FilePath
-getHaddockDir ident = do
-    master <- getYesod
-    return $ haddockRootDir master </> "idents" </> fpFromText (toPathPiece ident)
-
 requireAuthIdOrToken :: Handler UserId
 requireAuthIdOrToken = do
     mtoken <- lookupHeader "authorization"
