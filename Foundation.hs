@@ -16,7 +16,7 @@ import           Types
 import           Yesod.Auth
 import           Yesod.Auth.BrowserId
 import           Yesod.Auth.GoogleEmail
-import           Yesod.Core.Types (Logger)
+import           Yesod.Core.Types (Logger, GWData)
 import           Yesod.Default.Config
 import           Yesod.Default.Util (addStaticContentExternal)
 
@@ -41,6 +41,7 @@ data App = App
     -- things at once, (2) we never unpack the same thing twice at the same
     -- time, and (3) so that even if the client connection dies, we finish the
     -- unpack job.
+    , widgetCache :: !(IORef (HashMap Text (UTCTime, GWData (Route App))))
     }
 
 data Progress = ProgressWorking !Text

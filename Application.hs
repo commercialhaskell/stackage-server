@@ -138,6 +138,7 @@ makeFoundation useEcho conf = do
 
     let haddockRootDir' = "/tmp/stackage-server-haddocks"
     unpacker <- createHaddockUnpacker haddockRootDir' blobStore'
+    widgetCache' <- newIORef mempty
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
@@ -153,6 +154,7 @@ makeFoundation useEcho conf = do
             , nextProgressKey = nextProgressKey'
             , haddockRootDir = haddockRootDir'
             , haddockUnpacker = unpacker
+            , widgetCache = widgetCache'
             }
 
     -- Perform database migration using our application's logging settings.
