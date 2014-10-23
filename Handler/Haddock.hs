@@ -115,6 +115,7 @@ createHaddockUnpacker root store = do
     gzipHash ident = do
         createTree cachedir
         runResourceT $ sourceDirectoryDeep False dir
+                    $= filterC (not . flip hasExtension "gz")
                     $$ mapM_C (liftIO . handle (print . asIOException) . oneFile)
       where
         dir = mkDir ident
