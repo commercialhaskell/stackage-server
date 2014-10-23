@@ -103,7 +103,7 @@ createCompressor rawdir gzdir cachedir = do
     return $ void $ tryPutMVar baton ()
   where
     go fp = liftIO $ handle (print . asSomeException) $ do
-        gzipHash cachedir fp (gzdir </> fp)
+        gzipHash cachedir fp (gzdir </> suffix)
       where
         Just suffix = F.stripPrefix (rawdir </> "") fp
 
