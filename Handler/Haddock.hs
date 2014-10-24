@@ -2,7 +2,7 @@ module Handler.Haddock where
 
 import Import
 import Data.BlobStore
-import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile)
+import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile, removeDirectory)
 import Control.Concurrent (forkIO)
 import Control.Concurrent.Chan
 import System.IO.Temp (withSystemTempFile, withTempFile)
@@ -46,16 +46,14 @@ putUploadHaddockR = getUploadHaddockR
 
 getHaddockR :: PackageSetIdent -> [Text] -> Handler ()
 getHaddockR ident rest = do
-    error "getHaddockR"
-    {-
     sanitize $ toPathPiece ident
     mapM_ sanitize rest
-    (gzdir, rawdir) <- getHaddockDir ident
+    dirs <- getDirs -- (gzdir, rawdir) <- getHaddockDir ident
     master <- getYesod
-    liftIO $ unlessM (isDirectory dir) $ haddockUnpacker master ident
+    liftIO $ haddockUnpacker master False ident
 
-    let rawfp = mconcat $ rawdir : map fpFromText rest
-        gzfp  = mconcat $ gzdir  : map fpFromText rest
+    let rawfp = dirRawFp dirs ident rest
+        gzfp  = dirGzFp dirs ident rest
         mime = defaultMimeLookup $ fpToText $ filename rawfp
 
     whenM (liftIO $ isDirectory rawfp)
@@ -67,6 +65,9 @@ getHaddockR ident rest = do
         addHeader "Content-Encoding" "gzip"
         sendFile mime $ fpToString gzfp
 
+    -- Note: There's a small race window here, where the compressor thread
+    -- could pull the rug out from under us. We can work around this by opening
+    -- the file and, if that fails, try the compressed version again.
     whenM (liftIO $ isFile rawfp) $ sendFile mime $ fpToString rawfp
 
     notFound
@@ -75,7 +76,6 @@ getHaddockR ident rest = do
         | ("/" `isInfixOf` p) || p `member` (asHashSet $ setFromList ["", ".", ".."]) =
             permissionDenied "Invalid request"
         | otherwise = return ()
-        -}
 
 getHaddockDir :: PackageSetIdent -> Handler (FilePath, FilePath)
 getHaddockDir ident = do
@@ -91,21 +91,28 @@ mkDirPair root ident =
     )
 
 createCompressor
-    :: FilePath -- ^ uncompressed dir
-    -> FilePath -- ^ compressed dir
-    -> FilePath -- ^ cache dir
+    :: Dirs
     -> IO (IO ()) -- ^ action to kick off compressor again
-createCompressor rawdir gzdir cachedir = do
+createCompressor dirs = do
     baton <- newMVar ()
     mask $ \restore -> void $ forkIO $ forever $ do
         takeMVar baton
-        runResourceT $ sourceDirectoryDeep False rawdir $$ mapM_C go
+        runResourceT $ goDir (dirRawRoot dirs)
     return $ void $ tryPutMVar baton ()
   where
-    go fp = liftIO $ handle (print . asSomeException) $ do
-        gzipHash cachedir fp (gzdir </> suffix)
+    goDir dir = do
+        sourceDirectory dir $$ mapM_C goFP
+        liftIO $ void $ tryIO $ removeDirectory dir
+
+    goFP fp = do
+        e <- liftIO $ isFile fp
+        if e
+            then liftIO
+                    $ handle (print . asSomeException)
+                    $ gzipHash dirs suffix
+            else goDir fp
       where
-        Just suffix = F.stripPrefix (rawdir </> "") fp
+        Just suffix = F.stripPrefix (dirRawRoot dirs </> "") fp
 
 -- Procedure is to:
 --
@@ -113,12 +120,11 @@ createCompressor rawdir gzdir cachedir = do
 -- * If that hash doesn't exist in the cache, move the new file to the cache
 -- * Create a hard link from dst to the file in the cache
 -- * Delete src
-gzipHash :: FilePath -- ^ cache directory
-         -> FilePath -- ^ source
-         -> FilePath -- ^ destination
+gzipHash :: Dirs
+         -> FilePath -- ^ suffix
          -> IO ()
-gzipHash cachedir src dst = do
-    withTempFile (fpToString cachedir) "haddock-file.gz" $ \tempfp temph -> do
+gzipHash dirs suffix = do
+    withTempFile (fpToString $ dirCacheRoot dirs) "haddock-file.gz" $ \tempfp temph -> do
         digest <- withBinaryFile (fpToString src) ReadMode $ \inh ->
             sourceHandle inh
             $= gzip
@@ -126,12 +132,45 @@ gzipHash cachedir src dst = do
                 ZipSink (sinkHandle temph) *>
                 ZipSink sinkHash)
         hClose temph
-        let name = decodeUtf8 $ B16.encode $ toBytes (digest :: Digest SHA1)
-        let fpcache = cachedir </> fpFromText name <.> "gz"
-        unlessM (isFile fpcache) $ rename (fpFromString tempfp) fpcache
+        let fpcache = dirCacheFp dirs digest
+        unlessM (isFile fpcache) $ do
+            createTree $ F.parent fpcache
+            rename (fpFromString tempfp) fpcache
+        createTree $ F.parent dst
         createLink (fpToString fpcache) (fpToString dst)
         removeFile src
+  where
+    src = dirRawRoot dirs </> suffix
+    dst = dirGzRoot dirs </> suffix
 
+data Dirs = Dirs
+    { dirRawRoot :: !FilePath
+    , dirGzRoot :: !FilePath
+    , dirCacheRoot :: !FilePath
+    }
+
+getDirs :: Handler Dirs
+getDirs = mkDirs . haddockRootDir <$> getYesod
+
+mkDirs :: FilePath -> Dirs
+mkDirs dir = Dirs
+    { dirRawRoot = dir </> "idents-raw"
+    , dirGzRoot = dir </> "idents-gz"
+    , dirCacheRoot = dir </> "cachedir"
+    }
+
+dirGzIdent dirs ident = dirGzRoot dirs </> fpFromText (toPathPiece ident)
+dirRawIdent dirs ident = dirRawRoot dirs </> fpFromText (toPathPiece ident)
+
+dirGzFp dirs ident rest = dirGzIdent dirs ident </> mconcat (map fpFromText rest)
+dirRawFp dirs ident rest = dirRawIdent dirs ident </> mconcat (map fpFromText rest)
+
+dirCacheFp :: Dirs -> Digest SHA1 -> FilePath
+dirCacheFp dirs digest =
+    dirCacheRoot dirs </> fpFromText x </> fpFromText y <.> "gz"
+  where
+    name = decodeUtf8 $ B16.encode $ toBytes digest
+    (x, y) = splitAt 2 name
 
 -- Should have two threads: one to unpack, one to convert. Never serve the
 -- uncompressed files, only the compressed files. When serving, convert on
@@ -140,44 +179,55 @@ createHaddockUnpacker :: FilePath -- ^ haddock root
                       -> BlobStore StoreKey
                       -> IO (ForceUnpack -> PackageSetIdent -> IO ())
 createHaddockUnpacker root store = do
+    createTree $ dirCacheRoot dirs
+    createTree $ dirRawRoot dirs
+    createTree $ dirGzRoot dirs
+
     chan <- newChan
-    compressor <- createCompressor
-        (root </> "idents-raw")
-        (root </> "idents-gz")
-        cacehdir
+    compressor <- createCompressor dirs
 
     mask $ \restore -> void $ forkIO $ forever $ do
         (forceUnpack, ident, res) <- readChan chan
         try (restore $ go forceUnpack ident) >>= putMVar res
         compressor
     return $ \forceUnpack ident -> do
-        res <- newEmptyMVar
-        writeChan chan (forceUnpack, ident, res)
-        takeMVar res >>= either (throwM . asSomeException) return
+        shouldAct <-
+            if forceUnpack
+                then return True
+                else not <$> doDirsExist ident
+        if shouldAct
+            then do
+                res <- newEmptyMVar
+                writeChan chan (forceUnpack, ident, res)
+                takeMVar res >>= either (throwM . asSomeException) return
+            else return ()
   where
-    cacehdir = root </> "cachedir"
-    gzipHash = error "gzipHash"
-    go forceUnpack ident = do
-        error "go"
-    {- FIXME
-            unlessM (isDirectory dir) $
-            withSystemTempFile "haddock-bundle.tar.xz" $ \tempfp temph -> do
-        when forceUnpack
-            $ liftIO $ mapM_ (void . tryIO . removeTree) [dir1, dir2]
-        withAcquire (storeRead' store (HaddockBundle ident)) $ \msrc ->
-            case msrc of
-                Nothing -> error "No haddocks exist for that snapshot"
-                Just src -> src $$ sinkHandle temph
-        hClose temph
-        createTree dir
-        (Nothing, Nothing, Nothing, ph) <- createProcess
-            (proc "tar" ["xf", tempfp])
-                { cwd = Just $ fpToString dir
-                }
-        ec <- waitForProcess ph
-        if ec == ExitSuccess then return () else throwM ec
-      where
-        dir = mkDir ident
+    dirs = mkDirs root
 
-    mkDir ident = root </> "idents" </> fpFromText (toPathPiece ident)
-    -}
+    doDirsExist ident = do
+        e1 <- isDirectory $ dirGzIdent dirs ident
+        if e1
+            then return True
+            else isDirectory $ dirRawIdent dirs ident
+    go forceUnpack ident = do
+        toRun <-
+            if forceUnpack
+                then do
+                    removeTree $ dirRawIdent dirs ident
+                    removeTree $ dirGzIdent dirs ident
+                    return True
+                else not <$> doDirsExist ident
+        when toRun $ do
+            withSystemTempFile "haddock-bundle.tar.xz" $ \tempfp temph -> do
+                withAcquire (storeRead' store (HaddockBundle ident)) $ \msrc ->
+                    case msrc of
+                        Nothing -> error "No haddocks exist for that snapshot"
+                        Just src -> src $$ sinkHandle temph
+                hClose temph
+                createTree $ dirRawIdent dirs ident
+                (Nothing, Nothing, Nothing, ph) <- createProcess
+                    (proc "tar" ["xf", tempfp])
+                        { cwd = Just $ fpToString $ dirRawIdent dirs ident
+                        }
+                ec <- waitForProcess ph
+                if ec == ExitSuccess then return () else throwM ec
