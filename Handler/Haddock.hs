@@ -6,7 +6,7 @@ import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFi
 import Control.Concurrent (forkIO)
 import Control.Concurrent.Chan
 import System.IO.Temp (withSystemTempFile, withTempFile)
-import Control.Exception (mask)
+import Control.Exception (mask, mask_)
 import System.Process (createProcess, proc, cwd, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
 import Network.Mime (defaultMimeLookup)
@@ -95,7 +95,7 @@ createCompressor
     -> IO (IO ()) -- ^ action to kick off compressor again
 createCompressor dirs = do
     baton <- newMVar ()
-    mask $ \restore -> void $ forkIO $ forever $ do
+    mask_ $ void $ forkIO $ forever $ do
         takeMVar baton
         runResourceT $ goDir (dirRawRoot dirs)
     return $ void $ tryPutMVar baton ()
@@ -159,9 +159,11 @@ mkDirs dir = Dirs
     , dirCacheRoot = dir </> "cachedir"
     }
 
+dirGzIdent, dirRawIdent :: Dirs -> PackageSetIdent -> FilePath
 dirGzIdent dirs ident = dirGzRoot dirs </> fpFromText (toPathPiece ident)
 dirRawIdent dirs ident = dirRawRoot dirs </> fpFromText (toPathPiece ident)
 
+dirGzFp, dirRawFp :: Dirs -> PackageSetIdent -> [Text] -> FilePath
 dirGzFp dirs ident rest = dirGzIdent dirs ident </> mconcat (map fpFromText rest)
 dirRawFp dirs ident rest = dirRawIdent dirs ident </> mconcat (map fpFromText rest)
 
