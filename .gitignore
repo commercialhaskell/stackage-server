@@ -14,3 +14,7 @@ cabal.sandbox.config
 *.swp
 /dev-blob-store/
 TAGS
+/config/postgresql.yml
+/config/settings.yml
+/tarballs/
+stackage-server.keter
