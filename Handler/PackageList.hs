@@ -12,6 +12,10 @@ getPackageListR = do
         return $ u E.^. UploadedName
     defaultLayout $ do
         setTitle "Package list"
+        $(combineStylesheets 'StaticR
+            [ css_bootstrap_css
+            , css_bootstrap_responsive_css
+            ])
         cachedWidget (5 * 60) "package-list" $(widgetFile "package-list")
 
 -- FIXME move somewhere else, maybe even yesod-core

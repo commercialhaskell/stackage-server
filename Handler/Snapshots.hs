@@ -26,4 +26,8 @@ getAllSnapshotsR = do
             )
     defaultLayout $ do
         setTitle "Stackage Server"
+        $(combineStylesheets 'StaticR
+            [ css_bootstrap_css
+            , css_bootstrap_responsive_css
+            ])
         $(widgetFile "all-snapshots")

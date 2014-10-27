@@ -26,6 +26,10 @@ getProfileR = do
         <*> selectList [AliasUser ==. uid] [Asc AliasName]
     defaultLayout $ do
         setTitle "Your Profile"
+        $(combineStylesheets 'StaticR
+            [ css_bootstrap_css
+            , css_bootstrap_responsive_css
+            ])
         $(widgetFile "profile")
 
 aliasToText :: Entity Alias -> Text

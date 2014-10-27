@@ -22,6 +22,10 @@ getStackageHomeR ident = do
         base = maybe 0 (const 1) minclusive :: Int
     defaultLayout $ do
         setTitle $ toHtml $ stackageTitle stackage
+        $(combineStylesheets 'StaticR
+            [ css_bootstrap_css
+            , css_bootstrap_responsive_css
+            ])
         $(widgetFile "stackage-home")
 
 getStackageMetadataR :: PackageSetIdent -> Handler TypedContent

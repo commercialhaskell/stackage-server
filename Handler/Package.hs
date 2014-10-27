@@ -30,4 +30,8 @@ getPackageR pn = do
         return (latestVersion, packages, downloads, recentDownloads)
     defaultLayout $ do
         setTitle $ toHtml pn
+        $(combineStylesheets 'StaticR
+            [ css_bootstrap_css
+            , css_bootstrap_responsive_css
+            ])
         $(widgetFile "package")

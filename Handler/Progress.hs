@@ -9,6 +9,10 @@ getProgressR key = do
     case lookup key m of
         Nothing -> notFound
         Just (ProgressWorking text) -> defaultLayout $ do
+            $(combineStylesheets 'StaticR
+                [ css_bootstrap_css
+                , css_bootstrap_responsive_css
+                ])
             addHeader "Refresh" "1"
             setTitle "Working..."
             [whamlet|<p>#{text}|]

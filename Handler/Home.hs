@@ -32,6 +32,10 @@ getHomeR = do
     restLatest    <- linkFor "unstable-ghc78-inclusive"
     defaultLayout $ do
         setTitle "Stackage Server"
+        $(combineStylesheets 'StaticR
+            [ css_bootstrap_modified_css
+            , css_bootstrap_responsive_modified_css
+            ])
         $(widgetFile "homepage")
   where
       linkFor name =
