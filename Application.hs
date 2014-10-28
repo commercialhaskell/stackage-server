@@ -13,6 +13,7 @@ import           Control.Monad.Reader (MonadReader (..))
 import           Control.Monad.Trans.Control
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Conduit.Lazy (MonadActive, monadActive)
+import qualified Database.Esqueleto as E
 import           Data.Hackage
 import           Data.Hackage.Views
 import           Data.Time (diffUTCTime)
@@ -175,8 +176,17 @@ makeFoundation useEcho conf = do
                        -> ReaderT App (LoggingT IO) a
                 runDB' = runResourceT . flip (Database.Persist.runPool dbconf) p
             uploadHistory0 <- runDB' $ selectSource [] [] $$ sinkUploadHistory
-            UploadState uploadHistory newUploads <- loadCabalFiles uploadHistory0
+            let toMDPair (E.Value name, E.Value version, E.Value hash') =
+                    (name, (version, hash'))
+            metadata0 <- fmap (mapFromList . map toMDPair)
+                       $ runDB' $ E.select $ E.from $ \m -> return
+                ( m E.^. MetadataName
+                , m E.^. MetadataVersion
+                , m E.^. MetadataHash
+                )
+            UploadState uploadHistory newUploads _ newMD <- loadCabalFiles uploadHistory0 metadata0
             runDB' $ mapM_ insert_ newUploads
+            runDB' $ mapM_ (void . insertBy) newMD
             let views =
                     [ ("pvp", viewPVP uploadHistory)
                     , ("no-bounds", viewNoBounds)

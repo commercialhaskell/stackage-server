@@ -73,6 +73,8 @@ library
                 StandaloneDeriving
                 UndecidableInstances
                 RecordWildCards
+                ScopedTypeVariables
+                BangPatterns
 
     build-depends: 
                    base                          >= 4
@@ -133,6 +135,7 @@ library
                  , th-lift
                  , mime-types
                  , unix
+                 , markdown
 
 executable         stackage-server
     if flag(library-only)

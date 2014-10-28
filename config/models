@@ -48,3 +48,27 @@ Download
     package PackageName
     version Version
     userAgent Text Maybe
+
+Metadata
+    name PackageName
+    version Version
+    hash ByteString
+    deps [Text]
+    author Text
+    maintainer Text
+    licenseName Text
+    homepage Text
+    bugReports Text
+    synopsis Text
+    sourceRepo [Text]
+    category Text
+    library Bool
+    exes Int
+    testSuites Int
+    benchmarks Int
+
+    readme Html
+    changelog Html Maybe
+    licenseContent Html Maybe
+
+    UniqueMetadata name

@@ -20,15 +20,20 @@ import Data.Conduit.Zlib (ungzip, gzip)
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
 import System.IO (IOMode (ReadMode), openBinaryFile)
 import Control.Monad.Catch (MonadMask)
-import Model (Uploaded (Uploaded))
+import Model (Uploaded (Uploaded), Metadata (..))
 import Filesystem (createTree)
 import Distribution.PackageDescription.Parse (parsePackageDescription, ParseResult (ParseOk))
 import Distribution.PackageDescription.PrettyPrint (showGenericPackageDescription)
 import Distribution.PackageDescription (GenericPackageDescription)
+import qualified Distribution.PackageDescription as PD
+import qualified Distribution.Package as PD
 import Control.Exception (throw)
 import Control.Monad.State.Strict (put, get, execStateT, MonadState)
 import Crypto.Hash.Conduit (sinkHash)
 import Crypto.Hash (Digest, SHA256)
+import Data.Byteable (toBytes)
+import Distribution.Text (display)
+import Text.Markdown (Markdown (Markdown))
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -51,8 +56,9 @@ loadCabalFiles :: ( MonadActive m
                   , MonadMask m
                   )
                => UploadHistory -- ^ initial
+               -> HashMap PackageName (Version, ByteString)
                -> m UploadState
-loadCabalFiles uploadHistory0 = flip execStateT (UploadState uploadHistory0 []) $ do
+loadCabalFiles uploadHistory0 metadata0 = flip execStateT (UploadState uploadHistory0 [] metadata0 mempty) $ do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
@@ -76,6 +82,7 @@ loadCabalFiles uploadHistory0 = flip execStateT (UploadState uploadHistory0 []) 
                     -- Instead, we have to check if it matches what we have
                     -- and, if not, update it.
                     store <- liftM getBlobStore ask
+                    newDigest :: Digest SHA256 <- sourceLazy lbs $$ sinkHash
                     toStore <- withAcquire (storeRead' store key) $ \mcurr ->
                         case mcurr of
                             Nothing -> return True
@@ -85,11 +92,13 @@ loadCabalFiles uploadHistory0 = flip execStateT (UploadState uploadHistory0 []) 
                                 -- of the local filesystem cache and not go to
                                 -- S3 each time.
                                 currDigest <- curr $$ sinkHash
-                                newDigest <- sourceLazy lbs $$ sinkHash
-                                return $ currDigest /= (newDigest :: Digest SHA256)
+                                return $! currDigest /= newDigest
                     when toStore $ withAcquire (storeWrite' store key) $ \sink ->
                         sourceLazy lbs $$ sink
                     setUploadDate name version
+
+                    setMetadata name version (toBytes newDigest)
+                              $ parsePackageDescription $ unpack $ decodeUtf8 lbs
             _ -> return ()
 
 tarSource :: (Exception e, MonadThrow m)
@@ -103,6 +112,8 @@ type UploadHistory = HashMap PackageName (HashMap Version UTCTime)
 data UploadState = UploadState
     { usHistory :: !UploadHistory
     , usChanges :: ![Uploaded]
+    , usMetadata :: !(HashMap PackageName (Version, ByteString))
+    , usMetaChanges :: !(HashMap PackageName Metadata)
     }
 
 setUploadDate :: ( MonadBaseControl IO m
@@ -117,7 +128,7 @@ setUploadDate :: ( MonadBaseControl IO m
               -> Version
               -> m ()
 setUploadDate name version = do
-    UploadState history changes <- get
+    UploadState history changes us3 us4 <- get
     case lookup name history >>= lookup version of
         Just _ -> return ()
         Nothing -> do
@@ -131,7 +142,7 @@ setUploadDate name version = do
                     let vhistory = insertMap version time $ fromMaybe mempty $ lookup name history
                         history' = insertMap name vhistory history
                         changes' = Uploaded name version time : changes
-                    put $ UploadState history' changes'
+                    put $ UploadState history' changes' us3 us4
   where
     url = unpack $ concat
         [ "http://hackage.haskell.org/package/"
@@ -140,6 +151,125 @@ setUploadDate name version = do
         , toPathPiece version
         , "/upload-time"
         ]
+
+setMetadata :: ( MonadBaseControl IO m
+               , MonadThrow m
+               , MonadIO m
+               , MonadReader env m
+               , MonadState UploadState m
+               , HasHttpManager env
+               , MonadLogger m
+               , MonadActive m
+               , HasBlobStore env StoreKey
+               , HasHackageRoot env
+               )
+            => PackageName
+            -> Version
+            -> ByteString
+            -> ParseResult PD.GenericPackageDescription
+            -> m ()
+setMetadata name version hash' gpdRes = do
+    UploadState us1 us2 mdMap mdChanges <- get
+    let toUpdate =
+            case lookup name mdMap of
+                Just (currVersion, currHash) ->
+                    case compare currVersion version of
+                        LT -> True
+                        GT -> False
+                        EQ -> currHash /= hash'
+                Nothing -> True
+    if toUpdate
+        then case gpdRes of
+                ParseOk _ gpd -> do
+                    !md <- getMetadata name version hash' $ PD.packageDescription gpd
+                    put $! UploadState us1 us2
+                                (insertMap name (version, hash') mdMap)
+                                (insertMap name md mdChanges)
+                _ -> return ()
+        else return ()
+
+getMetadata :: ( MonadActive m
+               , MonadIO m
+               , MonadBaseControl IO m
+               , MonadThrow m
+               , MonadReader env m
+               , HasBlobStore env StoreKey
+               , HasHackageRoot env
+               , HasHttpManager env
+               , MonadLogger m
+               )
+            => PackageName
+            -> Version
+            -> ByteString
+            -> PD.PackageDescription
+            -> m Metadata
+getMetadata name version hash' pd = do
+    (mreadme, mchangelog, mlicenseContent) <-
+        grabExtraFiles name version $ PD.licenseFiles pd
+    return Metadata
+        { metadataName = name
+        , metadataVersion = version
+        , metadataHash = hash'
+        , metadataDeps = [pack n | PD.Dependency (PD.PackageName n) _ <- PD.buildDepends pd]
+        , metadataAuthor = pack $ PD.author pd
+        , metadataMaintainer = pack $ PD.maintainer pd
+        , metadataLicenseName = pack $ display $ PD.license pd
+        , metadataHomepage = pack $ PD.homepage pd
+        , metadataBugReports = pack $ PD.bugReports pd
+        , metadataSynopsis = pack $ PD.synopsis pd
+        , metadataSourceRepo = mapMaybe showSourceRepo $ PD.sourceRepos pd
+        , metadataCategory = pack $ PD.category pd
+        , metadataLibrary = isJust $ PD.library pd
+        , metadataExes = length $ PD.executables pd
+        , metadataTestSuites = length $ PD.testSuites pd
+        , metadataBenchmarks = length $ PD.benchmarks pd
+        , metadataReadme = fromMaybe (toHtml $ Textarea $ pack $ PD.description pd) mreadme
+        , metadataChangelog = mchangelog
+        , metadataLicenseContent = mlicenseContent
+        }
+
+showSourceRepo :: PD.SourceRepo -> Maybe Text
+showSourceRepo = fmap pack . PD.repoLocation
+
+grabExtraFiles :: ( MonadActive m
+                  , MonadIO m
+                  , MonadBaseControl IO m
+                  , MonadThrow m
+                  , MonadReader env m
+                  , HasBlobStore env StoreKey
+                  , HasHackageRoot env
+                  , HasHttpManager env
+                  , MonadLogger m
+                  )
+               => PackageName
+               -> Version
+               -> [String] -- ^ license files
+               -> m (Maybe Html, Maybe Html, Maybe Html) -- ^ README, changelog, license
+grabExtraFiles name version lfiles = runResourceT $ do
+    msrc <- sourceHackageSdist name version
+    case msrc of
+        Nothing -> return mempty
+        Just src -> do
+            bss <- lazyConsume $ src $= ungzip
+            tarSource (Tar.read $ fromChunks bss) $$ foldlC go mempty
+  where
+    go trip@(mreadme, mchangelog, mlicense) entry =
+        case Tar.entryContent entry of
+            Tar.NormalFile lbs _ ->
+                let name = drop 1 $ dropWhile (/= '/') $ Tar.entryPath entry in
+                case toLower name of
+                    "readme.md"     -> (md lbs, mchangelog, mlicense)
+                    "readme"        -> (txt lbs, mchangelog, mlicense)
+                    "readme.txt"    -> (txt lbs, mchangelog, mlicense)
+                    "changelog.md"  -> (mreadme, md lbs, mlicense)
+                    "changelog"     -> (mreadme, txt lbs, mlicense)
+                    "changelog.txt" -> (mreadme, txt lbs, mlicense)
+                    _ | name `elem` lfiles -> (mreadme, mchangelog, txt lbs)
+                    _ -> trip
+            _ -> trip
+
+    md = Just . toHtml . Markdown . decodeUtf8
+    txt = Just . toHtml . Textarea . toStrict . decodeUtf8
 
 parseFilePath :: String -> Maybe (PackageName, Version)
 parseFilePath s =
