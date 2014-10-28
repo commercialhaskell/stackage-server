@@ -258,11 +258,12 @@ grabExtraFiles :: ( MonadActive m
                -> m (Maybe Html, Maybe Html, Maybe Html) -- ^ README, changelog, license
 grabExtraFiles name version lfiles = runResourceT $ do
     msrc <- sourceHackageSdist name version
-    case msrc of
-        Nothing -> return mempty
-        Just src -> do
-            bss <- lazyConsume $ src $= ungzip
-            tarSource (Tar.read $ fromChunks bss) $$ foldlC go mempty
+    handle (\(_ :: Tar.FormatError) -> return (Nothing,Nothing,Nothing)) $
+        case msrc of
+            Nothing -> return mempty
+            Just src -> do
+                bss <- lazyConsume $ src $= ungzip
+                tarSource (Tar.read $ fromChunks bss) $$ foldlC go mempty
   where
     go trip@(mreadme, mchangelog, mlicense) entry =
         case Tar.entryContent entry of
