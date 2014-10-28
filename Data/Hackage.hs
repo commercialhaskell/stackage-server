@@ -34,6 +34,7 @@ import Crypto.Hash (Digest, SHA256)
 import Data.Byteable (toBytes)
 import Distribution.Text (display)
 import Text.Markdown (Markdown (Markdown))
+import Data.Foldable (foldMap)
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -181,7 +182,7 @@ setMetadata name version hash' gpdRes = do
     if toUpdate
         then case gpdRes of
                 ParseOk _ gpd -> do
-                    !md <- getMetadata name version hash' $ PD.packageDescription gpd
+                    !md <- getMetadata name version hash' gpd
                     put $! UploadState us1 us2
                                 (insertMap name (version, hash') mdMap)
                                 (insertMap name md mdChanges)
@@ -201,16 +202,22 @@ getMetadata :: ( MonadActive m
             => PackageName
             -> Version
             -> ByteString
-            -> PD.PackageDescription
+            -> PD.GenericPackageDescription
             -> m Metadata
-getMetadata name version hash' pd = do
+getMetadata name version hash' gpd = do
+    let pd = PD.packageDescription gpd
     (mreadme, mchangelog, mlicenseContent) <-
         grabExtraFiles name version $ PD.licenseFiles pd
     return Metadata
         { metadataName = name
         , metadataVersion = version
         , metadataHash = hash'
-        , metadataDeps = [pack n | PD.Dependency (PD.PackageName n) _ <- PD.buildDepends pd]
+        , metadataDeps = setToList
+                       $ asSet
+                       $ concat
+              [ foldMap goTree $ PD.condLibrary gpd
+              , foldMap (goTree . snd) $ PD.condExecutables gpd
+              ]
         , metadataAuthor = pack $ PD.author pd
         , metadataMaintainer = pack $ PD.maintainer pd
         , metadataLicenseName = pack $ display $ PD.license pd
@@ -227,6 +234,10 @@ getMetadata name version hash' pd = do
         , metadataChangelog = mchangelog
         , metadataLicenseContent = mlicenseContent
         }
+  where
+    goTree (PD.CondNode _ deps comps) = concatMap goDep deps ++ concatMap goComp comps
+    goDep (PD.Dependency (PD.PackageName n) _) = singletonSet $ pack n
+    goComp (_, tree, mtree) = goTree tree ++ maybe mempty goTree mtree
 
 showSourceRepo :: PD.SourceRepo -> Maybe Text
 showSourceRepo = fmap pack . PD.repoLocation
@@ -256,15 +267,15 @@ grabExtraFiles name version lfiles = runResourceT $ do
     go trip@(mreadme, mchangelog, mlicense) entry =
         case Tar.entryContent entry of
             Tar.NormalFile lbs _ ->
-                let name = drop 1 $ dropWhile (/= '/') $ Tar.entryPath entry in
-                case toLower name of
+                let name' = drop 1 $ dropWhile (/= '/') $ Tar.entryPath entry in
+                case toLower name' of
                     "readme.md"     -> (md lbs, mchangelog, mlicense)
                     "readme"        -> (txt lbs, mchangelog, mlicense)
                     "readme.txt"    -> (txt lbs, mchangelog, mlicense)
                     "changelog.md"  -> (mreadme, md lbs, mlicense)
                     "changelog"     -> (mreadme, txt lbs, mlicense)
                     "changelog.txt" -> (mreadme, txt lbs, mlicense)
-                    _ | name `elem` lfiles -> (mreadme, mchangelog, txt lbs)
+                    _ | name' `elem` lfiles -> (mreadme, mchangelog, txt lbs)
                     _ -> trip
             _ -> trip
 
