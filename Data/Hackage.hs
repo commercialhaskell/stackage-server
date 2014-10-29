@@ -14,7 +14,8 @@ import Types
 import Data.BlobStore
 import Data.Conduit.Lazy (MonadActive (..), lazyConsume)
 import qualified Codec.Archive.Tar as Tar
-import Control.Monad.Reader (MonadReader, ask)
+import Control.Monad.Reader (MonadReader, ask, runReaderT)
+import Control.Monad.Logger (runNoLoggingT)
 import qualified Data.Text as T
 import Data.Conduit.Zlib (ungzip, gzip)
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
@@ -35,6 +36,7 @@ import Data.Byteable (toBytes)
 import Distribution.Text (display)
 import Text.Markdown (Markdown (Markdown))
 import Data.Foldable (foldMap)
+import qualified Data.Traversable as T
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -58,8 +60,8 @@ loadCabalFiles :: ( MonadActive m
                   )
                => UploadHistory -- ^ initial
                -> HashMap PackageName (Version, ByteString)
-               -> m UploadState
-loadCabalFiles uploadHistory0 metadata0 = flip execStateT (UploadState uploadHistory0 [] metadata0 mempty) $ do
+               -> m (UploadState Metadata)
+loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT (UploadState uploadHistory0 [] metadata0 mempty) $ do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
@@ -102,6 +104,9 @@ loadCabalFiles uploadHistory0 metadata0 = flip execStateT (UploadState uploadHis
                               $ parsePackageDescription $ unpack $ decodeUtf8 lbs
             _ -> return ()
 
+runUploadState :: MonadIO m => UploadState (IO a) -> m (UploadState a)
+runUploadState (UploadState w x y z) = liftIO $ UploadState w x y <$> T.sequence z
+
 tarSource :: (Exception e, MonadThrow m)
           => Tar.Entries e
           -> Producer m Tar.Entry
@@ -110,18 +115,18 @@ tarSource (Tar.Fail e) = throwM e
 tarSource (Tar.Next e es) = yield e >> tarSource es
 
 type UploadHistory = HashMap PackageName (HashMap Version UTCTime)
-data UploadState = UploadState
+data UploadState md = UploadState
     { usHistory :: !UploadHistory
     , usChanges :: ![Uploaded]
     , usMetadata :: !(HashMap PackageName (Version, ByteString))
-    , usMetaChanges :: !(HashMap PackageName Metadata)
+    , usMetaChanges :: !(HashMap PackageName md)
     }
 
 setUploadDate :: ( MonadBaseControl IO m
                  , MonadThrow m
                  , MonadIO m
                  , MonadReader env m
-                 , MonadState UploadState m
+                 , MonadState (UploadState (IO Metadata)) m
                  , HasHttpManager env
                  , MonadLogger m
                  )
@@ -157,7 +162,7 @@ setMetadata :: ( MonadBaseControl IO m
                , MonadThrow m
                , MonadIO m
                , MonadReader env m
-               , MonadState UploadState m
+               , MonadState (UploadState (IO Metadata)) m
                , HasHttpManager env
                , MonadLogger m
                , MonadActive m
@@ -203,37 +208,39 @@ getMetadata :: ( MonadActive m
             -> Version
             -> ByteString
             -> PD.GenericPackageDescription
-            -> m Metadata
+            -> m (IO Metadata)
 getMetadata name version hash' gpd = do
     let pd = PD.packageDescription gpd
-    (mreadme, mchangelog, mlicenseContent) <-
-        grabExtraFiles name version $ PD.licenseFiles pd
-    return Metadata
-        { metadataName = name
-        , metadataVersion = version
-        , metadataHash = hash'
-        , metadataDeps = setToList
-                       $ asSet
-                       $ concat
-              [ foldMap goTree $ PD.condLibrary gpd
-              , foldMap (goTree . snd) $ PD.condExecutables gpd
-              ]
-        , metadataAuthor = pack $ PD.author pd
-        , metadataMaintainer = pack $ PD.maintainer pd
-        , metadataLicenseName = pack $ display $ PD.license pd
-        , metadataHomepage = pack $ PD.homepage pd
-        , metadataBugReports = pack $ PD.bugReports pd
-        , metadataSynopsis = pack $ PD.synopsis pd
-        , metadataSourceRepo = mapMaybe showSourceRepo $ PD.sourceRepos pd
-        , metadataCategory = pack $ PD.category pd
-        , metadataLibrary = isJust $ PD.library pd
-        , metadataExes = length $ PD.executables pd
-        , metadataTestSuites = length $ PD.testSuites pd
-        , metadataBenchmarks = length $ PD.benchmarks pd
-        , metadataReadme = fromMaybe (toHtml $ Textarea $ pack $ PD.description pd) mreadme
-        , metadataChangelog = mchangelog
-        , metadataLicenseContent = mlicenseContent
-        }
+    env <- ask
+    return $ liftIO $ runNoLoggingT $ flip runReaderT env $ do
+        (mreadme, mchangelog, mlicenseContent) <-
+            grabExtraFiles name version $ PD.licenseFiles pd
+        return Metadata
+            { metadataName = name
+            , metadataVersion = version
+            , metadataHash = hash'
+            , metadataDeps = setToList
+                           $ asSet
+                           $ concat
+                  [ foldMap goTree $ PD.condLibrary gpd
+                  , foldMap (goTree . snd) $ PD.condExecutables gpd
+                  ]
+            , metadataAuthor = pack $ PD.author pd
+            , metadataMaintainer = pack $ PD.maintainer pd
+            , metadataLicenseName = pack $ display $ PD.license pd
+            , metadataHomepage = pack $ PD.homepage pd
+            , metadataBugReports = pack $ PD.bugReports pd
+            , metadataSynopsis = pack $ PD.synopsis pd
+            , metadataSourceRepo = mapMaybe showSourceRepo $ PD.sourceRepos pd
+            , metadataCategory = pack $ PD.category pd
+            , metadataLibrary = isJust $ PD.library pd
+            , metadataExes = length $ PD.executables pd
+            , metadataTestSuites = length $ PD.testSuites pd
+            , metadataBenchmarks = length $ PD.benchmarks pd
+            , metadataReadme = fromMaybe (toHtml $ Textarea $ pack $ PD.description pd) mreadme
+            , metadataChangelog = mchangelog
+            , metadataLicenseContent = mlicenseContent
+            }
   where
     goTree (PD.CondNode _ deps comps) = concatMap goDep deps ++ concatMap goComp comps
     goDep (PD.Dependency (PD.PackageName n) _) = singletonSet $ pack n
