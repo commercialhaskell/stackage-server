@@ -1,6 +1,6 @@
 :set -fobject-code
 :set -i.:config:dist/build/autogen
-:set -XCPP -XTemplateHaskell -XQuasiQuotes -XTypeFamilies -XFlexibleContexts -XGADTs -XOverloadedStrings -XMultiParamTypeClasses -XGeneralizedNewtypeDeriving -XEmptyDataDecls -XDeriveDataTypeable -XRankNTypes -XNoImplicitPrelude -XFunctionalDependencies -XFlexibleInstances -XTemplateHaskell -XQuasiQuotes -XOverloadedStrings -XNoImplicitPrelude -XCPP -XMultiParamTypeClasses -XTypeFamilies -XGADTs -XGeneralizedNewtypeDeriving -XFlexibleContexts -XEmptyDataDecls -XNoMonomorphismRestriction -XDeriveDataTypeable -XViewPatterns -XTypeSynonymInstances -XFlexibleInstances -XRankNTypes -XFunctionalDependencies -XPatternGuards -XStandaloneDeriving -XUndecidableInstances
+:set -XCPP -XTemplateHaskell -XQuasiQuotes -XTypeFamilies -XFlexibleContexts -XGADTs -XOverloadedStrings -XMultiParamTypeClasses -XGeneralizedNewtypeDeriving -XEmptyDataDecls -XDeriveDataTypeable -XRankNTypes -XNoImplicitPrelude -XFunctionalDependencies -XFlexibleInstances -XTemplateHaskell -XQuasiQuotes -XOverloadedStrings -XNoImplicitPrelude -XCPP -XMultiParamTypeClasses -XTypeFamilies -XGADTs -XGeneralizedNewtypeDeriving -XFlexibleContexts -XEmptyDataDecls -XNoMonomorphismRestriction -XDeriveDataTypeable -XViewPatterns -XTypeSynonymInstances -XFlexibleInstances -XRankNTypes -XFunctionalDependencies -XPatternGuards -XStandaloneDeriving -XUndecidableInstances -XBangPatterns -XScopedTypeVariables
 :set -DDEVELOPMENT=1
 :set -DINGHCI=1
 :set -package foreign-store
