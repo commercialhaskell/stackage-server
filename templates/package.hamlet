@@ -1,30 +1,127 @@
+$newline never
+<div .container #snapshot-home>
+    <div .row>
+        <div .span12>
+            <h1>
+               #{pn} #
+               <span .latest-version>
+                 #{latestVersion} #
+                 <small>
+                     (current)
+    <div .row>
+        <div .span6>
+            $if False
+                <a href="https://twitter.com/home?status=https://www.fpcomplete.com/user/chrisdonefp/example-autorun-active" target="_blank">
+                    <i class="fa-twitter-square fa"></a>
+                <a href="http://www.facebook.com/sharer/sharer.php?u=https://www.fpcomplete.com/user/chrisdonefp/example-autorun-active" target="_blank">
+                    <i class="fa-facebook-square fa">
+                <a href="https://plus.google.com/share?url=https://www.fpcomplete.com/user/chrisdonefp/example-autorun-active" target="_blank">
+                    <i class="fa-google-plus-square fa">
+            <div .tags>
+                $forall tag <- tags
+                    <span .tag>
+                        <a href="javascript:alert('Patience, preciouses!')">
+                            #{tag}
+                        , #
+                <i class="fa fa-plus-square" onclick="alert('TODO: Add tags.')"></i>
+            <div .social>
+                <span #likes>
+                    #{formatNum 234}
+                \ likes #
+                <i class="fa fa-thumbs-o-up" onclick="this.className = 'fa fa-thumbs-up'; document.getElementById('likes').innerText = '235'"></i>
+                $if downloads /= 0
+                    <span .downloads>
+                        $if downloads /= recentDownloads
+                            #{formatNum downloads} downloads #
+                            (#{formatNum recentDownloads} in the last 30 days)
+                        $else
+                            #{formatNum downloads} total downloads
+                $else
+                    <span .downloads>
+                        No downloads yet
+            <div .authorship>
+                <span .license>
+                    <a href="">
+                        #{metadataLicenseName metadata} licensed #
+                    $if null maintainers
+                        and maintained #
+                $if not (null authors)
+                   by #
+                   $forall (i,identity) <- authors
+                      <strong .author>
+                          $case identity
+                              $of PlainText name
+                                  $if i /= 0
+                                      , #
+                                  #{name}
+                              $of Contact name email
+                                  $if i /= 0
+                                      , #
+                                  <a href="mailto:#{renderEmail email}">
+                                      #{name}
+                              $of _
+
+            $if not (null maintainers)
+                <div .maintainer>
+                    Maintained by #
+                    $forall (i,identity) <- maintainers
+                         <strong .author>
+                             $case identity
+                                $of PlainText name
+                                    $if i /= 0
+                                        , #
+                                    #{name}
+                                $of Contact name email
+                                    $if i /= 0
+                                        , #
+                                    <a href="mailto:#{renderEmail email}">
+                                        #{name}
+                                $of EmailOnly email
+                                    $if i /= 0
+                                        , #
+                                    <a href="mailto:#{renderEmail email}">
+                                        #{renderEmail email}
+
+            <div .dependencies>
+                Depends on
+                <div .dep-list>
+                    $forall (i,name) <- deps
+                        $if i /= 0
+                            , #
+                        <a href=@{PackageR (PackageName name)}>
+                            #{name}
+        $if not (null packages)
+            <div .span6 .snapshots>
+               <table .table .snapshots>
+                   <thead>
+                       <th colspan=2>
+                           Package
+                       <th>
+                           Snapshot
+                   $forall (version, title, ident, hasHaddocks) <- packages
+                       <tr>
+                           <td>
+                               $if hasHaddocks
+                                 <a href=@{haddocksLink ident version}>
+                                     Docs
+                           <td>
+                               #{version}
+                           <td>
+                               <a href=@{StackageHomeR ident}>#{fromMaybe title $ stripSuffix ", exclusive" title}
+
+<div .readme-container>
+    <div .container>
+        <div .row>
+            <div .span12>
+                <div .readme>
+                    #{readmeHtml}
+
 <div .container>
-    <div .alert .alert-warn>
-        <b>NOTHING TO SEE HERE MOVE ALONG
-        We'll announce when this is ready
-    <h1>#{pn}
-    <h2>Latest uploaded version: #{latestVersion}
-
-    <p>Total downloads: #{downloads} (#{recentDownloads} in last 30 days)
-
-    $if null packages
-        <p>Not included in any snapshots
-    $else
-        $if length packages == maxSnaps
-            <h2>Last #{asInt maxSnaps} snapshots included in
-        $else
-            <h2>Snapshots included in
-        <ul>
-            $forall (Value version, Value title, Value ident, Value hasHaddocks) <- packages
-                <li>
-                    <a href=@{StackageHomeR ident}>#{fromMaybe title $ stripSuffix ", exclusive" title}
-                    (version #{version})
-                    $if hasHaddocks
-                        <a href=@{haddocksLink ident version}>(haddocks)
-    <h2>FIXME
-    <ul>
-        <li>Make the page look decent
-        <li>Add: tags, upvote/downvote a tag, submit new tags. Tags could be used for stability, category, etc
-        <li>Add: disqus comments
-        <li>Add: vote on package
-        <li>Add: README, changelog, dependencies
+    <div .row>
+        <div .span12>
+          <div id="disqus_thread">
+              <script>
+                  var disqus_shortname = "fpcomplete"; (function() { var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true; dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js'; (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq); })();
+              <a class="dsq-brlink" href="https://disqus.com">
+                  comments powered by
+                  <span class="logo-disqus">Disqus

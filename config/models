@@ -5,6 +5,7 @@ User
     UniqueHandle handle
     UniqueToken token
     deriving Typeable
+
 Email
     email Text
     user UserId
