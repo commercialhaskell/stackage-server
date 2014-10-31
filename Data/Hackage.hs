@@ -214,7 +214,12 @@ getMetadata name version hash' gpd = do
     env <- ask
     return $ liftIO $ runNoLoggingT $ flip runReaderT env $ do
         (mreadme, mchangelog, mlicenseContent) <-
-            grabExtraFiles name version $ PD.licenseFiles pd
+            grabExtraFiles name version
+#if MIN_VERSION_Cabal(1, 20, 0)
+                $ PD.licenseFiles pd
+#else
+                [PD.licenseFile pd]
+#endif
         return Metadata
             { metadataName = name
             , metadataVersion = version
