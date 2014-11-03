@@ -140,3 +140,7 @@ h2.changes-title {
 .readme-container {
   margin-top: 1em;
 }
+
+.hidden {
+  display: none;
+}

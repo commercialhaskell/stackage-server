@@ -23,7 +23,13 @@ $newline never
                         <a href="javascript:alert('Patience, preciouses!')">
                             #{tag}
                         , #
-                <i class="fa fa-plus-square" onclick="alert('TODO: Add tags.')"></i>
+                <i class="fa fa-plus-square" onclick="document.getElementById('add-tag-form').className = ''"></i>
+                <form #add-tag-form .hidden>
+                    <p>
+                        <strong>Add tag
+                    <div .input-append>
+                        <input type="text" id="new-tag">
+                        <button .btn>Add
             <div .social>
                 <span #likes>
                     #{formatNum 234}
