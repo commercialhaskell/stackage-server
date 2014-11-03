@@ -2,7 +2,7 @@
 module Handler.Home where
 
 import Data.Slug
-import Database.Esqueleto as E
+import Database.Esqueleto as E hiding (isNothing)
 import Import hiding ((=.),on,(||.),(==.))
 
 -- This is a handler function for the G request method on the HomeR
@@ -14,20 +14,6 @@ import Import hiding ((=.),on,(||.),(==.))
 -- inclined, or create a single monolithic file.
 getHomeR :: Handler Html
 getHomeR = do
-    fpHandle <- mkSlug "fpcomplete"
-    stackages <- runDB $ select $ from $ \(stackage `InnerJoin` user) -> do
-        on (stackage ^. StackageUser ==. user ^. UserId)
-        orderBy [desc $ stackage ^. StackageUploaded]
-        where_ (like (user ^. UserDisplay) (val "%@fpcomplete.com") ||.
-                  user ^. UserHandle ==. val fpHandle)
-        limit 4
-        return
-            ( stackage ^. StackageIdent
-            , stackage ^. StackageTitle
-            , stackage ^. StackageUploaded
-            , user ^. UserDisplay
-            , user ^. UserHandle
-            )
     windowsLatest <- linkFor "unstable-ghc78hp-inclusive"
     restLatest    <- linkFor "unstable-ghc78-inclusive"
     defaultLayout $ do
@@ -44,3 +30,20 @@ getHomeR = do
                   runDB .
                   select .
                   from
+
+      addSnapshot title short = do
+          mex <- handlerToWidget $ linkFor $ name "exclusive"
+          min' <- handlerToWidget $ linkFor $ name "inclusive"
+          when (isJust mex || isJust min')
+              [whamlet|
+                  <dt>#{asHtml title}
+                  <dd>
+                      $maybe ex <- mex
+                        <a href=@{StackageHomeR ex}>exclusive
+                      $if isJust mex && isJust min'
+                        \ | #
+                      $maybe in <- min'
+                        <a href=@{StackageHomeR in}>inclusive
+              |]
+        where
+          name suffix = concat ["unstable-", short, "-", suffix]
