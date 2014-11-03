@@ -79,13 +79,13 @@ h3 {
 }
 }
 
-.readme-container {
+.markdown-container {
   margin-top: 1em;
   border-top: 1px solid #ddd;
   padding-top: 1em;
   margin-bottom: 0em;
   border-bottom: 1px solid #ddd;
-  padding-bottom: 2em;
+  padding-bottom: 1em;
   background: #f4f4f4;
 
   h1,h2,h3,h4,h5 {
@@ -123,4 +123,20 @@ h3 {
   pre {
     padding: 1em;
   }
+}
+
+.changelog-container {
+  margin-top: 0.5em;
+  h1 { font-size: 1.2em; }
+  h2,h3,h4,h5 { font-size: 1.2em; }
+}
+
+h2.changes-title {
+  margin-top: 1em;
+  font-size: 1.5em;
+  color: #555;
+}
+
+.readme-container {
+  margin-top: 1em;
 }

@@ -109,12 +109,22 @@ $newline never
                            <td>
                                <a href=@{StackageHomeR ident}>#{fromMaybe title $ stripSuffix ", exclusive" title}
 
-<div .readme-container>
+<div .markdown-container .readme-container>
     <div .container>
         <div .row>
             <div .span12>
-                <div .readme>
-                    #{readmeHtml}
+                #{metadataReadme metadata}
+
+$maybe log <- metadataChangelog metadata
+    <div .container>
+       <div .row>
+           <div .span12>
+               <h2 .changes-title>Changes
+    <div .markdown-container .changelog-container>
+        <div .container>
+            <div .row>
+                <div .span12>
+                    #{log}
 
 <div .container>
     <div .row>

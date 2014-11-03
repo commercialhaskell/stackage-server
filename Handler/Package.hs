@@ -13,7 +13,6 @@ import qualified Database.Esqueleto as E
 import           Formatting
 import           Import
 import           Text.Email.Validate
-import           Text.Markdown
 
 -- | Page metadata package.
 getPackageR :: PackageName -> Handler Html
@@ -38,9 +37,7 @@ getPackageR pn = do
         recentDownloads <- count [DownloadPackage ==. pn, DownloadTimestamp >=. nowMinus30]
         metadata <- getBy404 (UniqueMetadata pn)
         return (packages, downloads, recentDownloads, metadata)
-    readmeText <- return "TODO"
-    let readmeHtml = markdown def readmeText
-        deps = enumerate (metadataDeps metadata)
+    let deps = enumerate (metadataDeps metadata)
         authors = enumerate (parseIdentitiesLiberally (metadataAuthor metadata))
         maintainers = let ms = enumerate (parseIdentitiesLiberally (metadataMaintainer metadata))
                       in if ms == authors
