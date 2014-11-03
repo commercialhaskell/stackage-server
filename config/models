@@ -42,6 +42,11 @@ Package
     version Version
     overwrite Bool
 
+Tag
+    package PackageName
+    tag Slug
+    voter UserId
+
 Download
     ident PackageSetIdent Maybe
     view HackageView Maybe
