@@ -5,7 +5,7 @@ $newline never
             <h1>
                #{pn} #
                <span .latest-version>
-                 #{latestVersion} #
+                 #{metadataVersion metadata} #
                  <small>
                      (current)
     <div .row>

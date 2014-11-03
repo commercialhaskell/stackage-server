@@ -23,9 +23,7 @@ getPackageR pn = do
         asInt = id
         haddocksLink ident version =
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
-    (latestVersion, packages, downloads, recentDownloads, Entity _ metadata) <- runDB $ do
-        mupload <- selectFirst [UploadedName ==. pn] [Desc UploadedUploaded]
-        Entity _ (Uploaded _ latestVersion _) <- maybe notFound return mupload
+    (packages, downloads, recentDownloads, Entity _ metadata) <- runDB $ do
         packages <- fmap (map reformat) $ E.select $ E.from $ \(p, s) -> do
             E.where_ $ (p ^. PackageStackage E.==. s ^. StackageId)
                    &&. (p ^. PackageName' E.==. E.val pn)
@@ -38,9 +36,8 @@ getPackageR pn = do
         now <- liftIO getCurrentTime
         let nowMinus30 = addUTCTime (-30 * 24 * 60 * 60) now
         recentDownloads <- count [DownloadPackage ==. pn, DownloadTimestamp >=. nowMinus30]
-        metadata <- fmap listToMaybe (selectList [MetadataName ==. pn] [LimitTo 1]) >>=
-                    maybe notFound return
-        return (latestVersion, packages, downloads, recentDownloads, metadata)
+        metadata <- getBy404 (UniqueMetadata pn)
+        return (packages, downloads, recentDownloads, metadata)
     readmeText <- return "TODO"
     let readmeHtml = markdown def readmeText
         deps = enumerate (metadataDeps metadata)
