@@ -26,8 +26,12 @@ getHomeR = do
   where
       linkFor name =
           do slug <- mkSlug name
-             selecting (\alias ->
-                            do where_ (alias ^. AliasName ==. val slug)
+             fpcomplete <- mkSlug "fpcomplete"
+             selecting (\(alias, user) ->
+                            do where_ $
+                                  alias ^. AliasName ==. val slug &&.
+                                  alias ^. AliasUser ==. user ^. UserId &&.
+                                  user ^. UserHandle ==. val fpcomplete
                                return (alias ^. AliasTarget))
         where selecting =
                   fmap (fmap unValue . listToMaybe) .
