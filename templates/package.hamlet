@@ -118,8 +118,10 @@ $newline never
 <div .markdown-container .readme-container>
     <div .container>
         <div .row>
-            <div .span12>
+            <div .span12 .expanding>
                 #{metadataReadme metadata}
+                <div .bottom-gradient>
+                    <i class="fa fa-angle-down">
 
 $maybe log <- metadataChangelog metadata
     <div .container>
@@ -129,8 +131,10 @@ $maybe log <- metadataChangelog metadata
     <div .markdown-container .changelog-container>
         <div .container>
             <div .row>
-                <div .span12>
+                <div .span12 .expanding>
                     #{log}
+                    <div .bottom-gradient>
+                        <i class="fa fa-angle-down">
 
 <div .container>
     <div .row>

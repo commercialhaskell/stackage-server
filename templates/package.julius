@@ -1,0 +1,11 @@
+$(function(){
+  $('.expanding').each(function(){
+    var $this = $(this);
+    if ($this.height() > 300) {
+      $this.addClass('collapsed');
+      $this.find('.bottom-gradient').click(function(){
+        $this.removeClass('collapsed');
+      });
+    }
+  });
+});
