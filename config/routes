@@ -26,3 +26,4 @@
 /haddock/#PackageSetIdent/*Texts HaddockR GET
 /package/#PackageName PackageR GET
 /package PackageListR GET
+/compressor-status CompressorStatusR GET

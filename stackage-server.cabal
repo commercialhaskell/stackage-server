@@ -44,6 +44,7 @@ library
                      Handler.Haddock
                      Handler.Package
                      Handler.PackageList
+                     Handler.CompressorStatus
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

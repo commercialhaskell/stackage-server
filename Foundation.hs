@@ -42,6 +42,7 @@ data App = App
     -- time, and (3) so that even if the client connection dies, we finish the
     -- unpack job.
     , widgetCache :: !(IORef (HashMap Text (UTCTime, GWData (Route App))))
+    , compressorStatus :: !(IORef Text)
     }
 
 type ForceUnpack = Bool

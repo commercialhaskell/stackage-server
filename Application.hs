@@ -56,6 +56,7 @@ import           Handler.System
 import           Handler.Haddock
 import           Handler.Package
 import           Handler.PackageList
+import           Handler.CompressorStatus
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -138,7 +139,7 @@ makeFoundation useEcho conf = do
                 return $ cachedS3Store root creds bucket prefix manager
 
     let haddockRootDir' = "/tmp/stackage-server-haddocks2"
-    unpacker <- createHaddockUnpacker haddockRootDir' blobStore'
+    (statusRef, unpacker) <- createHaddockUnpacker haddockRootDir' blobStore'
     widgetCache' <- newIORef mempty
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
@@ -156,6 +157,7 @@ makeFoundation useEcho conf = do
             , haddockRootDir = haddockRootDir'
             , haddockUnpacker = unpacker
             , widgetCache = widgetCache'
+            , compressorStatus = statusRef
             }
 
     -- Perform database migration using our application's logging settings.

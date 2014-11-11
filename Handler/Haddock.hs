@@ -92,25 +92,30 @@ mkDirPair root ident =
 
 createCompressor
     :: Dirs
-    -> IO (IO ()) -- ^ action to kick off compressor again
+    -> IO (IORef Text, IO ()) -- ^ action to kick off compressor again
 createCompressor dirs = do
     baton <- newMVar ()
-    mask_ $ void $ forkIO $ forever $ do
+    status <- newIORef "Compressor is idle"
+    mask_ $ void $ forkIO $ (`finally` writeIORef status "Compressor thread exited") $ forever $ do
+        writeIORef status "Waiting for signal to start compressing"
         takeMVar baton
-        runResourceT $ goDir (dirRawRoot dirs)
-    return $ void $ tryPutMVar baton ()
+        writeIORef status "Received signal, traversing directories"
+        runResourceT $ goDir status (dirRawRoot dirs)
+    return (status, void $ tryPutMVar baton ())
   where
-    goDir dir = do
-        sourceDirectory dir $$ mapM_C goFP
+    goDir status dir = do
+        writeIORef status $ "Compressing directory: " ++ fpToText dir
+        sourceDirectory dir $$ mapM_C (goFP status)
         liftIO $ void $ tryIO $ removeDirectory dir
 
-    goFP fp = do
+    goFP status fp = do
         e <- liftIO $ isFile fp
         if e
-            then liftIO
-                    $ handle (print . asSomeException)
+            then liftIO $ do
+                writeIORef status $ "Compressing file: " ++ fpToText fp
+                handle (print . asSomeException)
                     $ gzipHash dirs suffix
-            else goDir fp
+            else goDir status fp
       where
         Just suffix = F.stripPrefix (dirRawRoot dirs </> "") fp
 
@@ -179,20 +184,20 @@ dirCacheFp dirs digest =
 -- demand.
 createHaddockUnpacker :: FilePath -- ^ haddock root
                       -> BlobStore StoreKey
-                      -> IO (ForceUnpack -> PackageSetIdent -> IO ())
+                      -> IO (IORef Text, ForceUnpack -> PackageSetIdent -> IO ())
 createHaddockUnpacker root store = do
     createTree $ dirCacheRoot dirs
     createTree $ dirRawRoot dirs
     createTree $ dirGzRoot dirs
 
     chan <- newChan
-    compressor <- createCompressor dirs
+    (statusRef, compressor) <- createCompressor dirs
 
     mask $ \restore -> void $ forkIO $ forever $ do
         (forceUnpack, ident, res) <- readChan chan
         try (restore $ go forceUnpack ident) >>= putMVar res
         compressor
-    return $ \forceUnpack ident -> do
+    return (statusRef, \forceUnpack ident -> do
         shouldAct <-
             if forceUnpack
                 then return True
@@ -202,7 +207,7 @@ createHaddockUnpacker root store = do
                 res <- newEmptyMVar
                 writeChan chan (forceUnpack, ident, res)
                 takeMVar res >>= either (throwM . asSomeException) return
-            else return ()
+            else return ())
   where
     dirs = mkDirs root
 
