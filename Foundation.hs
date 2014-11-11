@@ -163,6 +163,8 @@ instance YesodAuth App where
     -- Where to send a user after logout
     logoutDest _ = HomeR
 
+    redirectToReferer _ = True
+
     getAuthId creds = do
         muid <- maybeAuthId
         join $ runDB $ case muid of
