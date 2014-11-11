@@ -32,9 +32,11 @@ $newline never
                         <button .btn>Add
             <div .social>
                 <span #likes>
-                    #{formatNum 234}
+                    #{nLikes}
                 \ likes #
-                <i class="fa fa-thumbs-o-up" onclick="this.className = 'fa fa-thumbs-up'; document.getElementById('likes').innerText = '235'"></i>
+                $if isJust muid
+                  <i .fa.#{likedClass}
+                    onclick="toggleLike(this)"></i>
                 $if downloads /= 0
                     <span .downloads>
                         $if downloads /= recentDownloads

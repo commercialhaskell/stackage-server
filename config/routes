@@ -27,3 +27,5 @@
 /package/#PackageName PackageR GET
 /package PackageListR GET
 /compressor-status CompressorStatusR GET
+/package/#PackageName/like PackageLikeR POST
+/package/#PackageName/unlike PackageUnlikeR POST

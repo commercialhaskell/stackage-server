@@ -49,6 +49,9 @@ h3 {
   .fa-thumbs-o-up:hover {
     color: #3f4549
   }
+  .fa-thumbs-up {
+    cursor: pointer;
+  }
 }
 .dependencies {
   margin-top: 0.5em;

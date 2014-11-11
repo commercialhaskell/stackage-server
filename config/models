@@ -47,6 +47,10 @@ Tag
     tag Slug
     voter UserId
 
+Like
+    package PackageName
+    voter UserId
+
 Download
     ident PackageSetIdent Maybe
     view HackageView Maybe

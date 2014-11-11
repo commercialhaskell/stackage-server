@@ -9,3 +9,25 @@ $(function(){
     }
   });
 });
+
+function toggleLike(el) {
+    var $this = $(el);
+    var action = 'like';
+    if ($this.hasClass('fa-thumbs-up')) {
+        action = 'unlike';
+    }
+
+    $this.toggleClass('fa-thumbs-up');
+    $this.toggleClass('fa-thumbs-o-up');
+
+    $likes = $('#likes');
+    nLikes = parseInt($likes.text(), 10);
+
+    if (action == 'like') {
+        $likes.text(nLikes + 1);
+        $.post("@{PackageLikeR pn}");
+    } else {
+        $likes.text(nLikes - 1);
+        $.post("@{PackageUnlikeR pn}");
+    }
+}

@@ -10,6 +10,7 @@ import qualified Data.Text.Encoding as T
 import           Data.Time (addUTCTime)
 import           Database.Esqueleto ((^.), (&&.), Value (Value))
 import qualified Database.Esqueleto as E
+import qualified Database.Persist as P
 import           Formatting
 import           Import
 import           Text.Email.Validate
@@ -22,7 +23,8 @@ getPackageR pn = do
         asInt = id
         haddocksLink ident version =
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
-    (packages, downloads, recentDownloads, Entity _ metadata) <- runDB $ do
+    muid <- maybeAuthId
+    (packages, downloads, recentDownloads, nLikes, liked, Entity _ metadata) <- runDB $ do
         packages <- fmap (map reformat) $ E.select $ E.from $ \(p, s) -> do
             E.where_ $ (p ^. PackageStackage E.==. s ^. StackageId)
                    &&. (p ^. PackageName' E.==. E.val pn)
@@ -31,12 +33,19 @@ getPackageR pn = do
             E.limit maxSnaps
             --selectList [PackageName' ==. pn] [LimitTo 10, Desc PackageStackage]
             return (p ^. PackageVersion, s ^. StackageTitle, s ^. StackageIdent, s ^. StackageHasHaddocks)
+        nLikes <- count [LikePackage ==. pn]
+        let getLiked uid = (>0) <$> count [LikePackage ==. pn, LikeVoter ==. uid]
+        liked <- maybe (return False) getLiked muid
         downloads <- count [DownloadPackage ==. pn]
         now <- liftIO getCurrentTime
         let nowMinus30 = addUTCTime (-30 * 24 * 60 * 60) now
         recentDownloads <- count [DownloadPackage ==. pn, DownloadTimestamp >=. nowMinus30]
         metadata <- getBy404 (UniqueMetadata pn)
-        return (packages, downloads, recentDownloads, metadata)
+
+        return (packages, downloads, recentDownloads, nLikes, liked, metadata)
+
+    let likedClass = if liked then "fa-thumbs-up" else "fa-thumbs-o-up" :: Text
+
     let deps = enumerate (metadataDeps metadata)
         authors = enumerate (parseIdentitiesLiberally (metadataAuthor metadata))
         maintainers = let ms = enumerate (parseIdentitiesLiberally (metadataMaintainer metadata))
@@ -151,3 +160,19 @@ renderEmail = T.decodeUtf8 . toByteString
 -- | Format a number with commas nicely.
 formatNum :: Int -> Text
 formatNum = sformat commas
+
+postPackageLikeR :: PackageName -> Handler ()
+postPackageLikeR packageName = maybeAuthId >>= \muid -> case muid of
+    Nothing -> return ()
+    Just uid -> do
+      runDB $ P.insert $ Like packageName uid
+      return ()
+
+postPackageUnlikeR :: PackageName -> Handler ()
+postPackageUnlikeR name = maybeAuthId >>= \muid -> case muid of
+    Nothing -> return ()
+    Just uid -> do
+      runDB $ E.delete $ E.from $ \like ->
+        E.where_ $ like ^. LikePackage E.==. E.val name
+               &&. like ^. LikeVoter E.==. E.val uid
+      return ()
