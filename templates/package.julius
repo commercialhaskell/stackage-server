@@ -8,26 +8,34 @@ $(function(){
       });
     }
   });
-});
+  $('#like').click(function(){
+    var loggedIn = $('.user-handle').length > 0;
 
-function toggleLike(el) {
-    var $this = $(el);
-    var action = 'like';
-    if ($this.hasClass('fa-thumbs-up')) {
+    var $this = $(this);
+
+    if (loggedIn) {
+      var action = 'like';
+      if ($this.hasClass('fa-thumbs-up')) {
         action = 'unlike';
-    }
+      }
 
-    $this.toggleClass('fa-thumbs-up');
-    $this.toggleClass('fa-thumbs-o-up');
+      $this.toggleClass('fa-thumbs-up');
+      $this.toggleClass('fa-thumbs-o-up');
 
-    $likes = $('#likes');
-    nLikes = parseInt($likes.text(), 10);
+      $likes = $('#likes');
+      nLikes = parseInt($likes.text(), 10);
 
-    if (action == 'like') {
+      if (action == 'like') {
+        $this.attr('title','You liked this!');
         $likes.text(nLikes + 1);
         $.post("@{PackageLikeR pn}");
-    } else {
+      } else {
+        $this.attr('title','You disliked this.');
         $likes.text(nLikes - 1);
         $.post("@{PackageUnlikeR pn}");
+      }
+    } else {
+      window.location.href = '@{AuthR LoginR}';
     }
-}
+  });
+});

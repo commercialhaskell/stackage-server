@@ -45,6 +45,9 @@ getPackageR pn = do
         return (packages, downloads, recentDownloads, nLikes, liked, metadata)
 
     let likedClass = if liked then "fa-thumbs-up" else "fa-thumbs-o-up" :: Text
+        likeTitle = if liked
+                       then "You liked this!"
+                       else "I like this!" :: Text
 
     let deps = enumerate (metadataDeps metadata)
         authors = enumerate (parseIdentitiesLiberally (metadataAuthor metadata))
