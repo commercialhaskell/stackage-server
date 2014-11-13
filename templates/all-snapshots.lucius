@@ -1,1 +1,23 @@
-.snapshots > li { line-height: 1.5em; }
+.snapshots > li {
+  list-style-type: none;
+  margin: 0 0 1.5em 0;
+}
+
+.snapshots > li > p {
+  margin-top: 0.5em;
+  padding: 0;
+}
+
+.snapshots {
+  margin: 1em 0 0 0;
+  padding: 0;
+}
+
+h3 {
+  border-bottom: 1px solid #aaa;
+  padding-bottom: 0.25em;
+}
+
+h1 {
+  margin-bottom: 0.5em;
+}
