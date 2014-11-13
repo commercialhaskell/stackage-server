@@ -7,7 +7,10 @@
             <ul .nav>
                 <li>
                     <a href=@{AllSnapshotsR}>
-                        All Snapshots
+                        Snapshots
+                <li>
+                    <a href=@{PackageListR}>
+                        Packages
                 <li>
                     <a href=@{UploadStackageR}>
                         Upload
