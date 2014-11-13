@@ -100,3 +100,9 @@ li + li {
     line-height: 4em;
   }
 }
+
+/* Alerts */
+
+.alert {
+  margin-top: 1em;
+}
