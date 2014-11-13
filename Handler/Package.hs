@@ -171,18 +171,12 @@ formatNum = sformat commas
 postPackageLikeR :: PackageName -> Handler ()
 postPackageLikeR packageName = maybeAuthId >>= \muid -> case muid of
     Nothing -> return ()
-    Just uid -> do
-      runDB $ P.insert $ Like packageName uid
-      return ()
+    Just uid -> runDB $ P.insert_ $ Like packageName uid
 
 postPackageUnlikeR :: PackageName -> Handler ()
 postPackageUnlikeR name = maybeAuthId >>= \muid -> case muid of
     Nothing -> return ()
-    Just uid -> do
-      runDB $ E.delete $ E.from $ \like ->
-        E.where_ $ like ^. LikePackage E.==. E.val name
-               &&. like ^. LikeVoter E.==. E.val uid
-      return ()
+    Just uid -> runDB $ P.deleteWhere [LikePackage ==. name, LikeVoter ==. uid]
 
 postPackageTagR :: PackageName -> Handler ()
 postPackageTagR packageName =
