@@ -34,7 +34,7 @@ $newline never
                 <span #likes>
                     #{nLikes}
                 \ likes #
-                <i .fa .#{likedClass} #like title="#{likeTitle}">
+                <i .fa :liked:.fa-thumbs-up :not liked:.fa-thumbs-o-up #like title="#{likeTitle}">
                 $if downloads /= 0
                     <span .downloads>
                         $if downloads /= recentDownloads
