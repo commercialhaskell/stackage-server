@@ -72,23 +72,23 @@ $(function(){
           data: {slug:normalized},
           success: function(){
 
-          $('.no-tags').remove();
+            $('.no-tags').remove();
 
-          $('#new-tag').val('');
-          $('#add-form-btn').val('Confirm');
+            $('#new-tag').val('');
+            $('#add-form-btn').val('Confirm');
 
-          if (!tags[normalized]) {
-            var tag = $('<span><a></a></span>');
-            tag.find('a').text(normalized);
-            $('.tags').prepend(', ');
-            $('.tags').prepend(tag);
-          }
+            if (!tags[normalized]) {
+              var tag = $('<span><a></a></span>');
+              tag.find('a').text(normalized);
+              $('.tags').prepend(', ');
+              $('.tags').prepend(tag);
+            }
 
-          tags[normalized] = true;
-        },
+            tags[normalized] = true;
+          },
           error: function(err){
             $('#tag-msg').text('invalid slug; too short or too long').show();
-        }
+          }
         });
       }
     } finally {
