@@ -3,7 +3,7 @@
         Stackage is an infrastructure to create stable builds
         of complete package sets. Think “stable Hackage”.
     <h2 .recommended-snapshots>Recommended Snapshots
-    <dl .snapshots>
+    <table .snapshots>
         ^{addSnapshot "GHC 7.8" "ghc78"}
         ^{addSnapshot "GHC 7.8 + Haskell Platform" "ghc78hp"}
         ^{addSnapshot "GHC 7.6" "ghc76"}

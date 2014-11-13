@@ -44,14 +44,16 @@ getHomeR = do
           min' <- handlerToWidget $ linkFor $ name "inclusive"
           when (isJust mex || isJust min')
               [whamlet|
-                  <dt>#{asHtml title}
-                  <dd>
-                      $maybe ex <- mex
-                        <a href=@{StackageHomeR ex}>exclusive
-                      $if isJust mex && isJust min'
-                        \ | #
-                      $maybe in <- min'
-                        <a href=@{StackageHomeR in}>inclusive
+                  <tr>
+                     <td>
+                         #{asHtml title}
+                     <td>
+                         $maybe ex <- mex
+                           <a href=@{StackageHomeR ex}>exclusive
+                         $if isJust mex && isJust min'
+                     <td>
+                         $maybe in <- min'
+                           <a href=@{StackageHomeR in}>inclusive
               |]
         where
           name suffix = concat ["unstable-", short, "-", suffix]

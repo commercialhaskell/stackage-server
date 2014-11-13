@@ -5,6 +5,7 @@ h2 {
 
 .recommended-snapshots {
   margin-top: 30px;
+  margin-bottom: 20px;
 }
 
 .how-stackage-works {
@@ -14,11 +15,9 @@ h2 {
 .snapshots {
   margin-left: 0;
   padding-left: 0;
-  li {
-    list-style-type: none;
-    margin-left: 0;
-    padding-left: 0;
-    font-weight: bold;
+  td {
+    padding: 0 0.25em 0.25em 0.25em;
+    a { font-weight: bold }
   }
 }
 
