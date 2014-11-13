@@ -46,10 +46,12 @@ Tag
     package PackageName
     tag Slug
     voter UserId
+    UniqueTagPackageVoter package tag voter
 
 Like
     package PackageName
     voter UserId
+    UniqueLikePackageVoter package voter
 
 Download
     ident PackageSetIdent Maybe
