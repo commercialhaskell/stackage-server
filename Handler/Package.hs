@@ -64,9 +64,7 @@ getPackageR pn = do
     defaultLayout $ do
         setTitle $ toHtml pn
         $(combineStylesheets 'StaticR
-            [ css_bootstrap_css
-            , css_bootstrap_responsive_css
-            , css_font_awesome_min_css
+            [ css_font_awesome_min_css
             ])
         $(widgetFile "package")
   where enumerate = zip [0::Int ..]

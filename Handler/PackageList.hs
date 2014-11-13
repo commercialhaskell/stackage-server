@@ -16,10 +16,6 @@ getPackageListR = do
                    ,m E.^. MetadataSynopsis)
     defaultLayout $ do
         setTitle "Package list"
-        $(combineStylesheets 'StaticR
-            [ css_bootstrap_css
-            , css_bootstrap_responsive_css
-            ])
         cachedWidget (5 * 60) "package-list" $(widgetFile "package-list")
   where strip x = fromMaybe x (stripSuffix "." x)
         uniqueByKey = sortBy (comparing fst) . M.toList . M.fromList

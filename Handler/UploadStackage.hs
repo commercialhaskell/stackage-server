@@ -28,10 +28,6 @@ getUploadStackageR = do
     _ <- requireAuth
     defaultLayout $ do
         setTitle "Upload"
-        $(combineStylesheets 'StaticR
-            [ css_bootstrap_css
-            , css_bootstrap_responsive_css
-            ])
         $(widgetFile "upload-stackage")
 
 putUploadStackageR :: Handler TypedContent

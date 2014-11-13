@@ -31,10 +31,6 @@ getAllSnapshotsR = do
               )
     defaultLayout $ do
         setTitle "Stackage Server"
-        $(combineStylesheets 'StaticR
-            [ css_bootstrap_css
-            , css_bootstrap_responsive_css
-            ])
         $(widgetFile "all-snapshots")
   where uncrapify now c =
             let (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle) = c
