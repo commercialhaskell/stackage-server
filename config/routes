@@ -29,3 +29,4 @@
 /compressor-status CompressorStatusR GET
 /package/#PackageName/like PackageLikeR POST
 /package/#PackageName/unlike PackageUnlikeR POST
+/package/#PackageName/tag PackageTagR POST

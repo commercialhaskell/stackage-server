@@ -18,18 +18,23 @@ $newline never
                 <a href="https://plus.google.com/share?url=https://www.fpcomplete.com/user/chrisdonefp/example-autorun-active" target="_blank">
                     <i class="fa-google-plus-square fa">
             <div .tags>
+                $if null tags
+                    <span .no-tags>
+                        No tags yet. #
                 $forall tag <- tags
                     <span .tag>
-                        <a href="javascript:alert('Patience, preciouses!')">
+                        <a>
                             #{tag}
                         , #
-                <i class="fa fa-plus-square" onclick="document.getElementById('add-tag-form').className = ''"></i>
+                <i #add-tag class="fa fa-plus-square" title="Show/hide tag form">
                 <form #add-tag-form .hidden>
                     <p>
                         <strong>Add tag
                     <div .input-append>
                         <input type="text" id="new-tag">
-                        <button .btn>Add
+                        <input type="submit" .btn #add-form-btn value="Confirm">
+                    <p #tag-msg .alert .alert-error style="display:none">
+
             <div .social>
                 <span #likes>
                     #{nLikes}

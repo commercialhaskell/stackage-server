@@ -188,3 +188,7 @@ h2.changes-title {
     display: block;
   }
 }
+
+.no-tags {
+  color: #888;
+}

@@ -1,4 +1,8 @@
 $(function(){
+  var tags = Object.create(null);
+  $('.tags').find('.tag').each(function(){
+    tags[$(this).find('a').text()] = true;
+  });
   $('.expanding').each(function(){
     var $this = $(this);
     if ($this.height() > 300) {
@@ -38,4 +42,66 @@ $(function(){
       window.location.href = '@{AuthR LoginR}';
     }
   });
+  $('#add-tag').click(function(){
+    $('#add-tag-form').toggleClass('hidden');
+    $('#new-tag').focus();
+  });
+  $('#new-tag').change(function(){
+    $('#add-form-btn').val('Confirm');
+    $('#tag-msg').hide();
+  });
+  $('#new-tag').keypress(function(){
+    $('#add-form-btn').val('Confirm');
+  });
+  $('#add-tag-form').submit(function(){
+    try {
+      var candidate = $('#new-tag').val();
+      var normalized = candidate
+        .replace(/[^a-zA-Z0-9-.]/g,'-')
+        .replace(/-+/g,'-')
+        .replace(/^-/,'')
+        .replace(/-$/,'')
+        .toLowerCase();
+      if (candidate !== normalized) {
+        $('#new-tag').val(normalized);
+        $('#add-form-btn').val('Done');
+      } else {
+        $.ajax({
+          method: 'POST',
+          url: '@{PackageTagR pn}',
+          data: {slug:normalized},
+          success: function(){
+
+          $('.no-tags').remove();
+
+          $('#new-tag').val('');
+          $('#add-form-btn').val('Confirm');
+
+          if (!tags[normalized]) {
+            var tag = $('<span><a></a></span>');
+            tag.find('a').text(normalized);
+            $('.tags').prepend(', ');
+            $('.tags').prepend(tag);
+          }
+
+          tags[normalized] = true;
+        },
+          error: function(err){
+            $('#tag-msg').text('invalid slug; too short or too long').show();
+        }
+        });
+      }
+    } finally {
+      return false;
+    }
+  });
 });
+
+// Workaround for missing functionality in IE 8 and earlier.
+if( Object.create === undefined ) {
+  Object.create = function( o ) {
+    function F(){}
+    F.prototype = o;
+    return new F();
+  };
+}

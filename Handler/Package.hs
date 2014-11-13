@@ -5,6 +5,7 @@
 module Handler.Package where
 
 import           Data.Char
+import           Data.Slug
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import           Data.Time (addUTCTime)
@@ -44,6 +45,12 @@ getPackageR pn = do
 
         return (packages, downloads, recentDownloads, nLikes, liked, metadata)
 
+    tags <- fmap (map (\(E.Value v) -> v))
+                 (runDB (E.selectDistinct
+                             (E.from (\t -> do E.where_ (t ^. TagPackage E.==. E.val pn)
+                                               E.orderBy [E.asc (t ^. TagTag)]
+                                               return (t ^. TagTag)))))
+
     let likeTitle = if liked
                        then "You liked this!"
                        else "I like this!" :: Text
@@ -63,8 +70,6 @@ getPackageR pn = do
             ])
         $(widgetFile "package")
   where enumerate = zip [0::Int ..]
-        tags = ["web","framework","library","stable","maintained","potato"] :: [Text]
-
         reformat (Value version, Value title, Value ident, Value hasHaddocks) =
             (version,fromMaybe title (stripPrefix "Stackage build for " title),ident,hasHaddocks)
 
@@ -178,3 +183,17 @@ postPackageUnlikeR name = maybeAuthId >>= \muid -> case muid of
         E.where_ $ like ^. LikePackage E.==. E.val name
                &&. like ^. LikeVoter E.==. E.val uid
       return ()
+
+postPackageTagR :: PackageName -> Handler ()
+postPackageTagR packageName =
+  maybeAuthId >>=
+  \muid ->
+    case muid of
+      Nothing -> return ()
+      Just uid ->
+        do mtag <- lookupPostParam "slug"
+           case mtag of
+             Just tag ->
+               do slug <- mkSlugLen 1 20 tag
+                  void (runDB (P.insert (Tag packageName slug uid)))
+             Nothing -> error "Need a slug"

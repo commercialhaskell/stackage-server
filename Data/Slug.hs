@@ -1,6 +1,7 @@
 module Data.Slug
     ( Slug
     , mkSlug
+    , mkSlugLen
     , safeMakeSlug
     , unSlug
     , InvalidSlugException (..)
@@ -29,6 +30,14 @@ mkSlug t
     | "-" `isPrefixOf` t = throwM $ InvalidSlugException t "Must not start with a hyphen"
     | otherwise = return $ Slug t
   where
+
+mkSlugLen :: MonadThrow m => Int -> Int -> Text -> m Slug
+mkSlugLen minLen maxLen t
+    | length t < minLen = throwM $ InvalidSlugException t "Too short"
+    | length t > maxLen = throwM $ InvalidSlugException t "Too long"
+    | any (not . validChar) t = throwM $ InvalidSlugException t "Contains invalid characters"
+    | "-" `isPrefixOf` t = throwM $ InvalidSlugException t "Must not start with a hyphen"
+    | otherwise = return $ Slug t
 
 minLen, maxLen :: Int
 minLen = 3
