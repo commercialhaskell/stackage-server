@@ -1,0 +1,5 @@
+.packages {
+  .table th, .table td {
+    padding-left: 0;
+  }
+}

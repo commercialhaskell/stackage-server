@@ -1,15 +1,19 @@
 module Handler.PackageList where
 
-import Import
+import qualified Data.HashMap.Strict as M
+import           Data.Time (NominalDiffTime, addUTCTime)
 import qualified Database.Esqueleto as E
-import Yesod.Core.Types (WidgetT (WidgetT), unWidgetT)
-import Data.Time (NominalDiffTime, addUTCTime)
+import           Import
+import           Yesod.Core.Types (WidgetT (WidgetT), unWidgetT)
 
 getPackageListR :: Handler Html
 getPackageListR = do
-    names <- fmap (map E.unValue) $ runDB $ E.selectDistinct $ E.from $ \u -> do
-        E.orderBy [E.asc $ u E.^. UploadedName]
-        return $ u E.^. UploadedName
+    packages <- fmap (uniqueByKey . map (E.unValue***strip . E.unValue)) $ runDB $
+        E.selectDistinct $ E.from $ \(u,m) -> do
+          E.where_ (m E.^. MetadataName E.==. u E.^. UploadedName)
+          E.orderBy [E.asc $ u E.^. UploadedName]
+          return $ (u E.^. UploadedName
+                   ,m E.^. MetadataSynopsis)
     defaultLayout $ do
         setTitle "Package list"
         $(combineStylesheets 'StaticR
@@ -17,6 +21,8 @@ getPackageListR = do
             , css_bootstrap_responsive_css
             ])
         cachedWidget (5 * 60) "package-list" $(widgetFile "package-list")
+  where strip x = fromMaybe x (stripSuffix "." x)
+        uniqueByKey = sortBy (comparing fst) . M.toList . M.fromList
 
 -- FIXME move somewhere else, maybe even yesod-core
 cachedWidget :: NominalDiffTime -> Text -> Widget -> Widget
