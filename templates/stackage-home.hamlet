@@ -28,7 +28,7 @@ $newline never
             .
     <p>
         <pre>
-            remote-repo: stackage:@{StackageHomeR ident}
+            remote-repo: stackage-#{ident}:@{StackageHomeR ident}
     $maybe _ <- minclusive
         <p>
             <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#whats-the-difference-between-inclusive-and-exclusive-snapshots">What's the difference between inclusive and exclusive snapshots?</a>
