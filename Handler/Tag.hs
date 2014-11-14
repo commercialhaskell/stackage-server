@@ -7,10 +7,11 @@ import           Import
 
 getTagListR :: Handler Html
 getTagListR = do
-    tags <- fmap (map (\(E.Value v) -> v)) $ runDB $
-        E.selectDistinct $ E.from $ \tag -> do
-            E.orderBy [E.asc (tag E.^. TagTag)]
-            return (tag E.^. TagTag)
+    tags <- fmap (zip [0::Int ..] . (map (\(E.Value v,E.Value i) -> (v,i::Int)))) $ runDB $
+        E.select $ E.from $ \tag -> do
+            E.groupBy (tag E.^. TagTag)
+            E.orderBy [E.desc (E.count (tag E.^. TagTag) :: E.SqlExpr (E.Value Int))]
+            return (tag E.^. TagTag, E.count (tag E.^. TagTag))
     defaultLayout $ do
         setTitle "Stackage tags"
         $(widgetFile "tag-list")

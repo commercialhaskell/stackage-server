@@ -2,7 +2,7 @@ $newline never
 
 <div .container>
     <h1>
-        Packages tagged: #{tag} (
+        Tag: #{tag} (
         <a href=@{TagListR}>
             all tags
         )
