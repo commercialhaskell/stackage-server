@@ -23,7 +23,7 @@ $newline never
                         No tags yet. #
                 $forall tag <- tags
                     <span .tag>
-                        <a>
+                        <a href=@{TagR tag}>
                             #{tag}
                         , #
                 <i #add-tag class="fa fa-plus-square" title="Show/hide tag form">

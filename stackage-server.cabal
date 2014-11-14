@@ -45,6 +45,7 @@ library
                      Handler.Package
                      Handler.PackageList
                      Handler.CompressorStatus
+                     Handler.Tag
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

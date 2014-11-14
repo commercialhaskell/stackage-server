@@ -1,0 +1,7 @@
+<div .container>
+    <h1>Packages tagged: #{tag}
+    <ul .packages>
+        $forall package <- packages
+            <li>
+                <a href=@{PackageR package}>
+                    #{package}

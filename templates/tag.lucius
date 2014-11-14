@@ -1,0 +1,12 @@
+.packages > li {
+  list-style-type: none;
+}
+
+.packages {
+  margin: 1em 0 0 0;
+  padding: 0;
+}
+
+h1 {
+  margin-bottom: 0.5em;
+}

@@ -1,0 +1,7 @@
+<div .container>
+    <h1>Tags
+    <ul .tags>
+        $forall tag <- tags
+            <li>
+                <a href=@{TagR tag}>
+                    #{tag}
