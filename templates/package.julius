@@ -79,7 +79,7 @@ $(function(){
 
             if (!tags[normalized]) {
               var tag = $('<span><a></a></span>');
-              tag.find('a').text(normalized);
+              tag.find('a').text(normalized).attr('href','/tag/' + normalized);
               $('.tags').prepend(', ');
               $('.tags').prepend(tag);
             }
