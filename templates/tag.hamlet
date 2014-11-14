@@ -1,7 +1,21 @@
+$newline never
+
 <div .container>
-    <h1>Packages tagged: #{tag}
-    <ul .packages>
-        $forall package <- packages
-            <li>
-                <a href=@{PackageR package}>
-                    #{package}
+    <h1>
+        Packages tagged: #{tag} (
+        <a href=@{TagListR}>
+            all tags
+        )
+    <div .packages>
+        <table .table>
+            <thead>
+                <th>Package
+                <th>Synopsis
+            <tbody>
+                $forall (name,synopsis) <- packages
+                    <tr>
+                        <td>
+                            <a href=@{PackageR name}>
+                                #{name}
+                        <td>
+                            #{synopsis}
