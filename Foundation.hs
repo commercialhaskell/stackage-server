@@ -100,6 +100,8 @@ instance Yesod App where
         pc <- widgetToPageContent $ do
             $(combineStylesheets 'StaticR
                 [ css_normalize_css
+                , css_bootstrap_css
+                , css_bootstrap_responsive_css
                 ])
             $((combineScripts 'StaticR
                               [ js_jquery_js
