@@ -37,6 +37,8 @@ import Distribution.Text (display)
 import Text.Markdown (Markdown (Markdown))
 import Data.Foldable (foldMap)
 import qualified Data.Traversable as T
+import qualified Data.Version
+import Text.ParserCombinators.ReadP (readP_to_S)
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -61,7 +63,7 @@ loadCabalFiles :: ( MonadActive m
                => UploadHistory -- ^ initial
                -> HashMap PackageName (Version, ByteString)
                -> m (UploadState Metadata)
-loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT (UploadState uploadHistory0 [] metadata0 mempty) $ do
+loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT (UploadState uploadHistory0 [] metadata1 mempty) $ do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
@@ -73,6 +75,8 @@ loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT
             bss <- lazyConsume $ sourceHandle handleIn $= ungzip
             tarSource (Tar.read $ fromChunks bss) $$ parMapMC 32 go =$ sinkNull -- FIXME parMapM_C
   where
+    metadata1 = flip fmap metadata0 $ \(v, h) ->
+        (v, fromMaybe (Data.Version.Version [0, 0, 0] []) $ readVersion v, h)
     withBinaryFile fp mode = bracket (liftIO $ openBinaryFile fp mode) (liftIO . hClose)
 
     go entry = do
@@ -100,9 +104,21 @@ loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT
                         sourceLazy lbs $$ sink
                     setUploadDate name version
 
-                    setMetadata name version (toBytes newDigest)
-                              $ parsePackageDescription $ unpack $ decodeUtf8 lbs
+                    case readVersion version of
+                        Nothing -> return ()
+                        Just dataVersion -> setMetadata
+                            name
+                            version
+                            dataVersion
+                            (toBytes newDigest)
+                            (parsePackageDescription $ unpack $ decodeUtf8 lbs)
             _ -> return ()
+
+readVersion :: Version -> Maybe Data.Version.Version
+readVersion v =
+    case filter (not . null . snd) $ readP_to_S Data.Version.parseVersion . unpack . unVersion $ v of
+        (dv, _):_ -> Just dv
+        [] -> Nothing
 
 runUploadState :: MonadIO m => UploadState (IO a) -> m (UploadState a)
 runUploadState (UploadState w x y z) = liftIO $ UploadState w x y <$> T.sequence z
@@ -118,7 +134,7 @@ type UploadHistory = HashMap PackageName (HashMap Version UTCTime)
 data UploadState md = UploadState
     { usHistory :: !UploadHistory
     , usChanges :: ![Uploaded]
-    , usMetadata :: !(HashMap PackageName (Version, ByteString))
+    , usMetadata :: !(HashMap PackageName (Version, Data.Version.Version, ByteString))
     , usMetaChanges :: !(HashMap PackageName md)
     }
 
@@ -171,15 +187,16 @@ setMetadata :: ( MonadBaseControl IO m
                )
             => PackageName
             -> Version
+            -> Data.Version.Version
             -> ByteString
             -> ParseResult PD.GenericPackageDescription
             -> m ()
-setMetadata name version hash' gpdRes = do
+setMetadata name version dataVersion hash' gpdRes = do
     UploadState us1 us2 mdMap mdChanges <- get
     let toUpdate =
             case lookup name mdMap of
-                Just (currVersion, currHash) ->
-                    case compare currVersion version of
+                Just (_currVersion, currDataVersion, currHash) ->
+                    case compare currDataVersion dataVersion of
                         LT -> True
                         GT -> False
                         EQ -> currHash /= hash'
@@ -189,7 +206,7 @@ setMetadata name version hash' gpdRes = do
                 ParseOk _ gpd -> do
                     !md <- getMetadata name version hash' gpd
                     put $! UploadState us1 us2
-                                (insertMap name (version, hash') mdMap)
+                                (insertMap name (version, dataVersion, hash') mdMap)
                                 (insertMap name md mdChanges)
                 _ -> return ()
         else return ()

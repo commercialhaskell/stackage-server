@@ -189,7 +189,9 @@ makeFoundation useEcho conf = do
                 )
             UploadState uploadHistory newUploads _ newMD <- loadCabalFiles uploadHistory0 metadata0
             runDB' $ mapM_ insert_ newUploads
-            runDB' $ mapM_ (void . insertBy) newMD
+            runDB' $ forM_ newMD $ \x -> do
+                deleteBy $ UniqueMetadata $ metadataName x
+                insert_ x
             let views =
                     [ ("pvp", viewPVP uploadHistory)
                     , ("no-bounds", viewNoBounds)
