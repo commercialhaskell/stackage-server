@@ -39,6 +39,8 @@ import Data.Foldable (foldMap)
 import qualified Data.Traversable as T
 import qualified Data.Version
 import Text.ParserCombinators.ReadP (readP_to_S)
+import Text.Blaze.Html.Renderer.Utf8 (renderHtml)
+import Text.Blaze.Html (unsafeByteString)
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -244,6 +246,7 @@ getMetadata name version hash' gpd = do
 #else
                 [PD.licenseFile pd]
 #endif
+        let collapseHtml = unsafeByteString . toStrict . renderHtml
         return Metadata
             { metadataName = name
             , metadataVersion = version
@@ -266,9 +269,9 @@ getMetadata name version hash' gpd = do
             , metadataExes = length $ PD.executables pd
             , metadataTestSuites = length $ PD.testSuites pd
             , metadataBenchmarks = length $ PD.benchmarks pd
-            , metadataReadme = fromMaybe (toHtml $ Textarea $ pack $ PD.description pd) mreadme
-            , metadataChangelog = mchangelog
-            , metadataLicenseContent = mlicenseContent
+            , metadataReadme = collapseHtml $ fromMaybe (toHtml $ Textarea $ pack $ PD.description pd) mreadme
+            , metadataChangelog = collapseHtml <$> mchangelog
+            , metadataLicenseContent = collapseHtml <$> mlicenseContent
             }
   where
     goTree (PD.CondNode _ deps comps) = concatMap goDep deps ++ concatMap goComp comps
