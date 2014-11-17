@@ -7,16 +7,16 @@ import           Import
 import           Yesod.Core.Types (WidgetT (WidgetT), unWidgetT)
 
 getPackageListR :: Handler Html
-getPackageListR = do
-    packages <- fmap (uniqueByKey . map (E.unValue***strip . E.unValue)) $ runDB $
-        E.selectDistinct $ E.from $ \(u,m) -> do
-          E.where_ (m E.^. MetadataName E.==. u E.^. UploadedName)
-          E.orderBy [E.asc $ u E.^. UploadedName]
-          return $ (u E.^. UploadedName
-                   ,m E.^. MetadataSynopsis)
-    defaultLayout $ do
-        setTitle "Package list"
-        cachedWidget (5 * 60) "package-list" $(widgetFile "package-list")
+getPackageListR = defaultLayout $ do
+    setTitle "Package list"
+    cachedWidget (20 * 60) "package-list" $ do
+        packages <- fmap (uniqueByKey . map (E.unValue***strip . E.unValue)) $ handlerToWidget $ runDB $
+            E.selectDistinct $ E.from $ \(u,m) -> do
+              E.where_ (m E.^. MetadataName E.==. u E.^. UploadedName)
+              E.orderBy [E.asc $ u E.^. UploadedName]
+              return $ (u E.^. UploadedName
+                       ,m E.^. MetadataSynopsis)
+        $(widgetFile "package-list")
   where strip x = fromMaybe x (stripSuffix "." x)
         uniqueByKey = sortBy (comparing fst) . M.toList . M.fromList
 
