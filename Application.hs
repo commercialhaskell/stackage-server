@@ -36,6 +36,7 @@ import           Yesod.Default.Handlers
 import           Yesod.Default.Main
 import           System.Environment (getEnvironment)
 import           Data.BlobStore (HasBlobStore (..), BlobStore)
+import           System.IO (hSetBuffering, BufferMode (LineBuffering))
 
 import qualified Echo
 
@@ -218,6 +219,7 @@ cabalLoaderMain = do
     pool <- Database.Persist.createPoolConfig dbconf
     manager <- newManager
     bs <- loadBlobStore manager conf
+    hSetBuffering stdout LineBuffering
     runStdoutLoggingT $ appLoadCabalFiles
         CabalLoaderEnv
             { cleSettings = conf
