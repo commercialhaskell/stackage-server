@@ -92,7 +92,7 @@ makeApplication echo@False conf = do
         { outputFormat =
             if development
                 then Detailed True
-                else Apache FromSocket
+                else Apache FromFallback
         , destination = RequestLogger.Logger $ loggerSet $ appLogger foundation
         }
     -- Create the WAI application and apply middlewares
