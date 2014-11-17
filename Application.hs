@@ -37,6 +37,7 @@ import           Yesod.Default.Main
 import           System.Environment (getEnvironment)
 import           Data.BlobStore (HasBlobStore (..), BlobStore)
 import           System.IO (hSetBuffering, BufferMode (LineBuffering))
+import qualified Data.ByteString as S
 
 import qualified Echo
 
@@ -230,7 +231,7 @@ cabalLoaderMain = do
         pool
   where
     logFunc loc src level str
-        | level > LevelDebug = hPutStrLn stdout $ fromLogStr $ defaultLogStr loc src level str
+        | level > LevelDebug = S.hPutStr stdout $ fromLogStr $ defaultLogStr loc src level str
         | otherwise = return ()
 
 appLoadCabalFiles :: ( PersistConfig c
@@ -264,18 +265,18 @@ appLoadCabalFiles env dbconf p = do
         runDB' $ forM_ newMD $ \x -> do
             deleteBy $ UniqueMetadata $ metadataName x
             insert_ x
-        {-
         let views =
                 [ ("pvp", viewPVP uploadHistory)
                 , ("no-bounds", viewNoBounds)
                 , ("unchanged", viewUnchanged)
                 ]
-        forM_ views $ \(name, func) -> runResourceT $ createView
+        forM_ views $ \(name, func) -> do
+            $logInfo $ "Generating view: " ++ toPathPiece name
+            runResourceT $ createView
                 name
                 func
                 (sourceHistory uploadHistory)
                 (storeWrite $ HackageViewIndex name)
-        -}
     case eres of
         Left e -> $logError $ tshow e
         Right () -> return ()
