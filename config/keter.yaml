@@ -6,9 +6,3 @@ stanzas:
   env:
     STACKAGE_CABAL_LOADER: "0"
   host: www.stackage.org
-- type: redirect
-  hosts:
-    - stackage.org
-  status: 301
-  actions:
-    - host: www.stackage.org
