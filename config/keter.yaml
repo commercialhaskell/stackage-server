@@ -1,6 +1,8 @@
 exec: ../dist/build/stackage-server/stackage-server
 args:
     - production
+env:
+    STACKAGE_CABAL_LOADER: 0
 host: www.stackage.org
 
 redirects:

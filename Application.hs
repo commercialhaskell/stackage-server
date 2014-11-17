@@ -33,6 +33,8 @@ import           Yesod.Core.Types (loggerSet, Logger (Logger))
 import           Yesod.Default.Config
 import           Yesod.Default.Handlers
 import           Yesod.Default.Main
+import           System.Environment (getEnvironment)
+import           Data.BlobStore (HasBlobStore)
 
 import qualified Echo
 
@@ -166,6 +168,12 @@ makeFoundation useEcho conf = do
         (Database.Persist.runPool dbconf (runMigration migrateAll) p)
         (messageLoggerSource foundation logger)
 
+    env <- getEnvironment
+    let loadCabalFiles' =
+            case lookup "STACKAGE_CABAL_LOADER" env of
+                Just "0" -> return ()
+                _ -> appLoadCabalFiles foundation dbconf p
+
     -- Start the cabal file loader
     ifRunCabalLoader $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
         $logInfoS "CLEANUP" "Cleaning up /tmp"
@@ -173,44 +181,57 @@ makeFoundation useEcho conf = do
         runResourceT $ sourceDirectory "/tmp" $$ mapM_C (cleanupTemp now)
         $logInfoS "CLEANUP" "Cleaning up complete"
 
-        --when development $ liftIO $ threadDelay $ 5 * 60 * 1000000
-        eres <- tryAny $ flip runReaderT foundation $ do
-            let runDB' :: SqlPersistT (ResourceT (ReaderT App (LoggingT IO))) a
-                       -> ReaderT App (LoggingT IO) a
-                runDB' = runResourceT . flip (Database.Persist.runPool dbconf) p
-            uploadHistory0 <- runDB' $ selectSource [] [] $$ sinkUploadHistory
-            let toMDPair (E.Value name, E.Value version, E.Value hash') =
-                    (name, (version, hash'))
-            metadata0 <- fmap (mapFromList . map toMDPair)
-                       $ runDB' $ E.select $ E.from $ \m -> return
-                ( m E.^. MetadataName
-                , m E.^. MetadataVersion
-                , m E.^. MetadataHash
-                )
-            UploadState uploadHistory newUploads _ newMD <- loadCabalFiles uploadHistory0 metadata0
-            runDB' $ mapM_ insert_ newUploads
-            runDB' $ forM_ newMD $ \x -> do
-                deleteBy $ UniqueMetadata $ metadataName x
-                insert_ x
-            let views =
-                    [ ("pvp", viewPVP uploadHistory)
-                    , ("no-bounds", viewNoBounds)
-                    , ("unchanged", viewUnchanged)
-                    ]
-            forM_ views $ \(name, func) -> runResourceT $ createView
-                    name
-                    func
-                    (sourceHistory uploadHistory)
-                    (storeWrite $ HackageViewIndex name)
-        case eres of
-            Left e -> $logError $ tshow e
-            Right () -> return ()
+        loadCabalFiles'
+
         liftIO $ threadDelay $ 30 * 60 * 1000000
     return foundation
   where ifRunCabalLoader m =
             if cabalFileLoader
                then void m
                else return ()
+
+appLoadCabalFiles :: ( PersistConfig c
+                     , PersistConfigBackend c ~ SqlPersistT
+                     , HasHackageRoot env
+                     , HasBlobStore env StoreKey
+                     , HasHttpManager env
+                     )
+                  => env
+                  -> c
+                  -> PersistConfigPool c
+                  -> LoggingT IO ()
+appLoadCabalFiles env dbconf p = do
+    eres <- tryAny $ flip runReaderT env $ do
+        let runDB' :: SqlPersistT (ResourceT (ReaderT env (LoggingT IO))) a
+                   -> ReaderT env (LoggingT IO) a
+            runDB' = runResourceT . flip (Database.Persist.runPool dbconf) p
+        uploadHistory0 <- runDB' $ selectSource [] [] $$ sinkUploadHistory
+        let toMDPair (E.Value name, E.Value version, E.Value hash') =
+                (name, (version, hash'))
+        metadata0 <- fmap (mapFromList . map toMDPair)
+                   $ runDB' $ E.select $ E.from $ \m -> return
+            ( m E.^. MetadataName
+            , m E.^. MetadataVersion
+            , m E.^. MetadataHash
+            )
+        UploadState uploadHistory newUploads _ newMD <- loadCabalFiles uploadHistory0 metadata0
+        runDB' $ mapM_ insert_ newUploads
+        runDB' $ forM_ newMD $ \x -> do
+            deleteBy $ UniqueMetadata $ metadataName x
+            insert_ x
+        let views =
+                [ ("pvp", viewPVP uploadHistory)
+                , ("no-bounds", viewNoBounds)
+                , ("unchanged", viewUnchanged)
+                ]
+        forM_ views $ \(name, func) -> runResourceT $ createView
+                name
+                func
+                (sourceHistory uploadHistory)
+                (storeWrite $ HackageViewIndex name)
+    case eres of
+        Left e -> $logError $ tshow e
+        Right () -> return ()
 
 cleanupTemp :: UTCTime -> FilePath -> ResourceT (LoggingT IO) ()
 cleanupTemp now fp
