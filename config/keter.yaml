@@ -1,16 +1,14 @@
-exec: ../dist/build/stackage-server/stackage-server
-args:
+stanzas:
+- type: webapp
+  exec: ../dist/build/stackage-server/stackage-server
+  args:
     - production
-env:
-    STACKAGE_CABAL_LOADER: 0
-host: www.stackage.org
-
-redirects:
-    - from: stackage.org
-      to: www.stackage.org
-
-#postgres: true
-
-# Use the following to automatically copy your bundle upon creation via `yesod
-# keter`. Uses `scp` internally, so you can set it to a remote destination
-#copy-to: ubuntu@www.stackage.org:/opt/keter/incoming
+  env:
+    STACKAGE_CABAL_LOADER: "0"
+  host: www.stackage.org
+- type: redirect
+  hosts:
+    - stackage.org
+  status: 301
+  actions:
+    - host: www.stackage.org
