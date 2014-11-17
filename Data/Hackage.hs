@@ -124,7 +124,7 @@ loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT
 
 readVersion :: Version -> Maybe (UVector Int)
 readVersion v =
-    case filter (not . null . snd) $ readP_to_S Data.Version.parseVersion . unpack . unVersion $ v of
+    case filter (null . snd) $ readP_to_S Data.Version.parseVersion . unpack . unVersion $ v of
         (dv, _):_ -> Just $ pack $ Data.Version.versionBranch dv
         [] -> Nothing
 
