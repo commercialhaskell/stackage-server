@@ -142,6 +142,7 @@ library
                  , unix
                  , markdown
                  , formatting
+                 , blaze-html
 
 executable         stackage-server
     if flag(library-only)

@@ -8,7 +8,7 @@ module Application
 
 import qualified Aws
 import           Control.Concurrent (forkIO, threadDelay)
-import           Control.Monad.Logger (runLoggingT, LoggingT, runStdoutLoggingT)
+import           Control.Monad.Logger (runLoggingT, LoggingT, runStdoutLoggingT, defaultLogStr, LogLevel (LevelDebug))
 import           Control.Monad.Reader (MonadReader (..))
 import           Control.Monad.Reader (runReaderT, ReaderT)
 import           Control.Monad.Trans.Control
@@ -220,7 +220,7 @@ cabalLoaderMain = do
     manager <- newManager
     bs <- loadBlobStore manager conf
     hSetBuffering stdout LineBuffering
-    runStdoutLoggingT $ appLoadCabalFiles
+    flip runLoggingT logFunc $ appLoadCabalFiles
         CabalLoaderEnv
             { cleSettings = conf
             , cleBlobStore = bs
@@ -228,6 +228,10 @@ cabalLoaderMain = do
             }
         dbconf
         pool
+  where
+    logFunc loc src level str
+        | level > LevelDebug = hPutStrLn stdout $ fromLogStr $ defaultLogStr loc src level str
+        | otherwise = return ()
 
 appLoadCabalFiles :: ( PersistConfig c
                      , PersistConfigBackend c ~ SqlPersistT
@@ -254,7 +258,9 @@ appLoadCabalFiles env dbconf p = do
             , m E.^. MetadataHash
             )
         UploadState uploadHistory newUploads _ newMD <- loadCabalFiles uploadHistory0 metadata0
+        $logInfo "Inserting to new uploads"
         runDB' $ mapM_ insert_ newUploads
+        $logInfo "Updating metadatas"
         runDB' $ forM_ newMD $ \x -> do
             deleteBy $ UniqueMetadata $ metadataName x
             insert_ x

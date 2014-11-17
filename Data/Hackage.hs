@@ -75,7 +75,11 @@ loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT
         liftIO $ hClose handleOut
         withBinaryFile tempIndex ReadMode $ \handleIn -> do
             bss <- lazyConsume $ sourceHandle handleIn $= ungzip
-            tarSource (Tar.read $ fromChunks bss) $$ parMapMC 32 go =$ sinkNull -- FIXME parMapM_C
+            tarSource (Tar.read $ fromChunks bss)
+                $$ parMapMC 32 go
+                =$ scanlC (\x _ -> x + 1) 0
+                =$ filterC ((== 0) . (`mod` 1000))
+                =$ mapM_C (\i -> $logInfo $ "Processing cabal file #" ++ tshow i)
   where
     metadata1 = flip fmap metadata0 $ \(v, h) -> MetaSig
         v
