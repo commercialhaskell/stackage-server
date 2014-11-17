@@ -264,6 +264,7 @@ appLoadCabalFiles env dbconf p = do
         runDB' $ forM_ newMD $ \x -> do
             deleteBy $ UniqueMetadata $ metadataName x
             insert_ x
+        {-
         let views =
                 [ ("pvp", viewPVP uploadHistory)
                 , ("no-bounds", viewNoBounds)
@@ -274,6 +275,7 @@ appLoadCabalFiles env dbconf p = do
                 func
                 (sourceHistory uploadHistory)
                 (storeWrite $ HackageViewIndex name)
+        -}
     case eres of
         Left e -> $logError $ tshow e
         Right () -> return ()
