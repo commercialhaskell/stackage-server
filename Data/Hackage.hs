@@ -75,8 +75,10 @@ loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT
             bss <- lazyConsume $ sourceHandle handleIn $= ungzip
             tarSource (Tar.read $ fromChunks bss) $$ parMapMC 32 go =$ sinkNull -- FIXME parMapM_C
   where
-    metadata1 = flip fmap metadata0 $ \(v, h) ->
-        (v, fromMaybe (Data.Version.Version [0, 0, 0] []) $ readVersion v, h)
+    metadata1 = flip fmap metadata0 $ \(v, h) -> MetaSig
+        v
+        (fromMaybe (pack [0, 0, 0]) $ readVersion v)
+        h
     withBinaryFile fp mode = bracket (liftIO $ openBinaryFile fp mode) (liftIO . hClose)
 
     go entry = do
@@ -114,10 +116,10 @@ loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT
                             (parsePackageDescription $ unpack $ decodeUtf8 lbs)
             _ -> return ()
 
-readVersion :: Version -> Maybe Data.Version.Version
+readVersion :: Version -> Maybe (UVector Int)
 readVersion v =
     case filter (not . null . snd) $ readP_to_S Data.Version.parseVersion . unpack . unVersion $ v of
-        (dv, _):_ -> Just dv
+        (dv, _):_ -> Just $ pack $ Data.Version.versionBranch dv
         [] -> Nothing
 
 runUploadState :: MonadIO m => UploadState (IO a) -> m (UploadState a)
@@ -134,9 +136,14 @@ type UploadHistory = HashMap PackageName (HashMap Version UTCTime)
 data UploadState md = UploadState
     { usHistory :: !UploadHistory
     , usChanges :: ![Uploaded]
-    , usMetadata :: !(HashMap PackageName (Version, Data.Version.Version, ByteString))
+    , usMetadata :: !(HashMap PackageName MetaSig)
     , usMetaChanges :: !(HashMap PackageName md)
     }
+
+data MetaSig = MetaSig
+    {-# UNPACK #-} !Version
+    {-# UNPACK #-} !(UVector Int) -- versionBranch
+    {-# UNPACK #-} !ByteString -- hash
 
 setUploadDate :: ( MonadBaseControl IO m
                  , MonadThrow m
@@ -187,7 +194,7 @@ setMetadata :: ( MonadBaseControl IO m
                )
             => PackageName
             -> Version
-            -> Data.Version.Version
+            -> UVector Int -- ^ versionBranch
             -> ByteString
             -> ParseResult PD.GenericPackageDescription
             -> m ()
@@ -195,7 +202,7 @@ setMetadata name version dataVersion hash' gpdRes = do
     UploadState us1 us2 mdMap mdChanges <- get
     let toUpdate =
             case lookup name mdMap of
-                Just (_currVersion, currDataVersion, currHash) ->
+                Just (MetaSig _currVersion currDataVersion currHash) ->
                     case compare currDataVersion dataVersion of
                         LT -> True
                         GT -> False
@@ -206,7 +213,7 @@ setMetadata name version dataVersion hash' gpdRes = do
                 ParseOk _ gpd -> do
                     !md <- getMetadata name version hash' gpd
                     put $! UploadState us1 us2
-                                (insertMap name (version, dataVersion, hash') mdMap)
+                                (insertMap name (MetaSig version dataVersion hash') mdMap)
                                 (insertMap name md mdChanges)
                 _ -> return ()
         else return ()
