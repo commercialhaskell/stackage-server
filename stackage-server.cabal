@@ -155,6 +155,18 @@ executable         stackage-server
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
 
+executable         cabal-loader-stackage
+    if flag(library-only)
+        Buildable: False
+
+    main-is:           cabal-loader.hs
+    hs-source-dirs:    app
+    build-depends:     base
+                     , stackage-server
+                     , yesod
+
+    ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
+
 test-suite test
     type:              exitcode-stdio-1.0
     main-is:           main.hs

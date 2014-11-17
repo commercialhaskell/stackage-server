@@ -3,11 +3,12 @@ module Application
     ( makeApplication
     , getApplicationDev
     , makeFoundation
+    , cabalLoaderMain
     ) where
 
 import qualified Aws
 import           Control.Concurrent (forkIO, threadDelay)
-import           Control.Monad.Logger (runLoggingT, LoggingT)
+import           Control.Monad.Logger (runLoggingT, LoggingT, runStdoutLoggingT)
 import           Control.Monad.Reader (MonadReader (..))
 import           Control.Monad.Reader (runReaderT, ReaderT)
 import           Control.Monad.Trans.Control
@@ -34,7 +35,7 @@ import           Yesod.Default.Config
 import           Yesod.Default.Handlers
 import           Yesod.Default.Main
 import           System.Environment (getEnvironment)
-import           Data.BlobStore (HasBlobStore)
+import           Data.BlobStore (HasBlobStore (..), BlobStore)
 
 import qualified Echo
 
@@ -99,16 +100,32 @@ makeApplication echo@False conf = do
         middleware = logWare . defaultMiddlewaresNoLogging
     return (middleware app, logFunc)
 
+getDbConf :: AppConfig DefaultEnv Extra -> IO Settings.PersistConf
+getDbConf conf =
+    withYamlEnvironment "config/postgresql.yml" (appEnv conf)
+    Database.Persist.loadConfig >>=
+    Database.Persist.applyEnv
+
+loadBlobStore :: Manager -> AppConfig DefaultEnv Extra -> IO (BlobStore StoreKey)
+loadBlobStore manager conf =
+    case storeConfig $ appExtra conf of
+        BSCFile root -> return $ fileStore root
+        BSCAWS root access secret bucket prefix -> do
+            creds <- Aws.Credentials
+                <$> pure (encodeUtf8 access)
+                <*> pure (encodeUtf8 secret)
+                <*> newIORef []
+                <*> pure Nothing
+            return $ cachedS3Store root creds bucket prefix manager
+
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
 makeFoundation :: Bool -> AppConfig DefaultEnv Extra -> IO App
 makeFoundation useEcho conf = do
     manager <- newManager
     s <- staticSite
-    dbconf <- withYamlEnvironment "config/postgresql.yml" (appEnv conf)
-              Database.Persist.loadConfig >>=
-              Database.Persist.applyEnv
-    p <- Database.Persist.createPoolConfig (dbconf :: Settings.PersistConf)
+    dbconf <- getDbConf conf
+    p <- Database.Persist.createPoolConfig dbconf
 
     loggerSet' <- if useEcho
                      then newFileLoggerSet defaultBufSize "/dev/null"
@@ -130,16 +147,7 @@ makeFoundation useEcho conf = do
     progressMap' <- newIORef mempty
     nextProgressKey' <- newIORef 0
 
-    blobStore' <-
-        case storeConfig $ appExtra conf of
-            BSCFile root -> return $ fileStore root
-            BSCAWS root access secret bucket prefix -> do
-                creds <- Aws.Credentials
-                    <$> pure (encodeUtf8 access)
-                    <*> pure (encodeUtf8 secret)
-                    <*> newIORef []
-                    <*> pure Nothing
-                return $ cachedS3Store root creds bucket prefix manager
+    blobStore' <- loadBlobStore manager conf
 
     let haddockRootDir' = "/tmp/stackage-server-haddocks2"
     (statusRef, unpacker) <- createHaddockUnpacker haddockRootDir' blobStore'
@@ -189,6 +197,35 @@ makeFoundation useEcho conf = do
             if cabalFileLoader
                then void m
                else return ()
+
+data CabalLoaderEnv = CabalLoaderEnv
+    { cleSettings :: !(AppConfig DefaultEnv Extra)
+    , cleBlobStore :: !(BlobStore StoreKey)
+    , cleManager :: !Manager
+    }
+
+instance HasHackageRoot CabalLoaderEnv where
+    getHackageRoot = hackageRoot . appExtra . cleSettings
+instance HasBlobStore CabalLoaderEnv StoreKey where
+    getBlobStore = cleBlobStore
+instance HasHttpManager CabalLoaderEnv where
+    getHttpManager = cleManager
+
+cabalLoaderMain :: IO ()
+cabalLoaderMain = do
+    conf <- fromArgs parseExtra
+    dbconf <- getDbConf conf
+    pool <- Database.Persist.createPoolConfig dbconf
+    manager <- newManager
+    bs <- loadBlobStore manager conf
+    runStdoutLoggingT $ appLoadCabalFiles
+        CabalLoaderEnv
+            { cleSettings = conf
+            , cleBlobStore = bs
+            , cleManager = manager
+            }
+        dbconf
+        pool
 
 appLoadCabalFiles :: ( PersistConfig c
                      , PersistConfigBackend c ~ SqlPersistT
