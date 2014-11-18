@@ -61,10 +61,11 @@ loadCabalFiles :: ( MonadActive m
                   , MonadLogger m
                   , MonadMask m
                   )
-               => UploadHistory -- ^ initial
+               => Bool -- ^ do the database updating
+               -> UploadHistory -- ^ initial
                -> HashMap PackageName (Version, ByteString)
                -> m (UploadState Metadata)
-loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT (UploadState uploadHistory0 [] metadata1 mempty) $ do
+loadCabalFiles dbUpdates uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT (UploadState uploadHistory0 [] metadata1 mempty) $ do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
@@ -76,7 +77,7 @@ loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT
             bss <- lazyConsume $ sourceHandle handleIn $= ungzip
             tarSource (Tar.read $ fromChunks bss)
                 $$ parMapMC 32 go
-                =$ scanlC (\x _ -> x + 1) 0
+                =$ scanlC (\x _ -> x + 1) (0 :: Int)
                 =$ filterC ((== 0) . (`mod` 1000))
                 =$ mapM_C (\i -> $logInfo $ "Processing cabal file #" ++ tshow i)
   where
@@ -109,16 +110,17 @@ loadCabalFiles uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT
                                 return $! currDigest /= newDigest
                     when toStore $ withAcquire (storeWrite' store key) $ \sink ->
                         sourceLazy lbs $$ sink
-                    setUploadDate name version
+                    when dbUpdates $ do
+                        setUploadDate name version
 
-                    case readVersion version of
-                        Nothing -> return ()
-                        Just dataVersion -> setMetadata
-                            name
-                            version
-                            dataVersion
-                            (toBytes newDigest)
-                            (parsePackageDescription $ unpack $ decodeUtf8 lbs)
+                        case readVersion version of
+                            Nothing -> return ()
+                            Just dataVersion -> setMetadata
+                                name
+                                version
+                                dataVersion
+                                (toBytes newDigest)
+                                (parsePackageDescription $ unpack $ decodeUtf8 lbs)
             _ -> return ()
 
 readVersion :: Version -> Maybe (UVector Int)

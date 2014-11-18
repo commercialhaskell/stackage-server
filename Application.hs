@@ -188,10 +188,8 @@ makeFoundation useEcho conf = do
         (messageLoggerSource foundation logger)
 
     env <- getEnvironment
-    let loadCabalFiles' =
-            case lookup "STACKAGE_CABAL_LOADER" env of
-                Just "0" -> return ()
-                _ -> appLoadCabalFiles foundation dbconf p
+    let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
+        loadCabalFiles' = appLoadCabalFiles updateDB foundation dbconf p
 
     -- Start the cabal file loader
     ifRunCabalLoader $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
@@ -231,6 +229,7 @@ cabalLoaderMain = do
     bs <- loadBlobStore manager conf
     hSetBuffering stdout LineBuffering
     flip runLoggingT logFunc $ appLoadCabalFiles
+        True
         CabalLoaderEnv
             { cleSettings = conf
             , cleBlobStore = bs
@@ -249,11 +248,12 @@ appLoadCabalFiles :: ( PersistConfig c
                      , HasBlobStore env StoreKey
                      , HasHttpManager env
                      )
-                  => env
+                  => Bool -- ^ update database?
+                  -> env
                   -> c
                   -> PersistConfigPool c
                   -> LoggingT IO ()
-appLoadCabalFiles env dbconf p = do
+appLoadCabalFiles updateDB env dbconf p = do
     eres <- tryAny $ flip runReaderT env $ do
         let runDB' :: SqlPersistT (ResourceT (ReaderT env (LoggingT IO))) a
                    -> ReaderT env (LoggingT IO) a
@@ -267,7 +267,7 @@ appLoadCabalFiles env dbconf p = do
             , m E.^. MetadataVersion
             , m E.^. MetadataHash
             )
-        UploadState uploadHistory newUploads _ newMD <- loadCabalFiles uploadHistory0 metadata0
+        UploadState uploadHistory newUploads _ newMD <- loadCabalFiles updateDB uploadHistory0 metadata0
         $logInfo "Inserting to new uploads"
         runDB' $ mapM_ insert_ newUploads
         $logInfo "Updating metadatas"
