@@ -310,14 +310,6 @@ cleanupTemp now fp
         , "newindex"
         ]
 
-instance MonadActive m => MonadActive (SqlPersistT m) where -- FIXME orphan upstream
-    monadActive = lift monadActive
-instance MonadReader env m => MonadReader env (SqlPersistT m) where
-    ask = lift ask
-    local f m =
-        do stT <- liftWith (\run -> local f (run m))
-           restoreT (return stT)
-
 -- for yesod devel
 getApplicationDev :: Bool -> IO (Int, Application)
 getApplicationDev useEcho =

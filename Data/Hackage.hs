@@ -35,7 +35,6 @@ import Crypto.Hash (Digest, SHA256)
 import Data.Byteable (toBytes)
 import Distribution.Text (display)
 import Text.Markdown (Markdown (Markdown))
-import Data.Foldable (foldMap)
 import qualified Data.Traversable as T
 import qualified Data.Version
 import Text.ParserCombinators.ReadP (readP_to_S)

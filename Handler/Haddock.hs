@@ -4,9 +4,7 @@ import Import
 import Data.BlobStore
 import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile, removeDirectory)
 import Control.Concurrent (forkIO)
-import Control.Concurrent.Chan
 import System.IO.Temp (withSystemTempFile, withTempFile)
-import Control.Exception (mask, mask_)
 import System.Process (createProcess, proc, cwd, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
 import Network.Mime (defaultMimeLookup)

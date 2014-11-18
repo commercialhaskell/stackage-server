@@ -152,7 +152,7 @@ instance Yesod App where
 
 -- How to run database actions.
 instance YesodPersist App where
-    type YesodPersistBackend App = SqlPersistT
+    type YesodPersistBackend App = SqlBackend
     runDB = defaultRunDB persistConfig connPool
 instance YesodPersistRunner App where
     getDBRunner = defaultGetDBRunner connPool
@@ -221,6 +221,7 @@ instance YesodAuth App where
     authPlugins _ = [authBrowserId def, authGoogleEmail]
 
     authHttpManager = httpManager
+instance YesodAuthPersist App
 
 getToken :: YesodDB App Slug
 getToken =
