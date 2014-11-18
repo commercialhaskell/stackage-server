@@ -98,7 +98,8 @@ createCompressor dirs = do
         writeIORef status "Waiting for signal to start compressing"
         takeMVar baton
         writeIORef status "Received signal, traversing directories"
-        runResourceT $ goDir status (dirRawRoot dirs)
+        let rawRoot = dirRawRoot dirs
+        whenM (isDirectory rawRoot) $ runResourceT $ goDir status rawRoot
     return (status, void $ tryPutMVar baton ())
   where
     finallyE f g = mask $ \restore -> do
