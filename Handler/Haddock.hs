@@ -94,13 +94,19 @@ createCompressor
 createCompressor dirs = do
     baton <- newMVar ()
     status <- newIORef "Compressor is idle"
-    mask_ $ void $ forkIO $ (`finally` writeIORef status "Compressor thread exited") $ forever $ do
+    mask_ $ void $ forkIO $ (finallyE $ \e -> writeIORef status $ "Compressor thread exited: " ++ tshow e) $ forever $ do
         writeIORef status "Waiting for signal to start compressing"
         takeMVar baton
         writeIORef status "Received signal, traversing directories"
         runResourceT $ goDir status (dirRawRoot dirs)
     return (status, void $ tryPutMVar baton ())
   where
+    finallyE f g = mask $ \restore -> do
+        restore g `catch` \e -> do
+            () <- f $ Just (e :: SomeException)
+            () <- throwIO e
+            return ()
+        f Nothing
     goDir status dir = do
         writeIORef status $ "Compressing directory: " ++ fpToText dir
         sourceDirectory dir $$ mapM_C (goFP status)
