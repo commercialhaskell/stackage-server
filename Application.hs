@@ -8,6 +8,7 @@ module Application
 
 import qualified Aws
 import           Control.Concurrent (forkIO, threadDelay)
+import           Control.Exception (catch)
 import           Control.Monad.Logger (runLoggingT, LoggingT, runStdoutLoggingT, defaultLogStr, LogLevel (LevelDebug))
 import           Control.Monad.Reader (MonadReader (..))
 import           Control.Monad.Reader (runReaderT, ReaderT)
@@ -22,6 +23,7 @@ import qualified Database.Persist
 import           Filesystem (getModified, removeTree)
 import           Import hiding (catch)
 import           Language.Haskell.TH.Syntax (Loc(..))
+import           Network.Wai (Middleware, responseLBS)
 import           Network.Wai.Logger (clockDateCacher)
 import           Network.Wai.Middleware.RequestLogger
     ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination
@@ -99,8 +101,15 @@ makeApplication echo@False conf = do
     -- Create the WAI application and apply middlewares
     app <- toWaiAppPlain foundation
     let logFunc = messageLoggerSource foundation (appLogger foundation)
-        middleware = logWare . defaultMiddlewaresNoLogging
+        middleware = nicerExceptions . logWare . defaultMiddlewaresNoLogging
     return (middleware app, logFunc)
+
+nicerExceptions :: Middleware
+nicerExceptions app req send = catch (app req send) $ \e -> do
+    let text = "Exception thrown to Warp: " ++ tshow (e :: SomeException)
+    putStrLn text
+    send $ responseLBS status500 [("Content-Type", "text/plain")] $
+        fromStrict $ encodeUtf8 text
 
 getDbConf :: AppConfig DefaultEnv Extra -> IO Settings.PersistConf
 getDbConf conf =
