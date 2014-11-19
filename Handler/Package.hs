@@ -20,8 +20,6 @@ import           Text.Email.Validate
 getPackageR :: PackageName -> Handler Html
 getPackageR pn = do
     let maxSnaps = 10
-        asInt :: Int -> Int
-        asInt = id
         haddocksLink ident version =
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
     muid <- maybeAuthId
@@ -38,8 +36,8 @@ getPackageR pn = do
         let getLiked uid = (>0) <$> count [LikePackage ==. pn, LikeVoter ==. uid]
         liked <- maybe (return False) getLiked muid
         downloads <- count [DownloadPackage ==. pn]
-        now <- liftIO getCurrentTime
-        let nowMinus30 = addUTCTime (-30 * 24 * 60 * 60) now
+        now' <- liftIO getCurrentTime
+        let nowMinus30 = addUTCTime (-30 * 24 * 60 * 60) now'
         recentDownloads <- count [DownloadPackage ==. pn, DownloadTimestamp >=. nowMinus30]
         metadata <- getBy404 (UniqueMetadata pn)
 

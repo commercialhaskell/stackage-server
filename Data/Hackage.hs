@@ -14,13 +14,11 @@ import Types
 import Data.BlobStore
 import Data.Conduit.Lazy (MonadActive (..), lazyConsume)
 import qualified Codec.Archive.Tar as Tar
-import Control.Monad.Reader (MonadReader, ask, runReaderT)
 import Control.Monad.Logger (runNoLoggingT)
 import qualified Data.Text as T
 import Data.Conduit.Zlib (ungzip, gzip)
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
 import System.IO (IOMode (ReadMode), openBinaryFile)
-import Control.Monad.Catch (MonadMask)
 import Model (Uploaded (Uploaded), Metadata (..))
 import Filesystem (createTree)
 import Distribution.PackageDescription.Parse (parsePackageDescription, ParseResult (ParseOk))

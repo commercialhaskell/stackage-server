@@ -5,7 +5,7 @@
             <h3>
                 #{uploaded}
         <ul .snapshots>
-            $forall (ident, title, uploaded, display, handle) <- stackages
+            $forall (ident, title, _uploaded, display, handle) <- stackages
                 <li>
                     <strong>
                         <a href=@{StackageHomeR ident}>

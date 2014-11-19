@@ -9,12 +9,8 @@ module Application
 import qualified Aws
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (catch)
-import           Control.Monad.Logger (runLoggingT, LoggingT, runStdoutLoggingT, defaultLogStr, LogLevel (LevelDebug))
-import           Control.Monad.Reader (MonadReader (..))
-import           Control.Monad.Reader (runReaderT, ReaderT)
-import           Control.Monad.Trans.Control
+import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
-import           Data.Conduit.Lazy (MonadActive, monadActive)
 import           Data.Hackage
 import           Data.Hackage.Views
 import           Data.Time (diffUTCTime)

@@ -2,7 +2,6 @@ module Handler.StackageIndex where
 
 import Import
 import Data.BlobStore
-import Network.Wai (responseBuilder)
 
 getStackageIndexR :: PackageSetIdent -> Handler TypedContent
 getStackageIndexR ident = do

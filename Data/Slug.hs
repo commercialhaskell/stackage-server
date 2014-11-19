@@ -13,7 +13,6 @@ module Data.Slug
 import ClassyPrelude.Yesod
 import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified System.Random.MWC as MWC
-import Control.Monad.Reader (MonadReader, ask)
 import GHC.Prim (RealWorld)
 import Text.Blaze (ToMarkup)
 
@@ -32,9 +31,9 @@ mkSlug t
   where
 
 mkSlugLen :: MonadThrow m => Int -> Int -> Text -> m Slug
-mkSlugLen minLen maxLen t
-    | length t < minLen = throwM $ InvalidSlugException t "Too short"
-    | length t > maxLen = throwM $ InvalidSlugException t "Too long"
+mkSlugLen minLen' maxLen' t
+    | length t < minLen' = throwM $ InvalidSlugException t "Too short"
+    | length t > maxLen' = throwM $ InvalidSlugException t "Too long"
     | any (not . validChar) t = throwM $ InvalidSlugException t "Contains invalid characters"
     | "-" `isPrefixOf` t = throwM $ InvalidSlugException t "Must not start with a hyphen"
     | otherwise = return $ Slug t

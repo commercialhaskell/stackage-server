@@ -11,9 +11,7 @@ module Data.BlobStore
     ) where
 
 import ClassyPrelude.Yesod
-import Control.Exception.Lifted (bracketOnError)
 import qualified Filesystem as F
-import Control.Monad.Reader (MonadReader, ask)
 import Control.Monad.Trans.Resource (release)
 import qualified Aws
 import Aws.S3 as Aws
