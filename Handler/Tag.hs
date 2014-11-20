@@ -23,7 +23,7 @@ getTagR tagSlug = do
     -- FIXME arguably: check if this tag is banned. Leaving it as displayed for
     -- now, since someone needs to go out of their way to find it.
     packages <- fmap (map (\(E.Value t,E.Value s) -> (t,strip s))) $ runDB $
-        E.select $ E.from $ \(tag,meta) -> do
+        E.selectDistinct $ E.from $ \(tag,meta) -> do
             E.where_ (tag E.^. TagTag E.==. E.val tagSlug E.&&.
                       meta E.^. MetadataName E.==. tag E.^. TagPackage)
             E.orderBy [E.asc (tag E.^. TagPackage)]
