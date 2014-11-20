@@ -19,9 +19,10 @@ getBannedTagsR = do
     curr <- fmap (map (bannedTagTag . entityVal))
           $ runDB $ selectList [] [Asc BannedTagTag]
     ((res, widget), enctype) <- runFormPost $ renderDivs
-        $ areq
+        $ fmap (fromMaybe [])
+        $ aopt
             (checkMMap checkSlugs fromSlugs textareaField)
-            "Banned tags (one per line)" $ Just curr
+            "Banned tags (one per line)" $ Just (Just curr)
     case res of
         FormSuccess tags -> do
             runDB $ do
