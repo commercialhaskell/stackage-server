@@ -45,9 +45,13 @@ getPackageR pn = do
 
     tags <- fmap (map (\(E.Value v) -> v))
                  (runDB (E.selectDistinct
-                             (E.from (\t -> do E.where_ (t ^. TagPackage E.==. E.val pn)
-                                               E.orderBy [E.asc (t ^. TagTag)]
-                                               return (t ^. TagTag)))))
+                             (E.from (\(t `E.LeftOuterJoin` bt) -> do
+                                E.on $ t E.^. TagTag E.==. bt E.^. BannedTagTag
+                                E.where_
+                                    $ (t ^. TagPackage E.==. E.val pn) E.&&.
+                                      (E.isNothing $ E.just $ bt E.^. BannedTagTag)
+                                E.orderBy [E.asc (t ^. TagTag)]
+                                return (t ^. TagTag)))))
 
     let likeTitle = if liked
                        then "You liked this!"

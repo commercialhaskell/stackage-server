@@ -84,3 +84,7 @@ Metadata
     licenseContent Html Maybe
 
     UniqueMetadata name
+
+BannedTag
+    tag Slug
+    UniqueBannedTag tag
