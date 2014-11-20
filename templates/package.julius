@@ -1,8 +1,35 @@
 $(function(){
   var loggedIn = $('.user-handle').length > 0;
   var tags = Object.create(null);
+
+  function toggleClick(){
+    if (!loggedIn) {
+      login();
+      return false;
+    }
+
+    var $this = $(this);
+    var normalized = $this.data('slug');
+    var upvote = !$this.hasClass('tagged');
+    $this.text($this.text() * 1 + (upvote? 1 : -1));
+    $this.toggleClass('tagged');
+    if (upvote)
+      $.ajax({
+        method: 'POST',
+        url: '@{PackageTagR pn}',
+        data: {slug:normalized}
+      });
+    else
+      $.ajax({
+        method: 'POST',
+        url: '@{PackageUntagR pn}',
+        data: {slug:normalized}
+      });
+  }
+
+
   $('.tags').find('.tag').each(function(){
-    tags[$(this).find('a').text()] = true;
+    tags[$(this).find('.tag-name').text()] = true;
   });
   $('.expanding').each(function(){
     var $this = $(this);
@@ -41,6 +68,7 @@ $(function(){
       login();
     }
   });
+  $('.tag-toggle').click(toggleClick);
   $('#add-tag').click(function(){
     if (!loggedIn) login();
     $('#add-tag-form').toggleClass('hidden');
@@ -79,15 +107,23 @@ $(function(){
 
             if (!tags[normalized]) {
               var tag = $('<span><a></a></span>');
-              tag.find('a').text(normalized).attr('href','/tag/' + normalized);
+              tag.find('a').text(normalized + ' ').attr('href','/tag/' + normalized);
               $('.tags').prepend(', ');
+              var count = $('<a>1</a>')
+                .addClass('tag-count')
+                .addClass('tag-toggle')
+                .addClass('tagged')
+                .data('slug',normalized)
+                .attr('title','Add/remove vote for: ' + normalized)
+                .click(toggleClick);
+              $('.tags').prepend(count);
               $('.tags').prepend(tag);
             }
 
             tags[normalized] = true;
           },
           error: function(err){
-            $('#tag-msg').text('invalid slug; too short or too long').show();
+            $('#tag-msg').text("Couldn't add that tag").show();
           }
         });
       }

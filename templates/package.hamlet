@@ -21,10 +21,12 @@ $newline never
                 $if null tags
                     <span .no-tags>
                         No tags yet. #
-                $forall tag <- tags
+                $forall (tag,count,tagged) <- tags
                     <span .tag>
-                        <a href=@{TagR tag}>
-                            #{tag}
+                        <a href=@{TagR tag} .tag-name>
+                            #{tag} #
+                        <a .tag-count .tag-toggle data-slug=#{tag} :tagged:.tagged title="Add/remove vote for: #{tag}">
+                            #{count}
                         , #
                 <i #add-tag class="fa fa-plus-square" title="Show/hide tag form">
                 <form #add-tag-form .hidden>

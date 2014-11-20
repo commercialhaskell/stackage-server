@@ -43,15 +43,27 @@ getPackageR pn = do
 
         return (packages, downloads, recentDownloads, nLikes, liked, metadata)
 
-    tags <- fmap (map (\(E.Value v) -> v))
-                 (runDB (E.selectDistinct
+    myTags <-
+        case muid of
+          Nothing -> return []
+          Just uid ->
+              fmap (map (\(E.Value v) -> v))
+                   (runDB (E.select
+                               (E.from (\t ->
+                                   do E.where_ (t ^. TagPackage E.==. E.val pn E.&&.
+                                                t ^. TagVoter E.==. E.val uid)
+                                      E.orderBy [E.asc (t ^. TagTag)]
+                                      return (t ^. TagTag)))))
+    tags <- fmap (map (\(E.Value v,E.Value count) -> (v,count::Int,any (==v) myTags)))
+                 (runDB (E.select
                              (E.from (\(t `E.LeftOuterJoin` bt) -> do
                                 E.on $ t E.^. TagTag E.==. bt E.^. BannedTagTag
                                 E.where_
                                     $ (t ^. TagPackage E.==. E.val pn) E.&&.
                                       (E.isNothing $ E.just $ bt E.^. BannedTagTag)
+                                E.groupBy (t ^. TagTag)
                                 E.orderBy [E.asc (t ^. TagTag)]
-                                return (t ^. TagTag)))))
+                                return (t ^. TagTag,E.count (t ^. TagTag))))))
 
     let likeTitle = if liked
                        then "You liked this!"
@@ -190,4 +202,21 @@ postPackageTagR packageName =
              Just tag ->
                do slug <- mkSlugLen 1 20 tag
                   void (runDB (P.insert (Tag packageName slug uid)))
+             Nothing -> error "Need a slug"
+
+postPackageUntagR :: PackageName -> Handler ()
+postPackageUntagR packageName =
+  maybeAuthId >>=
+  \muid ->
+    case muid of
+      Nothing -> return ()
+      Just uid ->
+        do mtag <- lookupPostParam "slug"
+           case mtag of
+             Just tag ->
+               do slug <- mkSlugLen 1 20 tag
+                  void (runDB (P.deleteWhere
+                                 [TagPackage ==. packageName
+                                 ,TagTag ==. slug
+                                 ,TagVoter ==. uid]))
              Nothing -> error "Need a slug"

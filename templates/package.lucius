@@ -192,3 +192,22 @@ h2.changes-title {
 .no-tags {
   color: #888;
 }
+.tag-count {
+  border: 0.1em solid #d8d8d8;
+  text-shadow: none;
+  padding: 0 0.25em;
+  border-radius: 0.25em;
+  color: #999;
+  font-size: 0.8em;
+}
+.tag-count:hover {
+  border: 0.1em solid #333;
+  color: #333;
+  cursor: pointer;
+  text-decoration: none;
+}
+.tag-count.tagged {
+  background: #06537d;
+  border: none;
+  color: #fff;
+}
