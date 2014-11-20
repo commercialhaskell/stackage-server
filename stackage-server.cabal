@@ -22,6 +22,7 @@ library
                      Settings.StaticFiles
                      Settings.Development
                      Data.Slug
+                     Data.Tag
                      Data.BlobStore
                      Data.Hackage
                      Data.Hackage.Views

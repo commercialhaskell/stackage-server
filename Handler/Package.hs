@@ -5,7 +5,7 @@
 module Handler.Package where
 
 import           Data.Char
-import           Data.Slug
+import           Data.Tag
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import           Data.Time (addUTCTime)
@@ -200,7 +200,7 @@ postPackageTagR packageName =
         do mtag <- lookupPostParam "slug"
            case mtag of
              Just tag ->
-               do slug <- mkSlugLen 1 20 tag
+               do slug <- mkTag tag
                   void (runDB (P.insert (Tag packageName slug uid)))
              Nothing -> error "Need a slug"
 
@@ -214,7 +214,7 @@ postPackageUntagR packageName =
         do mtag <- lookupPostParam "slug"
            case mtag of
              Just tag ->
-               do slug <- mkSlugLen 1 20 tag
+               do slug <- mkTag tag
                   void (runDB (P.deleteWhere
                                  [TagPackage ==. packageName
                                  ,TagTag ==. slug

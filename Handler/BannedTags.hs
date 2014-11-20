@@ -1,11 +1,12 @@
 module Handler.BannedTags where
 
+import Data.Slug (unSlug, Slug)
+import Data.Tag
 import Import
-import Data.Slug (unSlug, mkSlug, Slug)
 
 checkSlugs :: Monad m => Textarea -> m (Either Text [Slug])
 checkSlugs (Textarea t) =
-    return $ first tshow $ (mapM mkSlug $ filter (not . null) $ lines $ filter (/= '\r') t)
+    return $ first tshow $ (mapM mkTag $ filter (not . null) $ lines $ filter (/= '\r') t)
 
 fromSlugs :: [Slug] -> Textarea
 fromSlugs = Textarea . unlines . map unSlug
