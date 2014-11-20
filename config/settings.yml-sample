@@ -3,6 +3,8 @@ Default: &defaults
   port: 3000
   approot: "http://localhost:3000"
   hackage-root: http://hackage.fpcomplete.com
+  admin-users:
+  - fpcomplete
 
 Development:
   <<: *defaults

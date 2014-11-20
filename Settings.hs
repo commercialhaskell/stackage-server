@@ -67,6 +67,7 @@ widgetFile = (if development then widgetFileReload
 data Extra = Extra
     { storeConfig :: !BlobStoreConfig
     , hackageRoot :: !HackageRoot
+    , adminUsers  :: !(HashSet Text)
     }
     deriving Show
 
@@ -74,6 +75,7 @@ parseExtra :: DefaultEnv -> Object -> Parser Extra
 parseExtra _ o = Extra
     <$> o .: "blob-store"
     <*> (HackageRoot <$> o .: "hackage-root")
+    <*> o .:? "admin-users" .!= mempty
 
 data BlobStoreConfig = BSCFile !FilePath
                      | BSCAWS !FilePath !Text !Text !Text !Text

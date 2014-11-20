@@ -32,3 +32,4 @@
 /package/#PackageName/tag PackageTagR POST
 /tags TagListR GET
 /tag/#Slug TagR GET
+/banned-tags BannedTagsR GET PUT

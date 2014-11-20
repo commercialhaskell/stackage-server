@@ -1,0 +1,6 @@
+<div .container>
+    <h1>Banned Tags
+    <a href=@{TagListR}>List of viewable tags
+    <form method=post action=@{BannedTagsR}?_method=PUT enctype=#{enctype}>
+        ^{widget}
+        <button .btn>Update banned tags

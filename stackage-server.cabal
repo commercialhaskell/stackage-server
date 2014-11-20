@@ -46,6 +46,7 @@ library
                      Handler.PackageList
                      Handler.CompressorStatus
                      Handler.Tag
+                     Handler.BannedTags
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
