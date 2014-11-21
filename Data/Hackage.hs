@@ -318,6 +318,9 @@ grabExtraFiles name version lfiles = runResourceT $ do
                     "changelog.md"  -> (mreadme, md lbs, mlicense)
                     "changelog"     -> (mreadme, txt lbs, mlicense)
                     "changelog.txt" -> (mreadme, txt lbs, mlicense)
+                    "changes.md"    -> (mreadme, md lbs, mlicense)
+                    "changes"       -> (mreadme, txt lbs, mlicense)
+                    "changes.txt"   -> (mreadme, txt lbs, mlicense)
                     _ | name' `elem` lfiles -> (mreadme, mchangelog, txt lbs)
                     _ -> trip
             _ -> trip
