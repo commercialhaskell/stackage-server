@@ -2,7 +2,7 @@ module Foundation where
 
 import           ClassyPrelude.Yesod
 import           Data.BlobStore
-import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
+import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug, SnapSlug)
 import qualified Database.Persist
 import           Model
 import qualified Settings

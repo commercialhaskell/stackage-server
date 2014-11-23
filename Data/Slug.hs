@@ -8,6 +8,7 @@ module Data.Slug
     , HasGenIO (..)
     , randomSlug
     , slugField
+    , SnapSlug (..)
     ) where
 
 import ClassyPrelude.Yesod
@@ -96,3 +97,9 @@ slugField =
     checkMMap go unSlug textField
   where
     go = return . either (Left . tshow) Right . mkSlug
+
+-- | Unique identifier for a snapshot.
+newtype SnapSlug = SnapSlug { unSnapSlug :: Slug }
+    deriving (Show, Read, Eq, Typeable, PersistField, ToMarkup, PathPiece)
+instance PersistFieldSql SnapSlug where
+    sqlType = sqlType . liftM unSnapSlug

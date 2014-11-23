@@ -7,28 +7,28 @@ $newline never
         $if hasBundle
            <span .separator>
            <span>
-               <a href=@{StackageMetadataR ident} title="View metadata on this snapshot, such as package versions">
+               <a href=@{StackageMetadataR slug} title="View metadata on this snapshot, such as package versions">
                    \Metadata
            <span .separator>
            <span>
-               <a href=@{StackageBundleR ident} title="This is useful for making modifications to an existing snapshot">
+               <a href=@{StackageBundleR slug} title="This is useful for making modifications to an existing snapshot">
                    \Bundle
            <span .separator>
            <span>
-               <a href=@{StackageCabalConfigR ident} title="If you want to stick with upstream Hackage but get a stable package set">
+               <a href=@{StackageCabalConfigR slug} title="If you want to stick with upstream Hackage but get a stable package set">
                    \cabal.config
            $if stackageHasHaddocks stackage
                <span .separator>
                <span>
-                   <a href=@{HaddockR ident []}>Haddocks
+                   <a href=@{HaddockR slug []}>Haddocks
     $if isOwner
         <p>
             You are the owner of this snapshot. You can #
-            <a href=@{UploadHaddockR ident}>upload haddocks#
+            <a href=@{UploadHaddockR slug}>upload haddocks#
             .
     <p>
         <pre>
-            remote-repo: stackage-#{ident}:@{StackageHomeR ident}
+            remote-repo: stackage-#{slug}:@{StackageHomeR slug}
     $maybe _ <- minclusive
         <p>
             <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#whats-the-difference-between-inclusive-and-exclusive-snapshots">What's the difference between inclusive and exclusive snapshots?</a>

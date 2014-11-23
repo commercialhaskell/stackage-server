@@ -13,6 +13,7 @@ import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Hackage
 import           Data.Hackage.Views
+import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
 import           Data.Time (diffUTCTime)
 import qualified Database.Esqueleto as E
 import qualified Database.Persist
@@ -36,6 +37,7 @@ import           System.Environment (getEnvironment)
 import           Data.BlobStore (HasBlobStore (..), BlobStore)
 import           System.IO (hSetBuffering, BufferMode (LineBuffering))
 import qualified Data.ByteString as S
+import qualified Data.Text as T
 
 import qualified Echo
 
@@ -180,9 +182,12 @@ makeFoundation useEcho conf = do
             }
 
     -- Perform database migration using our application's logging settings.
-    runLoggingT
-        (Database.Persist.runPool dbconf (runMigration migrateAll) p)
-        (messageLoggerSource foundation logger)
+    runResourceT $
+        flip runReaderT gen $
+        flip runLoggingT (messageLoggerSource foundation logger) $
+        flip (Database.Persist.runPool dbconf) p $ do
+            runMigration migrateAll
+            checkMigration 1 $ fixSnapSlugs
 
     env <- getEnvironment
     let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
@@ -315,3 +320,33 @@ getApplicationDev useEcho =
     loader = Yesod.Default.Config.loadConfig (configSettings Development)
         { csParseExtra = parseExtra
         }
+
+checkMigration :: MonadIO m
+               => Int
+               -> ReaderT SqlBackend m ()
+               -> ReaderT SqlBackend m ()
+checkMigration num f = do
+    eres <- insertBy $ Migration num
+    case eres of
+        Left _ -> return ()
+        Right _ -> f
+
+fixSnapSlugs :: (MonadResource m, HasGenIO env, MonadReader env m)
+             => ReaderT SqlBackend m ()
+fixSnapSlugs =
+    selectSource [] [Asc StackageUploaded] $$ mapM_C go
+  where
+    go (Entity sid Stackage {..}) =
+        loop (1 :: Int)
+      where
+        base = T.replace "haskell platform" "hp"
+             $ T.replace "stackage build for " ""
+             $ toLower stackageTitle
+        loop 50 = error "fixSnapSlugs can't find a good slug"
+        loop i = do
+            slug' <- lift $ safeMakeSlug base $ if i == 1 then False else True
+            let slug = SnapSlug slug'
+            ms <- getBy $ UniqueSnapshot slug
+            case ms of
+                Nothing -> update sid [StackageSlug =. slug]
+                Just _ -> loop (i + 1)

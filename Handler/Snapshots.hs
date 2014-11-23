@@ -23,7 +23,7 @@ getAllSnapshotsR = do
           E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
           E.orderBy [E.desc $ stackage E.^. StackageUploaded]
           return
-              ( stackage E.^. StackageIdent
+              ( stackage E.^. StackageSlug
               , stackage E.^. StackageTitle
               , stackage E.^. StackageUploaded
               , user E.^. UserDisplay

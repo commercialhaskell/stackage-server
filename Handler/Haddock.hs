@@ -16,16 +16,24 @@ import qualified Data.ByteString.Base16 as B16
 import Data.Byteable (toBytes)
 import Crypto.Hash (Digest, SHA1)
 import qualified Filesystem.Path.CurrentOS as F
+import Data.Slug (SnapSlug)
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"
     { fsName = Just "tarball"
     } Nothing
 
-getUploadHaddockR, putUploadHaddockR :: PackageSetIdent -> Handler Html
-getUploadHaddockR ident = do
+getUploadHaddockR, putUploadHaddockR :: SnapSlug -> Handler Html
+getUploadHaddockR slug0 = do
     uid <- requireAuthIdOrToken
-    Entity sid Stackage {..} <- runDB $ getBy404 $ UniqueStackage ident
+    Entity sid Stackage {..} <- runDB $ do
+        -- Provide fallback for old URLs
+        ment <- getBy $ UniqueSnapshot slug0
+        case ment of
+            Just ent -> return ent
+            Nothing -> getBy404 $ UniqueStackage $ PackageSetIdent $ toPathPiece slug0
+    let ident = stackageIdent
+        slug = stackageSlug
     unless (uid == stackageUser) $ permissionDenied "You do not control this snapshot"
     ((res, widget), enctype) <- runFormPostNoToken form
     case res of
@@ -35,16 +43,25 @@ getUploadHaddockR ident = do
             master <- getYesod
             void $ liftIO $ forkIO $ haddockUnpacker master True ident
             setMessage "Haddocks uploaded"
-            redirect $ StackageHomeR ident
+            redirect $ StackageHomeR slug
         _ -> defaultLayout $ do
             setTitle "Upload Haddocks"
             $(widgetFile "upload-haddock")
 
 putUploadHaddockR = getUploadHaddockR
 
-getHaddockR :: PackageSetIdent -> [Text] -> Handler ()
-getHaddockR ident rest = do
-    sanitize $ toPathPiece ident
+getHaddockR :: SnapSlug -> [Text] -> Handler ()
+getHaddockR slug rest = do
+    ident <- runDB $ do
+        ment <- getBy $ UniqueSnapshot slug
+        case ment of
+            Just ent -> return $ stackageIdent $ entityVal ent
+            Nothing -> do
+                Entity _ stackage <- getBy404
+                                  $ UniqueStackage
+                                  $ PackageSetIdent
+                                  $ toPathPiece slug
+                redirectWith status301 $ HaddockR (stackageSlug stackage) rest
     mapM_ sanitize rest
     dirs <- getDirs -- (gzdir, rawdir) <- getHaddockDir ident
     master <- getYesod
@@ -55,9 +72,9 @@ getHaddockR ident rest = do
         mime = defaultMimeLookup $ fpToText $ filename rawfp
 
     whenM (liftIO $ isDirectory rawfp)
-        $ redirect $ HaddockR ident $ rest ++ ["index.html"]
+        $ redirect $ HaddockR slug $ rest ++ ["index.html"]
     whenM (liftIO $ isDirectory gzfp)
-        $ redirect $ HaddockR ident $ rest ++ ["index.html"]
+        $ redirect $ HaddockR slug $ rest ++ ["index.html"]
 
     whenM (liftIO $ isFile gzfp) $ do
         addHeader "Content-Encoding" "gzip"

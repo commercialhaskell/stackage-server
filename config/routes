@@ -10,20 +10,24 @@
 /email/#EmailId EmailR DELETE
 /reset-token ResetTokenR POST
 /upload UploadStackageR GET PUT
-/upload-haddock/#PackageSetIdent UploadHaddockR GET PUT
-/stackage/#PackageSetIdent StackageHomeR GET
-/stackage/#PackageSetIdent/metadata StackageMetadataR GET
-/stackage/#PackageSetIdent/cabal.config StackageCabalConfigR GET
-/stackage/#PackageSetIdent/00-index.tar.gz StackageIndexR GET
-/stackage/#PackageSetIdent/bundle StackageBundleR GET
-/stackage/#PackageSetIdent/package/#PackageNameVersion StackageSdistR GET
+/upload-haddock/#SnapSlug UploadHaddockR GET PUT
+
+/stackage/#PackageSetIdent/*Texts OldStackageR GET
+
+/snapshot/#SnapSlug StackageHomeR GET
+/snapshot/#SnapSlug/metadata StackageMetadataR GET
+/snapshot/#SnapSlug/cabal.config StackageCabalConfigR GET
+/snapshot/#SnapSlug/00-index.tar.gz StackageIndexR GET
+/snapshot/#SnapSlug/bundle StackageBundleR GET
+/snapshot/#SnapSlug/package/#PackageNameVersion StackageSdistR GET
+
 /hackage-view/#HackageView/00-index.tar.gz HackageViewIndexR GET
 /hackage-view/#HackageView/package/#PackageNameVersion HackageViewSdistR GET
 /aliases AliasesR PUT
 /alias/#Slug/#Slug/*Texts AliasR
 /progress/#Int ProgressR GET
 /system SystemR GET
-/haddock/#PackageSetIdent/*Texts HaddockR GET
+/haddock/#SnapSlug/*Texts HaddockR GET
 /package/#PackageName PackageR GET
 /package PackageListR GET
 /compressor-status CompressorStatusR GET
