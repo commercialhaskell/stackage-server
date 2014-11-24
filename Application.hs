@@ -272,7 +272,7 @@ appLoadCabalFiles updateDB forceUpdate env dbconf p = do
         UploadState uploadHistory newUploads _ newMD <- loadCabalFiles updateDB forceUpdate uploadHistory0 metadata0
         $logInfo "Inserting to new uploads"
         runDB' $ insertMany_ newUploads
-        $logInfo "Updating metadatas"
+        $logInfo $ "Updating metadatas: " ++ tshow (length newMD)
         runDB' $ do
             let newMD' = toList newMD
             deleteWhere [MetadataName <-. map metadataName newMD']
