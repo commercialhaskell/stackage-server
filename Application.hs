@@ -266,11 +266,12 @@ appLoadCabalFiles updateDB env dbconf p = do
             )
         UploadState uploadHistory newUploads _ newMD <- loadCabalFiles updateDB uploadHistory0 metadata0
         $logInfo "Inserting to new uploads"
-        runDB' $ mapM_ insert_ newUploads
+        runDB' $ insertMany_ newUploads
         $logInfo "Updating metadatas"
-        runDB' $ forM_ newMD $ \x -> do
-            deleteBy $ UniqueMetadata $ metadataName x
-            insert_ x
+        runDB' $ do
+            let newMD' = toList newMD
+            deleteWhere [MetadataName <-. map metadataName newMD']
+            insertMany_ newMD'
         let views =
                 [ ("pvp", viewPVP uploadHistory)
                 , ("no-bounds", viewNoBounds)
