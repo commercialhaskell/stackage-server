@@ -3,9 +3,12 @@ module Handler.StackageSdist where
 import Import
 import Data.BlobStore
 import Data.Hackage
+import Data.Slug (SnapSlug)
 
-getStackageSdistR :: PackageSetIdent -> PackageNameVersion -> Handler TypedContent
-getStackageSdistR ident (PackageNameVersion name version) = do
+getStackageSdistR :: SnapSlug -> PackageNameVersion -> Handler TypedContent
+getStackageSdistR slug (PackageNameVersion name version) = do
+    Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+    let ident = stackageIdent stackage
     addDownload (Just ident) Nothing name version
     msrc1 <- storeRead (CustomSdist ident name version)
     msrc <-

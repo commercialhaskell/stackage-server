@@ -18,11 +18,13 @@ Verkey
 Stackage
     user UserId
     ident PackageSetIdent
+    slug SnapSlug default="md5((random())::text)"
     uploaded UTCTime
     title Text
     desc Text
     hasHaddocks Bool default=false
     UniqueStackage ident
+    UniqueSnapshot slug
 
 Uploaded
     name PackageName
@@ -88,3 +90,7 @@ Metadata
 BannedTag
     tag Slug
     UniqueBannedTag tag
+
+Migration
+    num Int
+    UniqueMigration num

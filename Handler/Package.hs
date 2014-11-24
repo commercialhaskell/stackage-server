@@ -31,7 +31,7 @@ getPackageR pn = do
             E.orderBy [E.desc $ s ^. StackageUploaded]
             E.limit maxSnaps
             --selectList [PackageName' ==. pn] [LimitTo 10, Desc PackageStackage]
-            return (p ^. PackageVersion, s ^. StackageTitle, s ^. StackageIdent, s ^. StackageHasHaddocks)
+            return (p ^. PackageVersion, s ^. StackageTitle, s ^. StackageSlug, s ^. StackageHasHaddocks)
         nLikes <- count [LikePackage ==. pn]
         let getLiked uid = (>0) <$> count [LikePackage ==. pn, LikeVoter ==. uid]
         liked <- maybe (return False) getLiked muid

@@ -27,12 +27,13 @@ getHomeR = do
       linkFor name =
           do slug <- mkSlug name
              fpcomplete <- mkSlug "fpcomplete"
-             selecting (\(alias, user) ->
+             selecting (\(alias, user, stackage) ->
                             do where_ $
                                   alias ^. AliasName ==. val slug &&.
                                   alias ^. AliasUser ==. user ^. UserId &&.
-                                  user ^. UserHandle ==. val fpcomplete
-                               return (alias ^. AliasTarget))
+                                  user ^. UserHandle ==. val fpcomplete &&.
+                                  alias ^. AliasTarget ==. stackage ^. StackageIdent
+                               return (stackage ^. StackageSlug))
         where selecting =
                   fmap (fmap unValue . listToMaybe) .
                   runDB .

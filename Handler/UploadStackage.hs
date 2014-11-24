@@ -18,10 +18,13 @@ import Control.Monad.Trans.Resource (allocate)
 import System.Directory (removeFile, getTemporaryDirectory)
 import System.Process (runProcess, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
-import Data.Slug (mkSlug)
+import Data.Slug (mkSlug, SnapSlug (..), safeMakeSlug)
 
 fileKey :: Text
 fileKey = "stackage"
+
+slugKey :: Text
+slugKey = "slug"
 
 getUploadStackageR :: Handler Html
 getUploadStackageR = do
@@ -34,6 +37,7 @@ putUploadStackageR :: Handler TypedContent
 putUploadStackageR = do
     uid <- requireAuthIdOrToken
     mfile <- lookupFile fileKey
+    mslug0 <- lookupPostParam slugKey
     case mfile of
         Nothing -> invalidArgs ["Upload missing"]
         Just file -> do
@@ -75,6 +79,7 @@ putUploadStackageR = do
 
             forkHandler onExc $ do
                 now <- liftIO getCurrentTime
+                baseSlug <- fmap SnapSlug $ mkSlug $ fromMaybe (tshow $ utctDay now) mslug0
                 let initial = Stackage
                         { stackageUser = uid
                         , stackageIdent = ident
@@ -82,6 +87,7 @@ putUploadStackageR = do
                         , stackageTitle = "Untitled Stackage"
                         , stackageDesc = "No description provided"
                         , stackageHasHaddocks = False
+                        , stackageSlug = baseSlug
                         }
 
                 -- Evil lazy I/O thanks to tar package
@@ -106,25 +112,27 @@ putUploadStackageR = do
                             then do
                                 sourceFile (fpFromString fp') $$ storeWrite (CabalIndex ident)
                                 sourceFile (fpFromString fp) $$ gzip =$ storeWrite (SnapshotBundle ident)
-                                runDB $ do
-                                    sid <- insert stackage
+                                slug <- runDB $ do
+                                    slug <- getUniqueSlug $ stackageSlug stackage
+                                    sid <- insert stackage { stackageSlug = slug}
                                     forM_ contents $ \(name, version, overwrite) -> insert_ Package
                                         { packageStackage = sid
                                         , packageName' = name
                                         , packageVersion = version
                                         , packageOverwrite = overwrite
                                         }
+                                    return slug
 
                                 setAlias
 
-                                done "Stackage created" $ StackageHomeR ident
+                                done "Stackage created" $ StackageHomeR slug
                             else do
                                 done "Error creating index file" ProfileR
 
             addHeader "X-Stackage-Ident" $ toPathPiece ident
             redirect $ ProgressR key
   where
-    loop _ Tar.Done = return ()
+    loop update Tar.Done = update "Finished processing files"
     loop _ (Tar.Fail e) = throwM e
     loop update (Tar.Next entry entries) = do
         addEntry update entry
@@ -147,6 +155,10 @@ putUploadStackageR = do
                                 , stackageDesc = desc
                                 }
                             }
+                    "slug" -> do
+                        slug <- safeMakeSlug (decodeUtf8 $ toStrict lbs) False
+                        ls <- get
+                        put ls { lsStackage = (lsStackage ls) { stackageSlug = SnapSlug slug } }
                     "hackage" -> forM_ (lines $ decodeUtf8 $ toStrict lbs) $ \line ->
                         case parseName line of
                             Just (name, version) -> do
@@ -245,3 +257,31 @@ extractCabal lbs name version =
         , toPathPiece name
         , ".cabal"
         ]
+
+-- | Get a unique version of the given slug by appending random numbers to the
+-- end.
+getUniqueSlug :: MonadIO m => SnapSlug -> ReaderT SqlBackend m SnapSlug
+getUniqueSlug base =
+    loop Nothing
+  where
+    loop msuffix = do
+        slug <- checkSlug $ addSuffix msuffix
+        ment <- getBy $ UniqueSnapshot slug
+        case ment of
+            Nothing -> return slug
+            Just _ ->
+                case msuffix of
+                    Nothing -> loop $ Just (1 :: Int)
+                    Just i
+                        | i > 50 -> error "No unique slug found"
+                        | otherwise -> loop $ Just $ i + 1
+
+    txt = toPathPiece base
+
+    addSuffix Nothing = txt
+    addSuffix (Just i) = txt ++ pack ('-' : show i)
+
+    checkSlug slug =
+        case fromPathPiece slug of
+            Nothing -> error $ "Invalid snapshot slug: " ++ unpack slug
+            Just s -> return s

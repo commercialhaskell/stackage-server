@@ -3,16 +3,17 @@ module Handler.StackageHome where
 import Data.BlobStore (storeExists)
 import Import
 import Data.Time (FormatTime)
+import Data.Slug (SnapSlug)
 
-getStackageHomeR :: PackageSetIdent -> Handler Html
-getStackageHomeR ident = do
+getStackageHomeR :: SnapSlug -> Handler Html
+getStackageHomeR slug = do
     muid <- maybeAuthId
     stackage <- runDB $ do
-        Entity _ stackage <- getBy404 $ UniqueStackage ident
+        Entity _ stackage <- getBy404 $ UniqueSnapshot slug
         return stackage
     let isOwner = muid == Just (stackageUser stackage)
 
-    hasBundle <- storeExists $ SnapshotBundle ident
+    hasBundle <- storeExists $ SnapshotBundle $ stackageIdent stackage
     let minclusive =
             if "inclusive" `isSuffixOf` stackageTitle stackage
                then Just True
@@ -24,9 +25,9 @@ getStackageHomeR ident = do
         setTitle $ toHtml $ stackageTitle stackage
         $(widgetFile "stackage-home")
 
-getStackageMetadataR :: PackageSetIdent -> Handler TypedContent
-getStackageMetadataR ident = do
-    Entity sid _ <- runDB $ getBy404 $ UniqueStackage ident
+getStackageMetadataR :: SnapSlug -> Handler TypedContent
+getStackageMetadataR slug = do
+    Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
     respondSourceDB typePlain $ do
         sendChunkBS "Override packages\n"
         sendChunkBS "=================\n"
@@ -51,9 +52,9 @@ getStackageMetadataR ident = do
         , "\n"
         ]
 
-getStackageCabalConfigR :: PackageSetIdent -> Handler TypedContent
-getStackageCabalConfigR ident = do
-    Entity sid _ <- runDB $ getBy404 $ UniqueStackage ident
+getStackageCabalConfigR :: SnapSlug -> Handler TypedContent
+getStackageCabalConfigR slug = do
+    Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
     respondSourceDB typePlain $ stream sid
   where
     stream sid =
@@ -81,3 +82,10 @@ getStackageCabalConfigR ident = do
 
 yearMonthDay :: FormatTime t => t -> String
 yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
+
+getOldStackageR :: PackageSetIdent -> [Text] -> Handler ()
+getOldStackageR ident pieces = do
+    Entity _ stackage <- runDB $ getBy404 $ UniqueStackage ident
+    case parseRoute ("snapshot" : toPathPiece (stackageSlug stackage) : pieces, []) of
+        Nothing -> notFound
+        Just route -> redirect (route :: Route App)
