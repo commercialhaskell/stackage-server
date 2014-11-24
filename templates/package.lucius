@@ -211,3 +211,8 @@ h2.changes-title {
   border: none;
   color: #fff;
 }
+
+/* https://github.com/fpco/stackage-server/issues/39 */
+div.plain-text {
+    white-space: pre-wrap;
+}

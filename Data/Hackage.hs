@@ -38,6 +38,8 @@ import qualified Data.Version
 import Text.ParserCombinators.ReadP (readP_to_S)
 import Text.Blaze.Html.Renderer.Utf8 (renderHtml)
 import Text.Blaze.Html (unsafeByteString)
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as A
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -325,8 +327,10 @@ grabExtraFiles name version lfiles = runResourceT $ do
                     _ -> trip
             _ -> trip
 
-    md = Just . toHtml . Markdown . decodeUtf8
-    txt = Just . toHtml . Textarea . toStrict . decodeUtf8
+    md = wrapClass "markdown" . Markdown . decodeUtf8
+    txt = wrapClass "plain-text" . Textarea . toStrict . decodeUtf8
+
+    wrapClass clazz inner = Just $ H.div H.! A.class_ clazz $ toHtml inner
 
 parseFilePath :: String -> Maybe (PackageName, Version)
 parseFilePath s =
