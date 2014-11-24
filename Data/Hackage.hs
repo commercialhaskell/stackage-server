@@ -62,10 +62,11 @@ loadCabalFiles :: ( MonadActive m
                   , MonadMask m
                   )
                => Bool -- ^ do the database updating
+               -> Bool -- ^ force updates regardless of hash value?
                -> UploadHistory -- ^ initial
                -> HashMap PackageName (Version, ByteString)
                -> m (UploadState Metadata)
-loadCabalFiles dbUpdates uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT (UploadState uploadHistory0 [] metadata1 mempty) $ do
+loadCabalFiles dbUpdates forceUpdate uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT (UploadState uploadHistory0 [] metadata1 mempty) $ do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
@@ -116,6 +117,7 @@ loadCabalFiles dbUpdates uploadHistory0 metadata0 = (>>= runUploadState) $ flip 
                         case readVersion version of
                             Nothing -> return ()
                             Just dataVersion -> setMetadata
+                                forceUpdate
                                 name
                                 version
                                 dataVersion
@@ -199,13 +201,14 @@ setMetadata :: ( MonadBaseControl IO m
                , HasBlobStore env StoreKey
                , HasHackageRoot env
                )
-            => PackageName
+            => Bool -- ^ force update?
+            -> PackageName
             -> Version
             -> UVector Int -- ^ versionBranch
             -> ByteString
             -> ParseResult PD.GenericPackageDescription
             -> m ()
-setMetadata name version dataVersion hash' gpdRes = do
+setMetadata forceUpdate name version dataVersion hash' gpdRes = do
     UploadState us1 us2 mdMap mdChanges <- get
     let toUpdate =
             case lookup name mdMap of
@@ -213,7 +216,7 @@ setMetadata name version dataVersion hash' gpdRes = do
                     case compare currDataVersion dataVersion of
                         LT -> True
                         GT -> False
-                        EQ -> currHash /= hash'
+                        EQ -> currHash /= hash' || forceUpdate
                 Nothing -> True
     if toUpdate
         then case gpdRes of

@@ -186,7 +186,8 @@ makeFoundation useEcho conf = do
 
     env <- getEnvironment
     let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
-        loadCabalFiles' = appLoadCabalFiles updateDB foundation dbconf p
+        forceUpdate = lookup "STACKAGE_FORCE_UPDATE" env == Just "1"
+        loadCabalFiles' = appLoadCabalFiles updateDB forceUpdate foundation dbconf p
 
     -- Start the cabal file loader
     ifRunCabalLoader $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
@@ -225,8 +226,11 @@ cabalLoaderMain = do
     manager <- newManager
     bs <- loadBlobStore manager conf
     hSetBuffering stdout LineBuffering
+    env <- getEnvironment
+    let forceUpdate = lookup "STACKAGE_FORCE_UPDATE" env == Just "1"
     flip runLoggingT logFunc $ appLoadCabalFiles
-        True
+        True -- update database?
+        forceUpdate
         CabalLoaderEnv
             { cleSettings = conf
             , cleBlobStore = bs
@@ -246,11 +250,12 @@ appLoadCabalFiles :: ( PersistConfig c
                      , HasHttpManager env
                      )
                   => Bool -- ^ update database?
+                  -> Bool -- ^ force update?
                   -> env
                   -> c
                   -> PersistConfigPool c
                   -> LoggingT IO ()
-appLoadCabalFiles updateDB env dbconf p = do
+appLoadCabalFiles updateDB forceUpdate env dbconf p = do
     eres <- tryAny $ flip runReaderT env $ do
         let runDB' :: SqlPersistT (ResourceT (ReaderT env (LoggingT IO))) a
                    -> ReaderT env (LoggingT IO) a
@@ -264,7 +269,7 @@ appLoadCabalFiles updateDB env dbconf p = do
             , m E.^. MetadataVersion
             , m E.^. MetadataHash
             )
-        UploadState uploadHistory newUploads _ newMD <- loadCabalFiles updateDB uploadHistory0 metadata0
+        UploadState uploadHistory newUploads _ newMD <- loadCabalFiles updateDB forceUpdate uploadHistory0 metadata0
         $logInfo "Inserting to new uploads"
         runDB' $ insertMany_ newUploads
         $logInfo "Updating metadatas"
