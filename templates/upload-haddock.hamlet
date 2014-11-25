@@ -7,7 +7,7 @@
     $if stackageHasHaddocks
         <div .alert .alert-warning>You have already uploaded Haddocks. Uploading against will delete the old contents.
 
-    <form method=POST action=@{UploadHaddockR slug}?_method=PUT enctype=#{enctype}>
+    <form method=POST action=@{UploadHaddockR $ toPathPiece slug}?_method=PUT enctype=#{enctype}>
         ^{widget}
         <div>
             <button .btn>Upload

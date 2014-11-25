@@ -23,15 +23,17 @@ form = renderDivs $ areq fileField "tarball containing docs"
     { fsName = Just "tarball"
     } Nothing
 
-getUploadHaddockR, putUploadHaddockR :: SnapSlug -> Handler Html
+getUploadHaddockR, putUploadHaddockR :: Text -> Handler Html
 getUploadHaddockR slug0 = do
     uid <- requireAuthIdOrToken
     Entity sid Stackage {..} <- runDB $ do
         -- Provide fallback for old URLs
-        ment <- getBy $ UniqueSnapshot slug0
+        ment <- getBy $ UniqueStackage $ PackageSetIdent slug0
         case ment of
             Just ent -> return ent
-            Nothing -> getBy404 $ UniqueStackage $ PackageSetIdent $ toPathPiece slug0
+            Nothing -> do
+                slug <- maybe notFound return $ fromPathPiece slug0
+                getBy404 $ UniqueSnapshot slug
     let ident = stackageIdent
         slug = stackageSlug
     unless (uid == stackageUser) $ permissionDenied "You do not control this snapshot"

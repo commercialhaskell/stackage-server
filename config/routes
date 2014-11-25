@@ -10,7 +10,7 @@
 /email/#EmailId EmailR DELETE
 /reset-token ResetTokenR POST
 /upload UploadStackageR GET PUT
-/upload-haddock/#SnapSlug UploadHaddockR GET PUT
+/upload-haddock/#Text UploadHaddockR GET PUT
 
 /stackage/#PackageSetIdent/*Texts OldStackageR GET
 

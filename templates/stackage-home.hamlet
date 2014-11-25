@@ -24,7 +24,7 @@ $newline never
     $if isOwner
         <p>
             You are the owner of this snapshot. You can #
-            <a href=@{UploadHaddockR slug}>upload haddocks#
+            <a href=@{UploadHaddockR $ toPathPiece slug}>upload haddocks#
             .
     <p>
         <pre>
