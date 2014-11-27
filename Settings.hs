@@ -68,6 +68,7 @@ data Extra = Extra
     { storeConfig :: !BlobStoreConfig
     , hackageRoot :: !HackageRoot
     , adminUsers  :: !(HashSet Text)
+    , googleAuth  :: !(Maybe GoogleAuth)
     }
     deriving Show
 
@@ -76,6 +77,7 @@ parseExtra _ o = Extra
     <$> o .: "blob-store"
     <*> (HackageRoot <$> o .: "hackage-root")
     <*> o .:? "admin-users" .!= mempty
+    <*> o .:? "google-auth"
 
 data BlobStoreConfig = BSCFile !FilePath
                      | BSCAWS !FilePath !Text !Text !Text !Text
@@ -95,3 +97,13 @@ instance FromJSON BlobStoreConfig where
             <*> o .: "secret"
             <*> o .: "bucket"
             <*> o .:? "prefix" .!= ""
+
+data GoogleAuth = GoogleAuth
+    { gaClientId :: !Text
+    , gaClientSecret :: !Text
+    }
+    deriving Show
+instance FromJSON GoogleAuth where
+    parseJSON = withObject "GoogleAuth" $ \o -> GoogleAuth
+        <$> o .: "client-id"
+        <*> o .: "client-secret"

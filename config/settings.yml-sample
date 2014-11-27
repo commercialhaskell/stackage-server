@@ -5,6 +5,9 @@ Default: &defaults
   hackage-root: http://hackage.fpcomplete.com
   admin-users:
   - fpcomplete
+  # google-auth:
+    # client-id: foo
+    # client-secret: bar
 
 Development:
   <<: *defaults

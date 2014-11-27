@@ -6,7 +6,7 @@ import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug,
 import qualified Database.Persist
 import           Model
 import qualified Settings
-import           Settings (widgetFile, Extra (..))
+import           Settings (widgetFile, Extra (..), GoogleAuth (..))
 import           Settings.Development (development)
 import           Settings.StaticFiles
 import qualified System.Random.MWC as MWC
@@ -15,7 +15,7 @@ import           Text.Jasmine (minifym)
 import           Types
 import           Yesod.Auth
 import           Yesod.Auth.BrowserId
-import           Yesod.Auth.GoogleEmail
+import           Yesod.Auth.GoogleEmail2
 import           Yesod.Core.Types (Logger, GWData)
 import           Yesod.Default.Config
 import           Yesod.Default.Util (addStaticContentExternal)
@@ -218,7 +218,13 @@ instance YesodAuth App where
                 Just _  -> getHandle (cnt + 1)
 
     -- You can add other plugins like BrowserID, email or OAuth here
-    authPlugins _ = [authBrowserId def, authGoogleEmail]
+    authPlugins app =
+        authBrowserId def : google
+      where
+        google =
+            case googleAuth $ appExtra $ settings app of
+                Nothing -> []
+                Just GoogleAuth {..} -> [authGoogleEmail gaClientId gaClientSecret]
 
     authHttpManager = httpManager
 instance YesodAuthPersist App
