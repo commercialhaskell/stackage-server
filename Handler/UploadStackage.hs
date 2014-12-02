@@ -176,17 +176,14 @@ putUploadStackageR = do
 
                             Nothing -> return ()
                     fp | (base1, Just "gz") <- splitExtension fp
-                       , (base, Just "tar") <- splitExtension base1
-                       , Just (name, version) <- parseName (fpToText base) -> do
+                       , (fpToText -> base, Just "tar") <- splitExtension base1 -> do
                             ident <- lsIdent <$> get
-                            sourceLazy lbs $$ storeWrite (CustomSdist ident name version)
                             _ <- update $ concat
                                 [ "Extracting cabal file for custom tarball: "
-                                , toPathPiece name
-                                , "-"
-                                , toPathPiece version
+                                , base
                                 ]
-                            cabalLBS <- extractCabal lbs name version
+                            (name, version, cabalLBS) <- extractCabal lbs base
+                            sourceLazy lbs $$ storeWrite (CustomSdist ident name version)
                             addFile True name version $ sourceLazy cabalLBS
                     _ -> return ()
             _ -> return ()
@@ -235,28 +232,27 @@ type IsOverride = Bool
 
 extractCabal :: (MonadLogger m, MonadThrow m)
              => LByteString
-             -> PackageName -- ^ name
-             -> Version -- ^ version
-             -> m LByteString
-extractCabal lbs name version =
+             -> Text -- ^ basename
+             -> m (PackageName, Version, LByteString)
+extractCabal lbs basename' =
     loop $ Tar.read $ GZip.decompress lbs
   where
-    loop Tar.Done = error $ "extractCabal: cabal file missing for " ++ show (name, version)
+    loop Tar.Done = error $ "extractCabal: cabal file missing for " ++ unpack basename'
     loop (Tar.Fail e) = throwM e
     loop (Tar.Next e es) = do
-        $logDebug $ tshow (Tar.entryPath e, fp)
+        $logDebug $ pack $ Tar.entryPath e
         case Tar.entryContent e of
-            Tar.NormalFile lbs' _ | Tar.entryPath e == fp -> return lbs'
+            Tar.NormalFile lbs' _
+                | Just (name, version) <- parseNameVersion (pack $ Tar.entryPath e)
+               -> return (name, version, lbs')
             _ -> loop es
 
-    fp = unpack $ concat
-        [ toPathPiece name
-        , "-"
-        , toPathPiece version
-        , "/"
-        , toPathPiece name
-        , ".cabal"
-        ]
+    parseNameVersion t = do
+        [dir, filename'] <- Just $ T.splitOn "/" t
+        let (name', version) = T.breakOnEnd "-" dir
+        name <- stripSuffix "-" name'
+        guard $ name ++ ".cabal" == filename'
+        return (PackageName name, Version version)
 
 -- | Get a unique version of the given slug by appending random numbers to the
 -- end.
