@@ -42,6 +42,7 @@ import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Documentation.Haddock.Parser as Haddock
 import Documentation.Haddock.Types (DocH (..), Hyperlink (..), Picture (..), Header (..), Example (..))
+import qualified Data.HashMap.Lazy as HM
 
 sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
 sinkUploadHistory =
@@ -148,7 +149,7 @@ data UploadState md = UploadState
     { usHistory :: !UploadHistory
     , usChanges :: ![Uploaded]
     , usMetadata :: !(HashMap PackageName MetaSig)
-    , usMetaChanges :: !(HashMap PackageName md)
+    , usMetaChanges :: (HashMap PackageName md)
     }
 
 data MetaSig = MetaSig
@@ -226,7 +227,7 @@ setMetadata forceUpdate name version dataVersion hash' gpdRes = do
                     !md <- getMetadata name version hash' gpd
                     put $! UploadState us1 us2
                                 (insertMap name (MetaSig version dataVersion hash') mdMap)
-                                (insertMap name md mdChanges)
+                                (HM.insert name md mdChanges)
                 _ -> return ()
         else return ()
 
