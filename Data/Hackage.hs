@@ -84,6 +84,7 @@ loadCabalFiles dbUpdates forceUpdate uploadHistory0 metadata0 = (>>= runUploadSt
                 =$ scanlC (\x _ -> x + 1) (0 :: Int)
                 =$ filterC ((== 0) . (`mod` 1000))
                 =$ mapM_C (\i -> $logInfo $ "Processing cabal file #" ++ tshow i)
+    $logInfo "Finished processing cabal files"
   where
     metadata1 = flip fmap metadata0 $ \(v, h) -> MetaSig
         v
