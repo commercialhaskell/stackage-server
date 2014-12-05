@@ -281,7 +281,7 @@ getMetadata name version hash' gpd = do
             , metadataTestSuites = length $ PD.testSuites pd
             , metadataBenchmarks = length $ PD.benchmarks pd
             , metadataReadme = collapseHtml $ fromMaybe
-                (hToHtml . Haddock.toRegular . Haddock.parseString $ PD.description pd)
+                (hToHtml . Haddock.toRegular . Haddock.parseParas $ PD.description pd)
                 mreadme
             , metadataChangelog = collapseHtml <$> mchangelog
             , metadataLicenseContent = collapseHtml <$> mlicenseContent
