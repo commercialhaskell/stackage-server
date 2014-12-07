@@ -321,7 +321,7 @@ hToHtml =
     go (DocPic (Picture url mtitle)) =
         H.img H.! A.src (H.toValue url) H.! A.title (H.toValue $ fromMaybe mempty mtitle)
     go (DocAName s) = H.div H.! A.id (H.toValue s) $ mempty
-    go (DocProperty s) = toHtml s -- FIXME correct?
+    go (DocProperty s) = H.pre $ H.code $ toHtml s
     go (DocExamples es) = flip foldMap es $ \(Example exp' ress) ->
         H.div H.! A.class_ "example" $ do
             H.pre H.! A.class_ "expression" $ H.code $ toHtml exp'
