@@ -87,6 +87,11 @@ Metadata
 
     UniqueMetadata name
 
+Dependency
+    dep PackageName
+    user PackageName
+    UniqueDependency dep user
+
 BannedTag
     tag Slug
     UniqueBannedTag tag

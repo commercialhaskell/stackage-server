@@ -23,7 +23,7 @@ getPackageR pn = do
         haddocksLink ident version =
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
     muid <- maybeAuthId
-    (packages, downloads, recentDownloads, nLikes, liked, Entity _ metadata) <- runDB $ do
+    (packages, downloads, recentDownloads, nLikes, liked, Entity _ metadata, revdeps') <- runDB $ do
         packages <- fmap (map reformat) $ E.select $ E.from $ \(p, s) -> do
             E.where_ $ (p ^. PackageStackage E.==. s ^. StackageId)
                    &&. (p ^. PackageName' E.==. E.val pn)
@@ -41,7 +41,19 @@ getPackageR pn = do
         recentDownloads <- count [DownloadPackage ==. pn, DownloadTimestamp >=. nowMinus30]
         metadata <- getBy404 (UniqueMetadata pn)
 
-        return (packages, downloads, recentDownloads, nLikes, liked, metadata)
+        revdeps' <- E.select $ E.from $ \dep -> do
+            E.where_ $ dep ^. DependencyDep E.==. E.val pn
+            E.orderBy [E.asc $ dep ^. DependencyUser]
+            return $ dep ^. DependencyUser
+
+        return ( packages
+               , downloads
+               , recentDownloads
+               , nLikes
+               , liked
+               , metadata
+               , map E.unValue revdeps'
+               )
 
     myTags <-
         case muid of
@@ -70,6 +82,7 @@ getPackageR pn = do
                        else "I like this!" :: Text
 
     let deps = enumerate (metadataDeps metadata)
+        revdeps = enumerate revdeps'
         authors = enumerate (parseIdentitiesLiberally (metadataAuthor metadata))
         maintainers = let ms = enumerate (parseIdentitiesLiberally (metadataMaintainer metadata))
                       in if ms == authors

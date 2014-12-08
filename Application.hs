@@ -282,6 +282,10 @@ appLoadCabalFiles updateDB forceUpdate env dbconf p = do
             let newMD' = toList newMD
             deleteWhere [MetadataName <-. map metadataName newMD']
             insertMany_ newMD'
+            forM_ newMD' $ \md -> do
+                deleteWhere [DependencyUser ==. metadataName md]
+                insertMany_ $ flip map (metadataDeps md) $ \dep ->
+                    Dependency (PackageName dep) (metadataName md)
         let views =
                 [ ("pvp", viewPVP uploadHistory)
                 , ("no-bounds", viewNoBounds)
