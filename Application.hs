@@ -13,6 +13,7 @@ import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Hackage
 import           Data.Hackage.Views
+import           Data.WebsiteContent
 import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
 import           Data.Time (diffUTCTime)
 import qualified Database.Esqueleto as E
@@ -33,11 +34,13 @@ import           Yesod.Core.Types (loggerSet, Logger (Logger))
 import           Yesod.Default.Config
 import           Yesod.Default.Handlers
 import           Yesod.Default.Main
+import           Yesod.GitRepo (gitRepo)
 import           System.Environment (getEnvironment)
 import           Data.BlobStore (HasBlobStore (..), BlobStore)
 import           System.IO (hSetBuffering, BufferMode (LineBuffering))
 import qualified Data.ByteString as S
 import qualified Data.Text as T
+import           System.Process (rawSystem)
 
 import qualified Echo
 
@@ -163,6 +166,17 @@ makeFoundation useEcho conf = do
     (statusRef, unpacker) <- createHaddockUnpacker haddockRootDir' blobStore'
     widgetCache' <- newIORef mempty
 
+    when development $ void $ rawSystem "git"
+        [ "clone"
+        , "https://github.com/fpco/stackage-content.git"
+        ]
+    websiteContent' <- gitRepo
+        (if development
+            then "stackage-content"
+            else "https://github.com/fpco/stackage-content.git")
+        "master"
+        loadWebsiteContent
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
             { settings = conf
@@ -179,6 +193,7 @@ makeFoundation useEcho conf = do
             , haddockUnpacker = unpacker
             , widgetCache = widgetCache'
             , compressorStatus = statusRef
+            , websiteContent = websiteContent'
             }
 
     -- Perform database migration using our application's logging settings.

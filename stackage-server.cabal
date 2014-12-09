@@ -26,6 +26,7 @@ library
                      Data.BlobStore
                      Data.Hackage
                      Data.Hackage.Views
+                     Data.WebsiteContent
                      Types
                      Handler.Home
                      Handler.Snapshots
@@ -146,6 +147,7 @@ library
                  , formatting
                  , blaze-html
                  , haddock-library
+                 , yesod-gitrepo
 
 executable         stackage-server
     if flag(library-only)

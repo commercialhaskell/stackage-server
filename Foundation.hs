@@ -3,6 +3,7 @@ module Foundation where
 import           ClassyPrelude.Yesod
 import           Data.BlobStore
 import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug, SnapSlug)
+import           Data.WebsiteContent
 import qualified Database.Persist
 import           Model
 import qualified Settings
@@ -19,6 +20,7 @@ import           Yesod.Auth.GoogleEmail2
 import           Yesod.Core.Types (Logger, GWData)
 import           Yesod.Default.Config
 import           Yesod.Default.Util (addStaticContentExternal)
+import           Yesod.GitRepo
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -43,6 +45,7 @@ data App = App
     -- unpack job.
     , widgetCache :: !(IORef (HashMap Text (UTCTime, GWData (Route App))))
     , compressorStatus :: !(IORef Text)
+    , websiteContent :: GitRepo WebsiteContent
     }
 
 type ForceUnpack = Bool

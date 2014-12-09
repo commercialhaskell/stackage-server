@@ -11,6 +11,7 @@ import Settings.StaticFiles as Import
 import Types as Import
 import Yesod.Auth as Import
 import Data.Slug (mkSlug)
+import Data.WebsiteContent as Import (WebsiteContent (..))
 
 requireAuthIdOrToken :: Handler UserId
 requireAuthIdOrToken = do

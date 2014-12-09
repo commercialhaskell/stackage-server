@@ -4,6 +4,7 @@ module Handler.Home where
 import Data.Slug
 import Database.Esqueleto as E hiding (isNothing)
 import Import hiding ((=.),on,(||.),(==.))
+import Yesod.GitRepo (grContent)
 
 -- This is a handler function for the G request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in
@@ -16,13 +17,15 @@ getHomeR :: Handler Html
 getHomeR = do
     windowsLatest <- linkFor "unstable-ghc78hp-inclusive"
     restLatest    <- linkFor "unstable-ghc78-inclusive"
+    homepage <- getYesod >>= fmap wcHomepage . liftIO . grContent . websiteContent
     defaultLayout $ do
         setTitle "Stackage Server"
         $(combineStylesheets 'StaticR
             [ css_bootstrap_modified_css
             , css_bootstrap_responsive_modified_css
             ])
-        $(widgetFile "homepage")
+        toWidget homepage
+        -- $(widgetFile "homepage")
   where
       linkFor name =
           do slug <- mkSlug name

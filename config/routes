@@ -1,5 +1,6 @@
 /static StaticR Static getStatic
 /auth   AuthR   Auth   getAuth
+/reload WebsiteContentR GitRepo-WebsiteContent websiteContent
 
 /favicon.ico FaviconR GET
 /robots.txt RobotsR GET
