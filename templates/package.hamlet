@@ -131,7 +131,7 @@ $newline never
                            <td>
                                #{version}
                            <td>
-                               <a href=@{StackageHomeR slug}>#{fromMaybe title $ stripSuffix ", exclusive" title}
+                               <a href=@{SnapshotR slug StackageHomeR}>#{fromMaybe title $ stripSuffix ", exclusive" title}
 
 <div .markdown-container .readme-container>
     <div .container>

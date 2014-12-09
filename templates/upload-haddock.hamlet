@@ -2,7 +2,7 @@
     <h1>Upload Haddocks
 
     <p>
-        <a href=@{StackageHomeR slug}>Return to snapshot
+        <a href=@{SnapshotR slug StackageHomeR}>Return to snapshot
 
     $if stackageHasHaddocks
         <div .alert .alert-warning>You have already uploaded Haddocks. Uploading again will delete the old contents.

@@ -45,7 +45,7 @@ getUploadHaddockR slug0 = do
             master <- getYesod
             void $ liftIO $ forkIO $ haddockUnpacker master True ident
             setMessage "Haddocks uploaded"
-            redirect $ StackageHomeR slug
+            redirect $ SnapshotR slug StackageHomeR
         _ -> defaultLayout $ do
             setTitle "Upload Haddocks"
             $(widgetFile "upload-haddock")

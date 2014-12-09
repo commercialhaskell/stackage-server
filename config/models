@@ -99,3 +99,15 @@ BannedTag
 Migration
     num Int
     UniqueMigration num
+
+Nightly
+    day Day
+    ghcVersion Text
+    stackage StackageId
+    UniqueNightly day
+
+Lts
+    major Int
+    minor Int
+    stackage StackageId
+    UniqueLts major minor

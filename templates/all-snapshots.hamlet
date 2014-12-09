@@ -8,7 +8,7 @@
             $forall (ident, title, _uploaded, display, handle) <- stackages
                 <li>
                     <strong>
-                        <a href=@{StackageHomeR ident}>
+                        <a href=@{SnapshotR ident StackageHomeR}>
                             #{title}
                     <p>
                         #{display} (#{handle})

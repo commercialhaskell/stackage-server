@@ -53,11 +53,11 @@ getHomeR = do
                          #{asHtml title}
                      <td>
                          $maybe ex <- mex
-                           <a href=@{StackageHomeR ex}>exclusive
+                           <a href=@{SnapshotR ex StackageHomeR}>exclusive
                          $if isJust mex && isJust min'
                      <td>
                          $maybe in <- min'
-                           <a href=@{StackageHomeR in}>inclusive
+                           <a href=@{SnapshotR in StackageHomeR}>inclusive
               |]
         where
           name suffix = concat ["unstable-", short, "-", suffix]

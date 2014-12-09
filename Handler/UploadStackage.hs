@@ -125,7 +125,7 @@ putUploadStackageR = do
 
                                 setAlias
 
-                                done "Stackage created" $ StackageHomeR slug
+                                done "Stackage created" $ SnapshotR slug StackageHomeR
                             else do
                                 done "Error creating index file" ProfileR
 

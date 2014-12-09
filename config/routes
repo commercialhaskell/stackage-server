@@ -15,12 +15,13 @@
 
 /stackage/#PackageSetIdent/*Texts OldStackageR GET
 
-/snapshot/#SnapSlug StackageHomeR GET
-/snapshot/#SnapSlug/metadata StackageMetadataR GET
-/snapshot/#SnapSlug/cabal.config StackageCabalConfigR GET
-/snapshot/#SnapSlug/00-index.tar.gz StackageIndexR GET
-/snapshot/#SnapSlug/bundle StackageBundleR GET
-/snapshot/#SnapSlug/package/#PackageNameVersion StackageSdistR GET
+/snapshot/#SnapSlug SnapshotR:
+    / StackageHomeR GET
+    /metadata StackageMetadataR GET
+    /cabal.config StackageCabalConfigR GET
+    /00-index.tar.gz StackageIndexR GET
+    /bundle StackageBundleR GET
+    /package/#PackageNameVersion StackageSdistR GET
 
 /hackage-view/#HackageView/00-index.tar.gz HackageViewIndexR GET
 /hackage-view/#HackageView/package/#PackageNameVersion HackageViewSdistR GET
@@ -39,3 +40,6 @@
 /tags TagListR GET
 /tag/#Slug TagR GET
 /banned-tags BannedTagsR GET PUT
+
+/lts/*Texts LtsR GET
+/nightly/*Texts NightlyR GET
