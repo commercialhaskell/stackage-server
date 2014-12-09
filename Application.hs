@@ -34,7 +34,7 @@ import           Yesod.Core.Types (loggerSet, Logger (Logger))
 import           Yesod.Default.Config
 import           Yesod.Default.Handlers
 import           Yesod.Default.Main
-import           Yesod.GitRepo (gitRepo)
+import           Yesod.GitRepo
 import           System.Environment (getEnvironment)
 import           Data.BlobStore (HasBlobStore (..), BlobStore)
 import           System.IO (hSetBuffering, BufferMode (LineBuffering))
@@ -166,16 +166,35 @@ makeFoundation useEcho conf = do
     (statusRef, unpacker) <- createHaddockUnpacker haddockRootDir' blobStore'
     widgetCache' <- newIORef mempty
 
-    when development $ void $ rawSystem "git"
-        [ "clone"
-        , "https://github.com/fpco/stackage-content.git"
-        ]
-    websiteContent' <- gitRepo
-        (if development
-            then "stackage-content"
-            else "https://github.com/fpco/stackage-content.git")
-        "master"
-        loadWebsiteContent
+#if MIN_VERSION_yesod_gitrepo(0,1,1)
+    websiteContent' <- if development
+        then do
+            void $ rawSystem "git"
+                [ "clone"
+                , "https://github.com/fpco/stackage-content.git"
+                ]
+            gitRepoDev "stackage-content" loadWebsiteContent
+        else gitRepo
+            "https://github.com/fpco/stackage-content.git"
+            "master"
+            loadWebsiteContent
+#else
+    websiteContent' <- if development
+        then do
+            void $ rawSystem "git"
+                [ "clone"
+                , "https://github.com/fpco/stackage-content.git"
+                ]
+            tmp <- gitRepo "stackage-content" "master" loadWebsiteContent
+            return tmp
+                { grRefresh = return ()
+                , grContent = loadWebsiteContent "stackage-content"
+                }
+        else gitRepo
+            "https://github.com/fpco/stackage-content.git"
+            "master"
+            loadWebsiteContent
+#endif
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
