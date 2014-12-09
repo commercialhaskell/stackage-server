@@ -104,7 +104,7 @@ $newline never
                         <a href=@{PackageR (PackageName name)}>
                             #{name}
             $if not $ null revdeps
-              <div .reverse-dependencies>
+              <div .reverse-dependencies .expanding>
                 Used by
                 <div .dep-list>
                     $forall (i,name) <- revdeps
@@ -112,6 +112,7 @@ $newline never
                             , #
                         <a href=@{PackageR name}>
                             #{name}
+                <div .bottom-gradient>
         $if not (null packages)
             <div .span6 .snapshots>
                <table .table .snapshots>
