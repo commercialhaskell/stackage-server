@@ -6,7 +6,6 @@ module Handler.Alias
 
 import Import
 import Data.Slug (Slug)
-import Data.Text.Read (decimal)
 import Handler.StackageHome (getStackageHomeR, getStackageMetadataR, getStackageCabalConfigR)
 import Handler.StackageIndex (getStackageIndexR, getStackageBundleR)
 import Handler.StackageSdist (getStackageSdistR)
@@ -21,13 +20,6 @@ handleAliasR user name pieces = do
     case parseRoute ("stackage" : toPathPiece setid : pieces, []) of
         Nothing -> notFound
         Just route -> redirect (route :: Route App)
-
-parseLtsPair :: Text -> Maybe (Int, Int)
-parseLtsPair t1 = do
-    (x, t2) <- either (const Nothing) Just $ decimal t1
-    t3 <- stripPrefix "." t2
-    (y, "") <- either (const Nothing) Just $ decimal t3
-    Just (x, y)
 
 getLtsR :: [Text] -> Handler ()
 getLtsR pieces0 =

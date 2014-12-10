@@ -1,6 +1,7 @@
 module Handler.UploadStackage where
 
 import Import hiding (catch, get, update)
+import qualified Import
 import System.IO.Temp (withSystemTempFile, withSystemTempDirectory, openBinaryTempFile)
 import Crypto.Hash.Conduit (sinkHash)
 import Crypto.Hash (Digest, SHA1)
@@ -18,7 +19,7 @@ import Control.Monad.Trans.Resource (allocate)
 import System.Directory (removeFile, getTemporaryDirectory)
 import System.Process (runProcess, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
-import Data.Slug (mkSlug, SnapSlug (..), safeMakeSlug)
+import Data.Slug (mkSlug, SnapSlug (..), safeMakeSlug, unSlug)
 
 fileKey :: Text
 fileKey = "stackage"
@@ -42,6 +43,9 @@ putUploadStackageR = do
         Nothing -> invalidArgs ["Upload missing"]
         Just file -> do
             malias <- lookupPostParam "alias"
+            extra <- getExtra
+            mlts <- lookupPostParam "lts"
+            mnightly <- lookupPostParam "nightly"
 
             tempDir <- liftIO getTemporaryDirectory
             (_releaseKey, (fp, handleOut)) <- allocate
@@ -67,13 +71,32 @@ putUploadStackageR = do
                 done msg url = updateHelper (ProgressDone msg url)
                 onExc e = done ("Exception occurred: " ++ tshow e) ProfileR
                 setAlias = do
-                    forM_ (malias >>= mkSlug) $ \alias -> runDB $ do
+                    forM_ (malias >>= mkSlug) $ \alias -> do
                         deleteWhere [AliasUser ==. uid, AliasName ==. alias]
                         insert_ Alias
                             { aliasUser = uid
                             , aliasName = alias
                             , aliasTarget = ident
                             }
+                whenAdmin inner = do
+                    muser <- Import.get uid
+                    forM_ muser $ \user ->
+                        when (unSlug (userHandle user) `member` adminUsers extra)
+                            inner
+                setLts sid = forM_ mlts
+                    $ \lts -> whenAdmin
+                    $ forM_ (parseLtsPair lts) $ \(major, minor) -> do
+                        mx <- getBy $ UniqueLts major minor
+                        when (isNothing mx) $ insert_ $ Lts major minor sid
+                setNightly sid = forM_ mnightly $ \nightly -> whenAdmin $ do
+                    now <- liftIO getCurrentTime
+                    let day = utctDay now
+                    mx <- getBy $ UniqueNightly day
+                    when (isNothing mx) $ insert_ Nightly
+                        { nightlyDay = day
+                        , nightlyGhcVersion = nightly
+                        , nightlyStackage = sid
+                        }
 
             update "Starting"
 
@@ -121,9 +144,12 @@ putUploadStackageR = do
                                         , packageVersion = version
                                         , packageOverwrite = overwrite
                                         }
-                                    return slug
 
-                                setAlias
+                                    setAlias
+                                    setLts sid
+                                    setNightly sid
+
+                                    return slug
 
                                 done "Stackage created" $ SnapshotR slug StackageHomeR
                             else do

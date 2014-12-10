@@ -12,6 +12,7 @@ import Types as Import
 import Yesod.Auth as Import
 import Data.Slug (mkSlug)
 import Data.WebsiteContent as Import (WebsiteContent (..))
+import Data.Text.Read (decimal)
 
 requireAuthIdOrToken :: Handler UserId
 requireAuthIdOrToken = do
@@ -26,3 +27,10 @@ requireAuthIdOrToken = do
                     case muser of
                         Nothing -> invalidArgs ["Unknown token: " ++ token]
                         Just (Entity uid _) -> return uid
+
+parseLtsPair :: Text -> Maybe (Int, Int)
+parseLtsPair t1 = do
+    (x, t2) <- either (const Nothing) Just $ decimal t1
+    t3 <- stripPrefix "." t2
+    (y, "") <- either (const Nothing) Just $ decimal t3
+    Just (x, y)
