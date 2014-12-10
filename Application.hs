@@ -164,6 +164,7 @@ makeFoundation useEcho conf = do
 
     let haddockRootDir' = "/tmp/stackage-server-haddocks2"
     (statusRef, unpacker) <- createHaddockUnpacker haddockRootDir' blobStore'
+        (flip (Database.Persist.runPool dbconf) p)
     widgetCache' <- newIORef mempty
 
 #if MIN_VERSION_yesod_gitrepo(0,1,1)

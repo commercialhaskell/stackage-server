@@ -143,6 +143,7 @@ putUploadStackageR = do
                                         , packageName' = name
                                         , packageVersion = version
                                         , packageOverwrite = overwrite
+                                        , packageHasHaddocks = False
                                         }
 
                                     setAlias

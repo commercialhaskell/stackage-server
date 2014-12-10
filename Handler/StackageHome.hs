@@ -45,7 +45,7 @@ getStackageMetadataR slug = do
             , Asc PackageVersion
             ] $= mapC (Chunk . toBuilder . showPackage)
 
-    showPackage (Entity _ (Package _ name version _)) = concat
+    showPackage (Entity _ (Package _ name version _ _)) = concat
         [ toPathPiece name
         , "-"
         , toPathPiece version
@@ -68,13 +68,13 @@ getStackageCabalConfigR slug = do
 
     goFirst = do
         mx <- await
-        forM_ mx $ \(Entity _ (Package _ name version _)) -> yield $ Chunk $
+        forM_ mx $ \(Entity _ (Package _ name version _ _)) -> yield $ Chunk $
             toBuilder (asText "constraints: ") ++
             toBuilder (toPathPiece name) ++
             toBuilder (asText " ==") ++
             toBuilder (toPathPiece version)
 
-    showPackage (Entity _ (Package _ name version _)) =
+    showPackage (Entity _ (Package _ name version _ _)) =
         toBuilder (asText ",\n             ") ++
         toBuilder (toPathPiece name) ++
         toBuilder (asText " ==") ++

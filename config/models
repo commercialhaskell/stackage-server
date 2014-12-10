@@ -42,6 +42,7 @@ Package
     stackage StackageId
     name' PackageName sql=name
     version Version
+    hasHaddocks Bool default=true
     overwrite Bool
 
 Tag

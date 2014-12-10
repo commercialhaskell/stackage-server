@@ -17,6 +17,7 @@ import Data.Byteable (toBytes)
 import Crypto.Hash (Digest, SHA1)
 import qualified Filesystem.Path.CurrentOS as F
 import Data.Slug (SnapSlug)
+import qualified Data.Text as T
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"
@@ -208,8 +209,10 @@ dirCacheFp dirs digest =
 -- demand.
 createHaddockUnpacker :: FilePath -- ^ haddock root
                       -> BlobStore StoreKey
+                      -> (forall a m. (MonadIO m, MonadBaseControl IO m)
+                            => SqlPersistT m a -> m a)
                       -> IO (IORef Text, ForceUnpack -> PackageSetIdent -> IO ())
-createHaddockUnpacker root store = do
+createHaddockUnpacker root store runDB' = do
     createTree $ dirCacheRoot dirs
     createTree $ dirRawRoot dirs
     createTree $ dirGzRoot dirs
@@ -256,9 +259,31 @@ createHaddockUnpacker root store = do
                         Just src -> src $$ sinkHandle temph
                 hClose temph
                 createTree $ dirRawIdent dirs ident
+                let destdir = dirRawIdent dirs ident
                 (Nothing, Nothing, Nothing, ph) <- createProcess
                     (proc "tar" ["xf", tempfp])
-                        { cwd = Just $ fpToString $ dirRawIdent dirs ident
+                        { cwd = Just $ fpToString destdir
                         }
                 ec <- waitForProcess ph
                 if ec == ExitSuccess then return () else throwM ec
+
+                -- Determine which packages have documentation and update the
+                -- database appropriately
+                runResourceT $ runDB' $ do
+                    ment <- getBy $ UniqueStackage ident
+                    forM_ ment $ \(Entity sid _) -> do
+                        updateWhere
+                            [PackageStackage ==. sid]
+                            [PackageHasHaddocks =. False]
+                        sourceDirectory destdir $$ mapM_C (\fp -> do
+                            let mname = stripSuffix "-"
+                                      $ fst
+                                      $ T.breakOnEnd "-"
+                                      $ fpToText
+                                      $ filename fp
+                            forM_ mname $ \name -> updateWhere
+                                [ PackageStackage ==. sid
+                                , PackageName' ==. PackageName name
+                                ]
+                                [PackageHasHaddocks =. True]
+                            )
