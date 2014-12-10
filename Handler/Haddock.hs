@@ -276,14 +276,15 @@ createHaddockUnpacker root store runDB' = do
                             [PackageStackage ==. sid]
                             [PackageHasHaddocks =. False]
                         sourceDirectory destdir $$ mapM_C (\fp -> do
-                            let mname = stripSuffix "-"
-                                      $ fst
-                                      $ T.breakOnEnd "-"
-                                      $ fpToText
-                                      $ filename fp
+                            let (name', version) =
+                                    T.breakOnEnd "-"
+                                  $ fpToText
+                                  $ filename fp
+                                mname = stripSuffix "-" name'
                             forM_ mname $ \name -> updateWhere
                                 [ PackageStackage ==. sid
                                 , PackageName' ==. PackageName name
+                                , PackageVersion ==. Version version
                                 ]
                                 [PackageHasHaddocks =. True]
                             )

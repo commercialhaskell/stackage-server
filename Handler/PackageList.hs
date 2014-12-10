@@ -6,11 +6,17 @@ import qualified Database.Esqueleto as E
 import           Import
 import           Yesod.Core.Types (WidgetT (WidgetT), unWidgetT)
 
+-- FIXME maybe just redirect to the LTS or nightly package list
 getPackageListR :: Handler Html
 getPackageListR = defaultLayout $ do
     setTitle "Package list"
     cachedWidget (20 * 60) "package-list" $ do
-        packages <- fmap (uniqueByKey . map (E.unValue***strip . E.unValue)) $ handlerToWidget $ runDB $
+        let clean (x, y) =
+                ( E.unValue x
+                , strip $ E.unValue y
+                )
+            addDocs (x, y) = (x, Nothing, y, Nothing)
+        packages <- fmap (map addDocs . uniqueByKey . map clean) $ handlerToWidget $ runDB $
             E.selectDistinct $ E.from $ \(u,m) -> do
               E.where_ (m E.^. MetadataName E.==. u E.^. UploadedName)
               E.orderBy [E.asc $ u E.^. UploadedName]
@@ -19,6 +25,7 @@ getPackageListR = defaultLayout $ do
         $(widgetFile "package-list")
   where strip x = fromMaybe x (stripSuffix "." x)
         uniqueByKey = sortBy (comparing fst) . M.toList . M.fromList
+        mback = Nothing
 
 -- FIXME move somewhere else, maybe even yesod-core
 cachedWidget :: NominalDiffTime -> Text -> Widget -> Widget

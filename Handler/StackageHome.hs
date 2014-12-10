@@ -4,6 +4,8 @@ import Data.BlobStore (storeExists)
 import Import
 import Data.Time (FormatTime)
 import Data.Slug (SnapSlug)
+import qualified Database.Esqueleto as E
+import Handler.PackageList (cachedWidget)
 
 getStackageHomeR :: SnapSlug -> Handler Html
 getStackageHomeR slug = do
@@ -89,3 +91,46 @@ getOldStackageR ident pieces = do
     case parseRoute ("snapshot" : toPathPiece (stackageSlug stackage) : pieces, []) of
         Nothing -> notFound
         Just route -> redirect (route :: Route App)
+
+getSnapshotPackagesR :: SnapSlug -> Handler Html
+getSnapshotPackagesR slug = do
+    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+    defaultLayout $ do
+        setTitle $ toHtml $ "Package list for " ++ toPathPiece slug
+        cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
+            packages' <- handlerToWidget $ runDB $ E.select $ E.from $ \(u,m,p) -> do
+                E.where_ $
+                    (m E.^. MetadataName E.==. u E.^. UploadedName) E.&&.
+                    (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
+                    (p E.^. PackageStackage E.==. E.val sid)
+                E.orderBy [E.asc $ u E.^. UploadedName]
+                E.groupBy ( u E.^. UploadedName
+                          , m E.^. MetadataSynopsis
+                          )
+                return
+                    ( u E.^. UploadedName
+                    , m E.^. MetadataSynopsis
+                    , E.max_ $ E.case_
+                        [ ( p E.^. PackageHasHaddocks
+                          , p E.^. PackageVersion
+                          )
+                        ]
+                        (E.val (Version ""))
+                    )
+            let packages = flip map packages' $ \(name, syn, forceNotNull -> mversion) ->
+                    ( E.unValue name
+                    , mversion
+                    , strip $ E.unValue syn
+                    , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
+                        [ toPathPiece $ E.unValue name
+                        , "-"
+                        , version
+                        ]
+                    )
+                forceNotNull (E.Value Nothing) = Nothing
+                forceNotNull (E.Value (Just (Version v)))
+                    | null v = Nothing
+                    | otherwise = Just v
+            $(widgetFile "package-list")
+  where strip x = fromMaybe x (stripSuffix "." x)
+        mback = Just (SnapshotR slug StackageHomeR, "Return to snapshot")

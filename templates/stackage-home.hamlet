@@ -17,6 +17,10 @@ $newline never
            <span>
                <a href=@{SnapshotR slug StackageCabalConfigR} title="If you want to stick with upstream Hackage but get a stable package set">
                    \cabal.config
+           <span .separator>
+           <span>
+               <a href=@{SnapshotR slug SnapshotPackagesR} title="List of included packages">
+                   \Packages
            $if stackageHasHaddocks stackage
                <span .separator>
                <span>

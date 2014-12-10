@@ -6,7 +6,7 @@ module Handler.Alias
 
 import Import
 import Data.Slug (Slug)
-import Handler.StackageHome (getStackageHomeR, getStackageMetadataR, getStackageCabalConfigR)
+import Handler.StackageHome (getStackageHomeR, getStackageMetadataR, getStackageCabalConfigR, getSnapshotPackagesR)
 import Handler.StackageIndex (getStackageIndexR, getStackageBundleR)
 import Handler.StackageSdist (getStackageSdistR)
 
@@ -75,4 +75,5 @@ goSid sid pieces = do
                 StackageIndexR -> getStackageIndexR slug >>= sendResponse
                 StackageBundleR -> getStackageBundleR slug >>= sendResponse
                 StackageSdistR pnv -> getStackageSdistR slug pnv >>= sendResponse
+                SnapshotPackagesR -> getSnapshotPackagesR slug >>= sendResponse
         _ -> notFound
