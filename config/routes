@@ -44,3 +44,6 @@
 
 /lts/*Texts LtsR GET
 /nightly/*Texts NightlyR GET
+
+/authors AuthorsR GET
+/install InstallR GET
