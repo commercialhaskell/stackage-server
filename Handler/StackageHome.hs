@@ -57,17 +57,26 @@ getStackageMetadataR slug = do
 getStackageCabalConfigR :: SnapSlug -> Handler TypedContent
 getStackageCabalConfigR slug = do
     Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
-    respondSourceDB typePlain $ stream sid
+    render <- getUrlRender
+    respondSourceDB typePlain $ stream render sid
   where
-    stream sid =
+    stream render sid =
         selectSource
             [ PackageStackage ==. sid
             , PackageOverwrite ==. False
             ]
             [ Asc PackageName'
             , Asc PackageVersion
-            ] $= (goFirst >> mapC (Chunk . showPackage))
+            ] $= (header render >> goFirst >> mapC (Chunk . showPackage))
 
+    header render = yield $ Chunk $
+        toBuilder (asText "-- Stackage snapshot from: ") ++
+        toBuilder (render $ SnapshotR slug StackageHomeR) ++
+        toBuilder (asText "\n-- Please place this file next to your .cabal file as cabal.config\n-- To only use tested packages, uncomment the following line:\n-- remote-repo: stackage-") ++
+        toBuilder (toPathPiece slug) ++
+        toBuilder ':' ++
+        toBuilder (render $ SnapshotR slug StackageHomeR) ++
+        toBuilder '\n'
     goFirst = do
         mx <- await
         forM_ mx $ \(Entity _ (Package _ name version _ _)) -> yield $ Chunk $
