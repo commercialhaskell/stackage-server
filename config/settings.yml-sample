@@ -23,3 +23,11 @@ Production:
   #approot: "http://www.example.com"
   <<: *defaults
   blob-store: file:/tmp/stackage-server
+
+# S3-backed storaged
+#  blob-store:
+#    type: aws
+#    local: /tmp/stackage-server
+#    access: someaccesskey
+#    secret: somesecretkey
+#    bucket: somebucket
