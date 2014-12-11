@@ -58,6 +58,11 @@ getStackageCabalConfigR :: SnapSlug -> Handler TypedContent
 getStackageCabalConfigR slug = do
     Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
     render <- getUrlRender
+
+    mdownload <- lookupGetParam "download"
+    when (mdownload == Just "true") $
+        addHeader "Content-Disposition" "attachment; filename=cabal.config"
+
     respondSourceDB typePlain $ stream render sid
   where
     stream render sid =
