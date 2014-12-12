@@ -143,7 +143,7 @@ library
                  , th-lift
                  , mime-types
                  , unix
-                 , markdown
+                 , markdown >= 0.1.13
                  , formatting
                  , blaze-html
                  , haddock-library

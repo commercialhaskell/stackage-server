@@ -5,7 +5,7 @@ module Data.WebsiteContent
 
 import ClassyPrelude.Yesod
 import Text.Blaze.Html (preEscapedToMarkup)
-import Text.Markdown (markdown, msXssProtect)
+import Text.Markdown (markdown, msXssProtect, msAddHeadingId)
 
 data WebsiteContent = WebsiteContent
     { wcHomepage :: !Html
@@ -19,6 +19,9 @@ loadWebsiteContent dir = do
                 $ readFile $ dir </> "homepage.html"
     wcAuthors <- fmap (preEscapedToMarkup :: Text -> Html)
                $ readFile $ dir </> "authors.html"
-    wcInstall <- fmap (markdown def { msXssProtect = False })
+    wcInstall <- fmap (markdown def
+                        { msXssProtect   = False
+                        , msAddHeadingId = True
+                        })
                $ readFile $ dir </> "install.md"
     return WebsiteContent {..}

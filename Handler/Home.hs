@@ -14,21 +14,21 @@ import Yesod.GitRepo (grContent)
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
 getHomeR :: Handler Html
-getHomeR = contentHelper wcHomepage
+getHomeR = contentHelper "Stackage Server" wcHomepage
 
 getAuthorsR :: Handler Html
-getAuthorsR = contentHelper wcAuthors
+getAuthorsR = contentHelper "Library Authors" wcAuthors
 
 getInstallR :: Handler Html
-getInstallR = contentHelper wcInstall
+getInstallR = contentHelper "Haskell Installation Instructions" wcInstall
 
-contentHelper :: (WebsiteContent -> Html) -> Handler Html
-contentHelper accessor = do
+contentHelper :: Html -> (WebsiteContent -> Html) -> Handler Html
+contentHelper title accessor = do
     windowsLatest <- linkFor "unstable-ghc78hp-inclusive"
     restLatest    <- linkFor "unstable-ghc78-inclusive"
     homepage <- getYesod >>= fmap accessor . liftIO . grContent . websiteContent
     defaultLayout $ do
-        setTitle "Stackage Server"
+        setTitle title
         $(combineStylesheets 'StaticR
             [ css_bootstrap_modified_css
             , css_bootstrap_responsive_modified_css
