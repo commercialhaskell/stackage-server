@@ -88,6 +88,16 @@ Metadata
 
     UniqueMetadata name
 
+Docs
+    name PackageName
+    version Version
+    uploaded UTCTime
+Module
+    docs DocsId
+    name Text
+    url Text
+    UniqueModule docs name
+
 Dependency
     dep PackageName
     user PackageName

@@ -95,6 +95,13 @@ $newline never
                                     <a href="mailto:#{renderEmail email}">
                                         #{renderEmail email}
 
+            $maybe (version, modules) <- mdocs
+                <div .docs>
+                    <p>Documentation for version #{version}
+                    <ul>
+                        $forall Module _ name url <- modules
+                            <li>
+                                <a href=#{url}>#{name}
             <div .dependencies>
                 Depends on
                 <div .dep-list>

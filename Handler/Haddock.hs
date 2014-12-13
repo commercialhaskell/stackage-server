@@ -18,6 +18,9 @@ import Crypto.Hash (Digest, SHA1)
 import qualified Filesystem.Path.CurrentOS as F
 import Data.Slug (SnapSlug)
 import qualified Data.Text as T
+import Data.Slug (unSlug)
+import qualified Data.Yaml as Y
+import Data.Aeson (withObject)
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"
@@ -288,3 +291,51 @@ createHaddockUnpacker root store runDB' = do
                                 ]
                                 [PackageHasHaddocks =. True]
                             )
+
+data DocInfo = DocInfo Version (Map Text [Text])
+instance FromJSON DocInfo where
+    parseJSON = withObject "DocInfo" $ \o -> DocInfo
+        <$> (Version <$> o .: "version")
+        <*> o .: "modules"
+
+getUploadDocMapR :: Handler Html
+getUploadDocMapR = do
+    uid <- requireAuthIdOrToken
+    user <- runDB $ get404 uid
+    extra <- getExtra
+    when (unSlug (userHandle user) `notMember` adminUsers extra)
+        $ permissionDenied "Must be an administrator"
+
+    ((res, widget), enctype) <- runFormPostNoToken $ renderDivs $ (,)
+        <$> areq
+            fileField
+            "YAML file with map" { fsName = Just "docmap" }
+            Nothing
+        <*> areq textField "Stackage ID" { fsName = Just "snapshot" } Nothing
+    case res of
+        FormSuccess (fi, snapshot) -> do
+            Entity sid stackage <-
+                runDB $ getBy404 $ UniqueStackage $ PackageSetIdent snapshot
+            bs <- fileSource fi $$ foldC
+            case Y.decodeEither bs of
+                Left e -> invalidArgs [pack e]
+                Right m0 -> do
+                    now <- liftIO getCurrentTime
+                    render <- getUrlRender
+                    runDB $ forM_ (mapToList $ asMap m0) $ \(package, DocInfo version ms) -> do
+                        did <- insert $ Docs (PackageName package) version now
+                        forM_ (mapToList ms) $ \(name, pieces) -> do
+                            let url = render $ HaddockR (stackageSlug stackage) pieces
+                            insert_ $ Module did name url
+                    setMessage "Doc map complete"
+                    redirect UploadDocMapR
+        _ -> defaultLayout $ do
+            setTitle "Upload doc map"
+            [whamlet|
+                <form method=post action=?_method=PUT enctype=#{enctype}>
+                    ^{widget}
+                    <input type=submit .btn value="Set document map">
+            |]
+
+putUploadDocMapR :: Handler Html
+putUploadDocMapR = getUploadDocMapR

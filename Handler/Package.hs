@@ -23,7 +23,8 @@ getPackageR pn = do
         haddocksLink ident version =
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
     muid <- maybeAuthId
-    (packages, downloads, recentDownloads, nLikes, liked, Entity _ metadata, revdeps') <- runDB $ do
+    (packages, downloads, recentDownloads, nLikes, liked,
+      Entity _ metadata, revdeps', mdocs) <- runDB $ do
         packages <- fmap (map reformat) $ E.select $ E.from $ \(p, s) -> do
             E.where_ $ (p ^. PackageStackage E.==. s ^. StackageId)
                    &&. (p ^. PackageName' E.==. E.val pn)
@@ -46,6 +47,12 @@ getPackageR pn = do
             E.orderBy [E.asc $ dep ^. DependencyUser]
             return $ dep ^. DependencyUser
 
+        mdocsent <- selectFirst [DocsName ==. pn] [Desc DocsUploaded]
+        mdocs <- forM mdocsent $ \(Entity docsid (Docs _ version _)) -> (,)
+            <$> pure version
+            <*> (map entityVal <$>
+                 selectList [ModuleDocs ==. docsid] [Asc ModuleName])
+
         return ( packages
                , downloads
                , recentDownloads
@@ -53,6 +60,7 @@ getPackageR pn = do
                , liked
                , metadata
                , map E.unValue revdeps'
+               , mdocs
                )
 
     myTags <-

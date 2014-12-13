@@ -12,6 +12,7 @@
 /reset-token ResetTokenR POST
 /upload UploadStackageR GET PUT
 /upload-haddock/#Text UploadHaddockR GET PUT
+/upload-doc-map UploadDocMapR GET PUT
 
 /stackage/#PackageSetIdent/*Texts OldStackageR GET
 
