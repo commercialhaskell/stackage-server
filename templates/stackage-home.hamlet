@@ -1,5 +1,5 @@
 $newline never
-<div .container>
+<div .container .content>
     <h1>
         #{stackageTitle stackage}
     <p>
@@ -7,17 +7,13 @@ $newline never
         $if hasBundle
            <span .separator>
            <span>
-               <a href=@{SnapshotR slug StackageCabalConfigR} title="If you want to stick with upstream Hackage but get a stable package set">
+               <a href=@{SnapshotR slug StackageCabalConfigR}>
                    \cabal.config
     $if isOwner
         <p>
             You are the owner of this snapshot. You can #
             <a href=@{UploadHaddockR $ toPathPiece slug}>upload haddocks#
             .
-    <p>
-        <pre>
-            remote-repo: stackage-#{slug}:@{SnapshotR slug StackageHomeR}
-
     <h3>
         Setup guide #
             <small>
@@ -26,84 +22,34 @@ $newline never
 
       <div class="accordion-group">
         <div class="accordion-heading">
-          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse1">
-            <span .number>#{base + 1}
-            Copy the
-            <code>remote-repo
-            line to your Cabal configuration file
-        <div id="collapse1" class="accordion-body collapse">
-          <div class="accordion-inner">
-            <p>
-                Your #
-                <code>config
-                \ file for Cabal should be in your user home directory. For example:
-            <ul>
-                <li>Linux: #
-                    <code>
-                        /home/alonzo/.cabal/config
-                <li>Windows: #
-                    <code>
-                        C:\Users\alonzo\AppData\Roaming\cabal\config
-            <p>Once you have this open, find the line that says:
-            <pre>
-                remote-repo: hackage.haskell.org:http://hackage.haskell.org/packages/archive
-            <p>
-                Replace it with the #
-                <code>remote-repo
-                \ code sample above.
+          <span class="accordion-toggle" data-parent="#accordion#{base + 0}" href="#collapse1">
+            <span .number>1
+            Download the #
+            <a href=@{SnapshotR slug StackageCabalConfigR}>
+              \cabal.config
+            \ into your project or sandbox root directory
 
       <div class="accordion-group">
         <div class="accordion-heading">
-          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse2">
-            <span .number>#{base + 2}
-            Remove any existing package config
-        <div id="collapse2" class="accordion-body collapse">
-          <div class="accordion-inner">
-            <p>
-                If you already have installed some packages from Hackage
-                \ or elsewhere and you want to start from a fresh package
-                \ set, you can remove your
-                <code>ghc/&lt;os&gt;-&lt;ghc-version&gt;
-                \ directory.
-
-            <ul>
-                <li>
-                   In Linux, the directory is #
-                   <code>~/.ghc
-
-                <li>
-                   On Windows the #
-                   <code>.ghc
-                   \ directory, similar to the Cabal
-                   \ configuration, will be under something like: #
-                   <code>
-                       C:\Users\alonzo\AppData\Roaming\ghc
-
-            <p>
-                To clear the GHC 7.2.2. environment, all the
-                \ user-installed packages, you can remove the directory #
-                <code>x86_64-linux-7.2.2
-                .
-                <em> Be careful
-                \ that you are sure
-                \ that you want to clear your package set (re-installing
-                \ packages takes time!) and that you clear the right one.
-
+          <span class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse2">
+            <span .number>2
+            <code>cabal update
       <div class="accordion-group">
         <div class="accordion-heading">
-          <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse3">
-            <span .number>#{base + 3}
-            Run
-                <code>
-                    cabal update
-        <div id="collapse3" class="accordion-body collapse">
-          <div class="accordion-inner">
-            <p>
-                This will download the package index from Stackage and
-                \ update your local one.
+          <span class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse3">
+            <span .number>3
+            <code>cabal install
 
-            <p>
-                Now you're ready to install packages!
+    <p>
+       Alternatively, to exclusively use only packages that are in
+       Stackage, you can set your #
+       <code>remote-repo
+       \ in your Cabal #
+       <code>config
+       \ file to:
+    <pre>
+        <span class="keyword">remote-repo</span>: stackage-#{slug}:
+        <span class="url">@{SnapshotR slug StackageHomeR}
 
     <h3>
         Packages

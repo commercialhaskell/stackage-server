@@ -30,22 +30,26 @@ hr {
 
 .accordion-group {
   border: 0;
-  .accordion-toggle:hover {
+  a.accordion-toggle:hover {
     text-decoration: none;
     background: #f5f5f5;
     border-radius: 0.5em;
   }
+  .accordion-toggle code {
+    margin: 0;
+  }
   .accordion-toggle {
+    cursor: default;
     margin-left: -0.5em;
     padding-left: 0.5em;
     color: #555;
     code {
       font-size: inherit;
       border:  inherit;
-      margin: 0.5em;
     }
     .number {
       border-radius: 1em;
+      line-height: 1.5em;
       background: #0981c3;
       color: #fff;
       display: inline-block;
@@ -77,3 +81,6 @@ p + ul {
 .packages > .table td,.packages > .table th {
   padding-left: 0;
 }
+
+.keyword { color: #366354 }
+.url { color: #06537d }
