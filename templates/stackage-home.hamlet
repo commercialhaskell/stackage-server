@@ -17,40 +17,12 @@ $newline never
     <p>
         <pre>
             remote-repo: stackage-#{slug}:@{SnapshotR slug StackageHomeR}
-    $maybe _ <- minclusive
-        <p>
-            <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#whats-the-difference-between-inclusive-and-exclusive-snapshots">What's the difference between inclusive and exclusive snapshots?</a>
+
     <h3>
         Setup guide #
             <small>
                 (click to expand)
     <div class="accordion" id="accordion2">
-
-      $maybe inclusive <- minclusive
-         <div class="accordion-group">
-           <div class="accordion-heading">
-             <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion0" href="#collapse0">
-               <span .number>#{base + 0}
-               Check whether you want an inclusive or exclusive snapshot
-           <div id="collapse0" class="accordion-body collapse">
-             <div class="accordion-inner">
-               <p>
-                   This snapshot is: #
-                       <strong>
-                         $if inclusive
-                             inclusive
-                         $else
-                             exclusive
-               <p>
-                   $if inclusive
-                       This means that it contains packages from Hackage too,
-                       \ which are not guaranteed to build.
-                   $else
-                       This means that it contains only packages that build
-                       \ and have been tested (excludes packages from Hackage
-                       \ that <em>may</em> or may not build).
-               <p>
-                   For a detailed explanation of the differences and reasons for inclusive and exclusive snapshots, see <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#whats-the-difference-between-inclusive-and-exclusive-snapshots">the FAQ on this topic</a>.
 
       <div class="accordion-group">
         <div class="accordion-heading">
