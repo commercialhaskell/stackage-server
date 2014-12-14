@@ -216,15 +216,18 @@ makeFoundation useEcho conf = do
             , websiteContent = websiteContent'
             }
 
+    env <- getEnvironment
+
     -- Perform database migration using our application's logging settings.
-    runResourceT $
+    when (lookup "STACKAGE_SKIP_MIGRATION" env /= Just "1") $
+        runResourceT $
         flip runReaderT gen $
         flip runLoggingT (messageLoggerSource foundation logger) $
         flip (Database.Persist.runPool dbconf) p $ do
             runMigration migrateAll
             checkMigration 1 $ fixSnapSlugs
 
-    env <- getEnvironment
+
     let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
         forceUpdate = lookup "STACKAGE_FORCE_UPDATE" env == Just "1"
         loadCabalFiles' = appLoadCabalFiles updateDB forceUpdate foundation dbconf p
