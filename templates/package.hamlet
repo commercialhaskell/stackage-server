@@ -8,6 +8,11 @@ $newline never
                  #{metadataVersion metadata} #
             <p .synopsis>
                 #{synopsis}
+               \ #
+               $maybe url <- homepage
+                   <a href="#{url}">
+                       #{url}
+
             $forall (i,(version, title, slug, hasHaddocks)) <- packages
                $if i /= 0
                  , #
@@ -17,10 +22,15 @@ $newline never
                  <a href=@{haddocksLink slug version}>
                      #{version}
                  )
-
     <div .row>
         <div .span12>
             <div .tags>
+                <span .likes>
+                    <span #likes>
+                        #{nLikes}
+                    \ likes #
+                    <i .fa :liked:.fa-thumbs-up :not liked:.fa-thumbs-o-up #like title="#{likeTitle}">
+
                 $if null tags
                     <span .no-tags>
                         No tags yet. #
@@ -40,11 +50,6 @@ $newline never
                         <input type="submit" .btn #add-form-btn value="Confirm">
                     <p #tag-msg .alert .alert-error style="display:none">
 
-            <div .social>
-                <span #likes>
-                    #{nLikes}
-                \ likes #
-                <i .fa :liked:.fa-thumbs-up :not liked:.fa-thumbs-o-up #like title="#{likeTitle}">
             <div .authorship>
                 <span .license>
                     <a href="">
@@ -67,8 +72,8 @@ $newline never
                                       #{name}
                               $of _
 
-            $if not (null maintainers)
-                <div .maintainer>
+           <div .maintainer>
+               $if not (null maintainers)
                     Maintained by #
                     $forall (i,identity) <- maintainers
                          <strong .author>

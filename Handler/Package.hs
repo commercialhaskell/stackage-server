@@ -89,7 +89,10 @@ getPackageR pn = do
                        then "You liked this!"
                        else "I like this!" :: Text
 
-    let synopsis = metadataSynopsis metadata
+    let homepage = case T.strip (metadataHomepage metadata) of
+                     x | null x -> Nothing
+                       | otherwise -> Just x
+        synopsis = metadataSynopsis metadata
         deps = enumerate (metadataDeps metadata)
         revdeps = enumerate revdeps'
         authors = enumerate (parseIdentitiesLiberally (metadataAuthor metadata))

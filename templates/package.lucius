@@ -188,6 +188,7 @@ h2.changes-title {
   }
 }
 
+.likes { margin-right: 1em; }
 .no-tags {
   color: #888;
 }

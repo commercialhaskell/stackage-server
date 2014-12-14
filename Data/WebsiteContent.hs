@@ -4,7 +4,6 @@ module Data.WebsiteContent
     ) where
 
 import ClassyPrelude.Yesod
-import Text.Blaze.Html (preEscapedToMarkup)
 import Text.Markdown (markdown, msXssProtect, msAddHeadingId)
 
 data WebsiteContent = WebsiteContent
