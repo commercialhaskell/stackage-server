@@ -41,7 +41,7 @@ $newline never
             <code>cabal install
 
     <p>
-       Alternatively, to exclusively use only packages that are in
+       Alternatively, to exclusively use only packages that are in #
        Stackage, you can set your #
        <code>remote-repo
        \ in your Cabal #
