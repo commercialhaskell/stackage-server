@@ -141,7 +141,7 @@ $newline never
                                <a href=@{SnapshotR slug StackageHomeR}>#{fromMaybe title $ stripSuffix ", exclusive" title}
 
 <div .markdown-container .readme-container>
-    <div .container>
+    <div .container .content>
         <div .row>
             <div .span12 .expanding>
                 #{metadataReadme metadata}
@@ -149,11 +149,11 @@ $newline never
                     <i class="fa fa-angle-down">
 
 $maybe log <- metadataChangelog metadata
-    <div .container>
+    <div .container .content>
        <div .row>
            <div .span12>
                <h2 .changes-title>Changes
-    <div .markdown-container .changelog-container>
+    <div .markdown-container .changelog-container .content>
         <div .container>
             <div .row>
                 <div .span12 .expanding>
@@ -161,7 +161,7 @@ $maybe log <- metadataChangelog metadata
                     <div .bottom-gradient>
                         <i class="fa fa-angle-down">
 
-<div .container>
+<div .container .content>
     <div .row>
         <div .span12>
           <div id="disqus_thread">
