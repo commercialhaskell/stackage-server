@@ -17,11 +17,11 @@
     <ul .operating-systems>
         $maybe win <- windowsLatest
            <li>
-               <a href=@{StackageHomeR win}>
+               <a href=@{SnapshotR win StackageHomeR}>
                    Windows & OS X (Haskell Platform-based snapshot)
         $maybe rest <- restLatest
            <li>
-               <a href=@{StackageHomeR rest}>
+               <a href=@{SnapshotR rest StackageHomeR}>
                    Linux & non-Haskell Platform users
 
     <h2 .how-stackage-works>How Stackage Works
