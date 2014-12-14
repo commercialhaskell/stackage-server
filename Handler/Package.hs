@@ -53,7 +53,7 @@ getPackageR pn = do
             <*> (map entityVal <$>
                  selectList [ModuleDocs ==. docsid] [Asc ModuleName])
 
-        return ( packages
+        return ( zip [0..] packages
                , downloads
                , recentDownloads
                , nLikes

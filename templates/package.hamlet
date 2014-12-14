@@ -6,8 +6,16 @@ $newline never
                #{pn} #
                <span .latest-version>
                  #{metadataVersion metadata} #
-                 <small>
-                     (current)
+            $forall (i,(version, title, slug, hasHaddocks)) <- packages
+               $if i /= 0
+                 , #
+               <a href=@{SnapshotR slug StackageHomeR}>#{fromMaybe title $ stripSuffix ", exclusive" title}
+               $if hasHaddocks
+                 \ (
+                 <a href=@{haddocksLink slug version}>
+                     #{version}
+                 )
+
     <div .row>
         <div .span12>
             <div .tags>
@@ -35,16 +43,6 @@ $newline never
                     #{nLikes}
                 \ likes #
                 <i .fa :liked:.fa-thumbs-up :not liked:.fa-thumbs-o-up #like title="#{likeTitle}">
-                $if downloads /= 0
-                    <span .downloads>
-                        $if downloads /= recentDownloads
-                            #{formatNum downloads} downloads #
-                            (#{formatNum recentDownloads} in the last 30 days)
-                        $else
-                            #{formatNum downloads} total downloads
-                $else
-                    <span .downloads>
-                        No downloads yet
             <div .authorship>
                 <span .license>
                     <a href="">
@@ -114,24 +112,6 @@ $newline never
                             #{name}
                 <div .bottom-gradient>
                     <i class="fa fa-angle-down">
-        $if False
-            <div .span6 .snapshots>
-               <table .table .snapshots>
-                   <thead>
-                       <th colspan=2>
-                           Package
-                       <th>
-                           Snapshot
-                   $forall (version, title, slug, hasHaddocks) <- packages
-                       <tr>
-                           <td>
-                               $if hasHaddocks
-                                 <a href=@{haddocksLink slug version}>
-                                     Docs
-                           <td>
-                               #{version}
-                           <td>
-                               <a href=@{SnapshotR slug StackageHomeR}>#{fromMaybe title $ stripSuffix ", exclusive" title}
 
 <div .markdown-container .readme-container>
     <div .container .content>
