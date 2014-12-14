@@ -67,3 +67,13 @@ h3 > small {
 p + ul {
   margin-top: 1em;
 }
+
+.bottom-links {
+  margin-top: 0.5em;
+  border-top: 1px solid #ddd;
+  padding-top: 0.5em;
+}
+
+.packages > .table td,.packages > .table th {
+  padding-left: 0;
+}

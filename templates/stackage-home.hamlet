@@ -7,24 +7,8 @@ $newline never
         $if hasBundle
            <span .separator>
            <span>
-               <a href=@{SnapshotR slug StackageMetadataR} title="View metadata on this snapshot, such as package versions">
-                   \Metadata
-           <span .separator>
-           <span>
-               <a href=@{SnapshotR slug StackageBundleR} title="This is useful for making modifications to an existing snapshot">
-                   \Bundle
-           <span .separator>
-           <span>
                <a href=@{SnapshotR slug StackageCabalConfigR} title="If you want to stick with upstream Hackage but get a stable package set">
                    \cabal.config
-           <span .separator>
-           <span>
-               <a href=@{SnapshotR slug SnapshotPackagesR} title="List of included packages">
-                   \Packages
-           $if stackageHasHaddocks stackage
-               <span .separator>
-               <span>
-                   <a href=@{HaddockR slug []}>Haddocks
     $if isOwner
         <p>
             You are the owner of this snapshot. You can #
@@ -148,3 +132,35 @@ $newline never
 
             <p>
                 Now you're ready to install packages!
+
+    <h3>
+        Packages
+
+<div .container .content>
+    <div .packages>
+        <table .table>
+            <thead>
+                <th>Package
+                <th>Docs
+                <th>Synopsis
+            <tbody>
+                $forall (name,mversion,synopsis,mdoc) <- packages
+                    <tr>
+                        <td>
+                            <a href=@{PackageR name}>
+                                #{name}
+                                $maybe version <- mversion
+                                    -#{asText version}
+                        <td>
+                            $maybe doc <- mdoc
+                                <a href=@{doc}>Docs
+                        <td>
+                            #{synopsis}
+
+
+<div .container>
+    <p .bottom-links>
+        $if hasBundle
+           <span>
+               <a href=@{SnapshotR slug StackageBundleR} title="This is useful for making modifications to an existing snapshot">
+                   \Bundle
