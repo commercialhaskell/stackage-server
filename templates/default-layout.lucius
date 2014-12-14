@@ -24,6 +24,9 @@ code,pre {
   height: 20px;
 }
 
+.navbar-inverse {
+  margin-bottom: 1em;
+}
 .navbar-inverse .navbar-inner {
   background: #0981c3;
 }
