@@ -95,25 +95,8 @@ $newline never
                         $forall Module _ name url <- modules
                             <li>
                                 <a href=#{url}>#{name}
-            <div .dependencies>
-                Depends on
-                <div .dep-list>
-                    $forall (i,name) <- deps
-                        $if i /= 0
-                            , #
-                        <a href=@{PackageR (PackageName name)}>
-                            #{name}
-            $if not $ null revdeps
-              <div .reverse-dependencies .expanding>
-                Used by
-                <div .dep-list>
-                    $forall (i,name) <- revdeps
-                        $if i /= 0
-                            , #
-                        <a href=@{PackageR name}>
-                            #{name}
-                <div .bottom-gradient>
-                    <i class="fa fa-angle-down">
+
+
 
 <div .markdown-container .readme-container>
     <div .container .content>
@@ -135,6 +118,29 @@ $maybe log <- metadataChangelog metadata
                     #{log}
                     <div .bottom-gradient>
                         <i class="fa fa-angle-down">
+
+<div .container #snapshot-home .content>
+    <div .row>
+        <div .span12>
+            <div .dependencies>
+                Depends on
+                <div .dep-list>
+                    $forall (i,name) <- deps
+                        $if i /= 0
+                            , #
+                        <a href=@{PackageR (PackageName name)}>
+                            #{name}
+            $if not $ null revdeps
+              <div .reverse-dependencies .expanding>
+                Used by
+                <div .dep-list>
+                    $forall (i,name) <- revdeps
+                        $if i /= 0
+                            , #
+                        <a href=@{PackageR name}>
+                            #{name}
+                <div .bottom-gradient>
+                    <i class="fa fa-angle-down">
 
 <div .container .content>
     <div .row>
