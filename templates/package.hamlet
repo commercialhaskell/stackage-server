@@ -9,14 +9,7 @@ $newline never
                  <small>
                      (current)
     <div .row>
-        <div .span6>
-            $if False
-                <a href="https://twitter.com/home?status=https://www.fpcomplete.com/user/chrisdonefp/example-autorun-active" target="_blank">
-                    <i class="fa-twitter-square fa"></a>
-                <a href="http://www.facebook.com/sharer/sharer.php?u=https://www.fpcomplete.com/user/chrisdonefp/example-autorun-active" target="_blank">
-                    <i class="fa-facebook-square fa">
-                <a href="https://plus.google.com/share?url=https://www.fpcomplete.com/user/chrisdonefp/example-autorun-active" target="_blank">
-                    <i class="fa-google-plus-square fa">
+        <div .span12>
             <div .tags>
                 $if null tags
                     <span .no-tags>
@@ -121,7 +114,7 @@ $newline never
                             #{name}
                 <div .bottom-gradient>
                     <i class="fa fa-angle-down">
-        $if not (null packages)
+        $if False
             <div .span6 .snapshots>
                <table .table .snapshots>
                    <thead>
