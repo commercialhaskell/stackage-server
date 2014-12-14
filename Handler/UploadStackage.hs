@@ -37,13 +37,28 @@ getUploadStackageR = do
 putUploadStackageR :: Handler TypedContent
 putUploadStackageR = do
     uid <- requireAuthIdOrToken
+
+    -- Only admin users can use slugs starting with "lts" and "nightly",
+    -- enforce that here
+    muser <- runDB $ Import.get uid
+    extra <- getExtra
+    let isAdmin =
+            case muser of
+                Nothing -> False
+                Just user -> unSlug (userHandle user) `member` adminUsers extra
+        allowedSlug Nothing = Nothing
+        allowedSlug (Just t)
+            | isAdmin = Just t
+            | "lts" `isPrefixOf` t = Nothing
+            | "nightly" `isPrefixOf` t = Nothing
+            | otherwise = Just t
+
     mfile <- lookupFile fileKey
-    mslug0 <- lookupPostParam slugKey
+    mslug0 <- allowedSlug <$> lookupPostParam slugKey
     case mfile of
         Nothing -> invalidArgs ["Upload missing"]
         Just file -> do
             malias <- lookupPostParam "alias"
-            extra <- getExtra
             mlts <- lookupPostParam "lts"
             mnightly <- lookupPostParam "nightly"
 
@@ -78,11 +93,7 @@ putUploadStackageR = do
                             , aliasName = alias
                             , aliasTarget = ident
                             }
-                whenAdmin inner = do
-                    muser <- Import.get uid
-                    forM_ muser $ \user ->
-                        when (unSlug (userHandle user) `member` adminUsers extra)
-                            inner
+                whenAdmin = when isAdmin
                 setLts sid = forM_ mlts
                     $ \lts -> whenAdmin
                     $ forM_ (parseLtsPair lts) $ \(major, minor) -> do
@@ -116,7 +127,7 @@ putUploadStackageR = do
                 -- Evil lazy I/O thanks to tar package
                 lbs <- readFile $ fpFromString fp
                 withSystemTempDirectory "build00index." $ \dir -> do
-                    LoopState _ stackage files _ contents <- execStateT (loop update (Tar.read lbs)) LoopState
+                    LoopState _ stackage files _ contents <- execStateT (loop isAdmin update (Tar.read lbs)) LoopState
                         { lsRoot = fpFromString dir
                         , lsStackage = initial
                         , lsFiles = mempty
@@ -159,13 +170,13 @@ putUploadStackageR = do
             addHeader "X-Stackage-Ident" $ toPathPiece ident
             redirect $ ProgressR key
   where
-    loop update Tar.Done = update "Finished processing files"
-    loop _ (Tar.Fail e) = throwM e
-    loop update (Tar.Next entry entries) = do
-        addEntry update entry
-        loop update entries
+    loop _ update Tar.Done = update "Finished processing files"
+    loop _ _ (Tar.Fail e) = throwM e
+    loop isAdmin update (Tar.Next entry entries) = do
+        addEntry isAdmin update entry
+        loop isAdmin update entries
 
-    addEntry update entry = do
+    addEntry isAdmin update entry = do
         _ <- update $ "Processing file: " ++ pack (Tar.entryPath entry)
         case Tar.entryContent entry of
             Tar.NormalFile lbs _ ->
@@ -183,9 +194,11 @@ putUploadStackageR = do
                                 }
                             }
                     "slug" -> do
-                        slug <- safeMakeSlug (decodeUtf8 $ toStrict lbs) False
-                        ls <- get
-                        put ls { lsStackage = (lsStackage ls) { stackageSlug = SnapSlug slug } }
+                        let t = decodeUtf8 $ toStrict lbs
+                        when (isAdmin || not ("lts" `isPrefixOf` t || "nightly" `isPrefixOf` t)) $ do
+                            slug <- safeMakeSlug t False
+                            ls <- get
+                            put ls { lsStackage = (lsStackage ls) { stackageSlug = SnapSlug slug } }
                     "hackage" -> forM_ (lines $ decodeUtf8 $ toStrict lbs) $ \line ->
                         case parseName line of
                             Just (name, version) -> do
