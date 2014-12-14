@@ -6,6 +6,8 @@ $newline never
                #{pn} #
                <span .latest-version>
                  #{metadataVersion metadata} #
+            <p .synopsis>
+                #{synopsis}
             $forall (i,(version, title, slug, hasHaddocks)) <- packages
                $if i /= 0
                  , #

@@ -89,7 +89,8 @@ getPackageR pn = do
                        then "You liked this!"
                        else "I like this!" :: Text
 
-    let deps = enumerate (metadataDeps metadata)
+    let synopsis = metadataSynopsis metadata
+        deps = enumerate (metadataDeps metadata)
         revdeps = enumerate revdeps'
         authors = enumerate (parseIdentitiesLiberally (metadataAuthor metadata))
         maintainers = let ms = enumerate (parseIdentitiesLiberally (metadataMaintainer metadata))
