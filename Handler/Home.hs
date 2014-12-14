@@ -13,8 +13,8 @@ import Yesod.GitRepo (grContent)
 -- The majority of the code you will write in Yesod lives in these handler
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
-getHomeR' :: Handler Html
-getHomeR' = contentHelper "Stackage Server" wcHomepage
+getHomeR :: Handler Html
+getHomeR = contentHelper "Stackage Server" wcHomepage
 
 getAuthorsR :: Handler Html
 getAuthorsR = contentHelper "Library Authors" wcAuthors
@@ -27,15 +27,11 @@ contentHelper title accessor = do
     homepage <- getYesod >>= fmap accessor . liftIO . grContent . websiteContent
     defaultLayout $ do
         setTitle title
-        $(combineStylesheets 'StaticR
-            [ css_bootstrap_modified_css
-            , css_bootstrap_responsive_modified_css
-            ])
         toWidget homepage
 
 -- FIXME remove this and switch to above getHomeR' when new homepage is ready
-getHomeR :: Handler Html
-getHomeR = do
+getHomeR' :: Handler Html
+getHomeR' = do
     windowsLatest <- linkFor "unstable-ghc78hp-inclusive"
     restLatest    <- linkFor "unstable-ghc78-inclusive"
     defaultLayout $ do

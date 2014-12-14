@@ -11,6 +11,7 @@ import           Settings (widgetFile, Extra (..), GoogleAuth (..))
 import           Settings.Development (development)
 import           Settings.StaticFiles
 import qualified System.Random.MWC as MWC
+import           Text.Blaze
 import           Text.Hamlet (hamletFile)
 import           Text.Jasmine (minifym)
 import           Types
@@ -152,6 +153,12 @@ instance Yesod App where
     maximumContentLength _ (Just UploadStackageR) = Just 50000000
     maximumContentLength _ (Just UploadHaddockR{}) = Just 100000000
     maximumContentLength _ _ = Just 2000000
+
+instance ToMarkup (Route App) where
+    toMarkup c = case c of
+                   AllSnapshotsR{} -> "Snapshots"
+                   UploadStackageR{} -> "Upload"
+                   AuthR (LoginR{}) -> "Login"
 
 -- How to run database actions.
 instance YesodPersist App where

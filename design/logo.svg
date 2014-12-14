@@ -597,9 +597,9 @@
      borderopacity="1"
      inkscape:pageopacity="1"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.4142136"
-     inkscape:cx="506.30836"
-     inkscape:cy="262.58608"
+     inkscape:zoom="1"
+     inkscape:cx="86.502676"
+     inkscape:cy="171.32119"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -607,7 +607,7 @@
      fit-margin-left="0"
      fit-margin-right="0"
      fit-margin-bottom="0"
-     inkscape:window-width="2880"
+     inkscape:window-width="1440"
      inkscape:window-height="1760"
      inkscape:window-x="0"
      inkscape:window-y="40"
@@ -620,7 +620,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -1093,18 +1093,6 @@
        y="126.88701"
        rx="9"
        ry="9" />
-    <text
-       xml:space="preserve"
-       style="font-size:27.06111908px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Impact;-inkscape-font-specification:Impact"
-       x="-39.449871"
-       y="173.42827"
-       id="text5279-1-1-2-8-7-2"
-       sodipodi:linespacing="125%"><tspan
-         sodipodi:role="line"
-         id="tspan5281-4-7-5-0-7-2"
-         x="-39.449871"
-         y="173.42827"
-         style="font-size:47.54410553px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;fill:#ffffff;fill-opacity:1;font-family:Impact;-inkscape-font-specification:Impact">S</tspan></text>
     <rect
        style="color:#000000;fill:#ffffff;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.79500002;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
        id="rect6209-0"
@@ -1119,5 +1107,17 @@
        width="227.02972"
        id="rect6295"
        style="color:#000000;fill:#0981c3;fill-opacity:0.27899686;fill-rule:nonzero;stroke:none;stroke-width:0.79500002000000003;marker:none;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+    <text
+       xml:space="preserve"
+       style="font-size:27.86038971px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:125%;letter-spacing:0px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;font-family:Swasadee;-inkscape-font-specification:Swasadee"
+       x="-40.771191"
+       y="173.38159"
+       id="text5279-1-1-2-8-7-7"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan5281-4-7-5-0-7-5"
+         x="-40.771191"
+         y="173.38159"
+         style="font-size:48.94834518px;font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;fill:#ffffff;fill-opacity:1;font-family:Swasadee;-inkscape-font-specification:Swasadee">S</tspan></text>
   </g>
 </svg>

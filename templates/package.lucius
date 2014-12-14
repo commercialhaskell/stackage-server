@@ -1,6 +1,5 @@
 #snapshot-home {
   margin-top: 1em;
-  border-top: 1px solid #ddd;
   padding-top: 0.5em;
 }
 .wrap {

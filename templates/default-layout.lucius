@@ -9,74 +9,35 @@ html {
 
 body {
   background: #f0f0f0;
-  margin:0 0 4em;
-  padding:0;
   font-family: 'Lato', sans-serif;
   text-shadow: 1px 1px 1px #ffffff;
-  font-size: 20px;
-  line-height: 30px;
-}
-
-p {
-  margin-top: 20px;
-}
-
-code {
-  color: #555;
-}
-
-.wrap {
-  padding-top: 2em;
-  padding-left: 15px;
-  padding-right: 15px;
+  margin-bottom: 4em;
   padding-bottom: 2em;
 }
 
-h1,h2 {
-  font-weight: normal;
-  color: #06537d;
-  font-size: 45px;
+code,pre {
+  color: #555;
+  font-family: "ubuntu mono", monospace;
 }
 
-li + li {
-  margin-top: 0.5em;
+.brand > img {
+  height: 20px;
 }
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-   Logo
-   */
-
-.logo {
-  display: block;
-  width: 300px;
-  border: 0;
+.navbar-inverse .navbar-inner {
+  background: #0981c3;
+}
+.navbar-inverse .navbar-inner .btn-navbar {
+  background: #0981c3;
+}
+.navbar-inverse .navbar-inner * {
+  color: #fff !important
+}
+.navbar-inverse .nav .active>a, .navbar-inverse .nav .active>a:hover, .navbar-inverse .nav .active>a:focus {
+  background: #0981c3 !important;
 }
 
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-   Navbar
-   */
-
-.navbar .nav > li > a {
-  padding-left: 0;
-  color: #0981c3 !important;
-}
-
-.navbar {
-  margin-top: 20px;
-  font-size: 25px;
-  .nav {
-    margin: auto;
-  }
-  li {
-    margin-top: 0;
-  }
-}
-
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-   Footer
-   */
+.navbar-inner { border-color: #06537d !important; }
 
 .footer {
   text-shadow: none;
@@ -105,4 +66,13 @@ li + li {
 
 .alert {
   margin-top: 1em;
+}
+
+h1,h2,h3,h4,h5 {
+  color: #06537d
+}
+
+.content {
+  font-size: 20px;
+  line-height: 30px;
 }

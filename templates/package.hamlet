@@ -1,5 +1,5 @@
 $newline never
-<div .container #snapshot-home>
+<div .container #snapshot-home .content>
     <div .row>
         <div .span12>
             <h1>

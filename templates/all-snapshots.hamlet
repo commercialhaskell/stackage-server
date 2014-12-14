@@ -1,14 +1,15 @@
 <div .container>
-    <h1>Snapshots
-    $forall stackages <- groups
-        $forall (_, _, uploaded, _, _) <- take 1 stackages
-            <h3>
-                #{uploaded}
-        <ul .snapshots>
-            $forall (ident, title, _uploaded, display, handle) <- stackages
-                <li>
-                    <strong>
-                        <a href=@{SnapshotR ident StackageHomeR}>
-                            #{title}
-                    <p>
-                        #{display} (#{handle})
+    <div .content>
+        <h1>Snapshots
+        $forall stackages <- groups
+            $forall (_, _, uploaded, _, _) <- take 1 stackages
+                <h3>
+                    #{uploaded}
+            <ul .snapshots>
+                $forall (ident, title, _uploaded, display, handle) <- stackages
+                    <li>
+                        <strong>
+                            <a href=@{SnapshotR ident StackageHomeR}>
+                                #{title}
+                        <p>
+                            #{display} (#{handle})

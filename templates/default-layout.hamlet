@@ -1,40 +1,39 @@
-<div .wrap>
+<div class="navbar navbar-inverse navbar-static-top">
+  <div class="navbar-inner">
+    <div class="container">
+      <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+        <span class="icon-bar">
+        <span class="icon-bar">
+        <span class="icon-bar">
+      <a class="brand" href="/">
+        <img src="/static/img/stackage.png" title="FP Complete">
+      <div>
+        <ul class="nav">
+          $forall route <- [AllSnapshotsR,UploadStackageR,AuthR LoginR]
+            $maybe current <- cur
+              $if route == current
+                <li .active>
+                  <a href=@{route}>#{route}
+              $else
+                <li>
+                  <a href=@{route}>#{route}
+            $nothing
+              <li>
+                  <a href=@{route}>#{route}
+
+
+$maybe msg <- mmsg
     <div .container>
-        <a .logo href=@{HomeR}>
-            <img src=@{StaticR img_logo_png}>
+        <div .alert .alter-info>#{msg}
 
-        <div .navbar .navbar-default role=navigation>
-            <ul .nav>
-                <li>
-                    <a href=@{AllSnapshotsR}>
-                        Snapshots
-                <li>
-                    <a href=@{PackageListR}>
-                        Packages
-                <li>
-                    <a href=@{UploadStackageR}>
-                        Upload
-                 $maybe Entity _ user <- muser
-                     <li>
-                         <a href=@{ProfileR}>
-                             <span .user-handle>
-                                 #{userHandle user}
-                     <li>
-                         <a href=@{AuthR LogoutR}>Logout
-                 $nothing
-                     <li>
-                         <a href=@{AuthR LoginR}>Login
-
-    $maybe msg <- mmsg
-        <div .container>
-            <div .alert .alter-info>#{msg}
-
-    $case cur
-      $of Just (AuthR _)
-          <div .container>
-              ^{widget}
-      $of _
+$case cur
+  $of Just (AuthR _)
+      <div .container>
+          <h1>Authorization
+          <p>Please login with an authorization method below:
           ^{widget}
+  $of _
+      ^{widget}
 
 <div .footer>
   <div .container>
