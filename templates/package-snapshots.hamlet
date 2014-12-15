@@ -1,0 +1,21 @@
+$newline never
+<div .container #snapshot-home .content>
+    <div .row>
+        <div .span12>
+            <h1>Snapshots containing #{toHtml pn}
+            <table .table .snapshots>
+                <thead>
+                    <th colspan=2>
+                        Package
+                    <th>
+                        Snapshot
+                $forall (version, title, slug, hasHaddocks) <- snapshots
+                    <tr>
+                        <td>
+                            $if hasHaddocks
+                              <a href=@{haddocksLink slug version}>
+                                  Docs
+                        <td>
+                            #{version}
+                        <td>
+                            <a href=@{SnapshotR slug StackageHomeR}>#{fromMaybe title $ stripSuffix ", exclusive" title}

@@ -33,6 +33,7 @@
 /system SystemR GET
 /haddock/#SnapSlug/*Texts HaddockR GET
 /package/#PackageName PackageR GET
+/package/#PackageName/snapshots PackageSnapshotsR GET
 /package PackageListR GET
 /compressor-status CompressorStatusR GET
 /package/#PackageName/like PackageLikeR POST

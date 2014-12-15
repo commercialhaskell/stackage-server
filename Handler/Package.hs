@@ -245,3 +245,32 @@ postPackageUntagR packageName =
                                  ,TagTag ==. slug
                                  ,TagVoter ==. uid]))
              Nothing -> error "Need a slug"
+
+getPackageSnapshotsR :: PackageName -> Handler Html
+getPackageSnapshotsR pn =
+  do let haddocksLink ident version =
+             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
+     muid <- maybeAuthId
+     snapshots <- (runDB .
+                   fmap (map reformat) .
+                   E.select . E.from)
+                    (\(p,s) ->
+                       do E.where_ $
+                            (p ^. PackageStackage E.==. s ^. StackageId) &&.
+                            (p ^. PackageName' E.==. E.val pn)
+                          E.orderBy [E.desc $ s ^. StackageUploaded]
+                          return
+                            (p ^. PackageVersion
+                            ,s ^. StackageTitle
+                            ,s ^. StackageSlug
+                            ,s ^. StackageHasHaddocks))
+     defaultLayout
+       (do setTitle ("Packages for " >> toHtml pn)
+           $(combineStylesheets 'StaticR
+                                [css_font_awesome_min_css])
+           $(widgetFile "package-snapshots"))
+  where reformat (Value version,Value title,Value ident,Value hasHaddocks) =
+          (version
+          ,fromMaybe title (stripPrefix "Stackage build for " title)
+          ,ident
+          ,hasHaddocks)
