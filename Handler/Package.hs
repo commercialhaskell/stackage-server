@@ -5,6 +5,7 @@
 module Handler.Package where
 
 import           Data.Char
+import           Data.Slug
 import           Data.Tag
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -23,16 +24,10 @@ getPackageR pn = do
         haddocksLink ident version =
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
     muid <- maybeAuthId
-    (packages, downloads, recentDownloads, nLikes, liked,
+    (mnightly, mlts, downloads, recentDownloads, nLikes, liked,
       Entity _ metadata, revdeps', mdocs) <- runDB $ do
-        packages <- fmap (map reformat) $ E.select $ E.from $ \(p, s) -> do
-            E.where_ $ (p ^. PackageStackage E.==. s ^. StackageId)
-                   &&. (p ^. PackageName' E.==. E.val pn)
-                   &&. (s ^. StackageTitle `E.like` E.val "%, exclusive")
-            E.orderBy [E.desc $ s ^. StackageUploaded]
-            E.limit maxSnaps
-            --selectList [PackageName' ==. pn] [LimitTo 10, Desc PackageStackage]
-            return (p ^. PackageVersion, s ^. StackageTitle, s ^. StackageSlug, s ^. StackageHasHaddocks)
+        mnightly <- getNightly pn
+        mlts <- getLts pn
         nLikes <- count [LikePackage ==. pn]
         let getLiked uid = (>0) <$> count [LikePackage ==. pn, LikeVoter ==. uid]
         liked <- maybe (return False) getLiked muid
@@ -41,49 +36,26 @@ getPackageR pn = do
         let nowMinus30 = addUTCTime (-30 * 24 * 60 * 60) now'
         recentDownloads <- count [DownloadPackage ==. pn, DownloadTimestamp >=. nowMinus30]
         metadata <- getBy404 (UniqueMetadata pn)
-
-        revdeps' <- E.select $ E.from $ \dep -> do
-            E.where_ $ dep ^. DependencyDep E.==. E.val pn
-            E.orderBy [E.asc $ dep ^. DependencyUser]
-            return $ dep ^. DependencyUser
-
+        revdeps' <- reverseDeps pn
         mdocsent <- selectFirst [DocsName ==. pn] [Desc DocsUploaded]
         mdocs <- forM mdocsent $ \(Entity docsid (Docs _ version _)) -> (,)
             <$> pure version
             <*> (map entityVal <$>
                  selectList [ModuleDocs ==. docsid] [Asc ModuleName])
-
-        return ( zip [0..] packages
+        return ( mnightly
+               , mlts
                , downloads
                , recentDownloads
                , nLikes
                , liked
                , metadata
-               , map E.unValue revdeps'
+               , revdeps'
                , mdocs
                )
 
-    myTags <-
-        case muid of
-          Nothing -> return []
-          Just uid ->
-              fmap (map (\(E.Value v) -> v))
-                   (runDB (E.select
-                               (E.from (\t ->
-                                   do E.where_ (t ^. TagPackage E.==. E.val pn E.&&.
-                                                t ^. TagVoter E.==. E.val uid)
-                                      E.orderBy [E.asc (t ^. TagTag)]
-                                      return (t ^. TagTag)))))
-    tags <- fmap (map (\(E.Value v,E.Value count) -> (v,count::Int,any (==v) myTags)))
-                 (runDB (E.select
-                             (E.from (\(t `E.LeftOuterJoin` bt) -> do
-                                E.on $ t E.^. TagTag E.==. bt E.^. BannedTagTag
-                                E.where_
-                                    $ (t ^. TagPackage E.==. E.val pn) E.&&.
-                                      (E.isNothing $ E.just $ bt E.^. BannedTagTag)
-                                E.groupBy (t ^. TagTag)
-                                E.orderBy [E.asc (t ^. TagTag)]
-                                return (t ^. TagTag,E.count (t ^. TagTag))))))
+    myTags <- maybe (return []) (runDB . user'sTagsOf pn) muid
+    tags <- fmap (map (\(v,count) -> (v,count,any (==v) myTags)))
+                 (runDB (packageTags pn))
 
     let likeTitle = if liked
                        then "You liked this!"
@@ -109,6 +81,72 @@ getPackageR pn = do
   where enumerate = zip [0::Int ..]
         reformat (Value version, Value title, Value ident, Value hasHaddocks) =
             (version,fromMaybe title (stripPrefix "Stackage build for " title),ident,hasHaddocks)
+
+-- | Get tags of the given package.
+packageTags :: PackageName -> YesodDB App [(Slug,Int)]
+packageTags pn =
+    fmap (map boilerplate)
+         (E.select
+              (E.from (\(t `E.LeftOuterJoin` bt) -> do
+                 E.on $ t E.^. TagTag E.==. bt E.^. BannedTagTag
+                 E.where_
+                     $ (t ^. TagPackage E.==. E.val pn) E.&&.
+                       (E.isNothing $ E.just $ bt E.^. BannedTagTag)
+                 E.groupBy (t ^. TagTag)
+                 E.orderBy [E.asc (t ^. TagTag)]
+                 return (t ^. TagTag,E.count (t ^. TagTag)))))
+  where boilerplate (E.Value a,E.Value b) = (a,b)
+
+-- | Get tags of the package by the user.
+user'sTagsOf :: PackageName -> UserId -> YesodDB App [Slug]
+user'sTagsOf pn uid =
+    fmap (map (\(E.Value v) -> v))
+         (E.select
+              (E.from (\t ->
+                  do E.where_ (t ^. TagPackage E.==. E.val pn E.&&.
+                               t ^. TagVoter E.==. E.val uid)
+                     E.orderBy [E.asc (t ^. TagTag)]
+                     return (t ^. TagTag))))
+
+-- | Get reverse dependencies of a package.
+reverseDeps :: PackageName -> YesodDB App [PackageName]
+reverseDeps pn = fmap (map boilerplate) $ E.select $ E.from $ \dep -> do
+    E.where_ $ dep ^. DependencyDep E.==. E.val pn
+    E.orderBy [E.asc $ dep ^. DependencyUser]
+    return $ dep ^. DependencyUser
+  where boilerplate (E.Value e) = e
+
+-- | Get the latest nightly snapshot for the given package.
+getNightly :: PackageName -> YesodDB App (Maybe (Day, Text, Version, SnapSlug))
+getNightly pn =
+  fmap (fmap boilerplate . listToMaybe)
+       (E.select (E.from query))
+  where boilerplate (E.Value a,E.Value b,E.Value c,E.Value d) =
+          (a,b,c,d)
+        query (p,n,s) =
+          do E.where_ ((p ^. PackageStackage E.==. n ^. NightlyStackage) E.&&.
+                       (s ^. StackageId E.==. n ^. NightlyStackage))
+             E.orderBy [E.desc (n ^. NightlyDay)]
+             return (n ^. NightlyDay
+                    ,n ^. NightlyGhcVersion
+                    ,p ^. PackageVersion
+                    ,s ^. StackageSlug)
+
+-- | Get the latest LTS snapshot for the given package.
+getLts :: PackageName -> YesodDB App (Maybe (Int,Int,Version,SnapSlug))
+getLts pn =
+  fmap (fmap boilerplate . listToMaybe)
+       (E.select (E.from query))
+  where boilerplate (E.Value a,Value b,Value c,Value d) =
+          (a,b,c,d)
+        query (p,n,s) =
+          do E.where_ ((p ^. PackageStackage E.==. n ^. LtsStackage) E.&&.
+                       (s ^. StackageId E.==. n ^. LtsStackage))
+             E.orderBy [E.desc (n ^. LtsMajor),E.desc (n ^. LtsMinor)]
+             return (n ^. LtsMajor
+                    ,n ^. LtsMinor
+                    ,p ^. PackageVersion
+                    ,s ^. StackageSlug)
 
 -- | An identifier specified in a package. Because this field has
 -- quite liberal requirements, we often encounter various forms. A

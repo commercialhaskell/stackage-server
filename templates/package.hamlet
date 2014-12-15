@@ -13,15 +13,22 @@ $newline never
                    <a href="#{url}">
                        #{url}
 
-            $forall (i,(version, title, slug, hasHaddocks)) <- packages
-               $if i /= 0
-                 , #
-               <a href=@{SnapshotR slug StackageHomeR}>#{fromMaybe title $ stripSuffix ", exclusive" title}
-               $if hasHaddocks
+            $maybe (ltsMajor,ltsMinor,pkgVersion,ltsSlug) <- mlts
+                 <a href=@{SnapshotR ltsSlug StackageHomeR}>LTS Haskell
                  \ (
-                 <a href=@{haddocksLink slug version}>
-                     #{version}
+                 <a href=@{haddocksLink ltsSlug pkgVersion}>
+                     #{pkgVersion}
                  )
+                $maybe _ <- mnightly
+                  , #
+
+            $maybe (nightlyDay,ghcVersion,pkgVersion,nightlySlug) <- mnightly
+                 <a href=@{SnapshotR nightlySlug StackageHomeR}>Stackage Nightly GHC #{ghcVersion}
+                 \ (
+                 <a href=@{haddocksLink nightlySlug pkgVersion}>
+                     #{pkgVersion}
+                 )
+
     <div .row>
         <div .span12>
             <div .tags>
