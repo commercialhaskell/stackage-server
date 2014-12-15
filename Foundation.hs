@@ -155,10 +155,12 @@ instance Yesod App where
     maximumContentLength _ _ = Just 2000000
 
 instance ToMarkup (Route App) where
-    toMarkup c = case c of
-                   AllSnapshotsR{} -> "Snapshots"
-                   UploadStackageR{} -> "Upload"
-                   AuthR (LoginR{}) -> "Login"
+    toMarkup c =
+        case c of
+          AllSnapshotsR{} -> "Snapshots"
+          UploadStackageR{} -> "Upload"
+          AuthR (LoginR{}) -> "Login"
+          _ -> ""
 
 -- How to run database actions.
 instance YesodPersist App where
