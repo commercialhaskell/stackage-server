@@ -10,17 +10,22 @@ data WebsiteContent = WebsiteContent
     { wcHomepage :: !Html
     , wcAuthors  :: !Html
     , wcInstall  :: !Html
+    , wcOlderReleases :: !Html
     }
 
 loadWebsiteContent :: FilePath -> IO WebsiteContent
 loadWebsiteContent dir = do
-    wcHomepage <- fmap (preEscapedToMarkup :: Text -> Html)
-                $ readFile $ dir </> "homepage.html"
-    wcAuthors <- fmap (preEscapedToMarkup :: Text -> Html)
-               $ readFile $ dir </> "authors.html"
-    wcInstall <- fmap (markdown def
+    wcHomepage <- readHtml "homepage.html"
+    wcAuthors <- readHtml "authors.html"
+    wcInstall <- readMarkdown "install.md"
+    wcOlderReleases <- readHtml "older-releases.html" `catchIO`
+                    \_ -> readMarkdown "older-releases.md"
+    return WebsiteContent {..}
+  where
+    readHtml fp = fmap (preEscapedToMarkup :: Text -> Html)
+                $ readFile $ dir </> fp
+    readMarkdown fp = fmap (markdown def
                         { msXssProtect   = False
                         , msAddHeadingId = True
                         })
-               $ readFile $ dir </> "install.md"
-    return WebsiteContent {..}
+               $ readFile $ dir </> fp

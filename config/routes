@@ -49,3 +49,4 @@
 
 /authors AuthorsR GET
 /install InstallR GET
+/older-releases OlderReleasesR GET

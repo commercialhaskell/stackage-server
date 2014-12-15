@@ -22,6 +22,9 @@ getAuthorsR = contentHelper "Library Authors" wcAuthors
 getInstallR :: Handler Html
 getInstallR = contentHelper "Haskell Installation Instructions" wcInstall
 
+getOlderReleasesR :: Handler Html
+getOlderReleasesR = contentHelper "Older Releases" wcOlderReleases
+
 contentHelper :: Html -> (WebsiteContent -> Html) -> Handler Html
 contentHelper title accessor = do
     homepage <- getYesod >>= fmap accessor . liftIO . grContent . websiteContent
