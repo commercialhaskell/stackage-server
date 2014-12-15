@@ -32,7 +32,7 @@ $newline never
     <div .row>
         <div .span12>
             <div .tags>
-                <span .likes>
+                <span .likes .social>
                     <span #likes>
                         #{nLikes}
                     \ likes #

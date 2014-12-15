@@ -36,12 +36,6 @@ h3 {
   padding-top: 0.5em;
 }
 .social {
-  margin-top: 0.5em;
-  border-top: 1px solid #ddd;
-  padding-top: 0.5em;
-  margin-bottom: 0.5em;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 0.5em;
   .fa-thumbs-o-up {
     color: rgba(0, 39, 59, 0.34902);
     cursor: pointer;
