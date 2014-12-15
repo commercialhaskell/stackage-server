@@ -40,7 +40,8 @@ $newline never
             <div .social>
                 <span #likes>
                     #{nLikes}
-                \ likes #
+                <span #like-or-likes>
+                    \ #{format (plural "like" "likes") nLikes} #
                 <i .fa :liked:.fa-thumbs-up :not liked:.fa-thumbs-o-up #like title="#{likeTitle}">
                 $if downloads /= 0
                     <span .downloads>
