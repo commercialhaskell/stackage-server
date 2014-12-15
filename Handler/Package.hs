@@ -124,7 +124,8 @@ getNightly pn =
   where boilerplate (E.Value a,E.Value b,E.Value c,E.Value d) =
           (a,b,c,d)
         query (p,n,s) =
-          do E.where_ ((p ^. PackageStackage E.==. n ^. NightlyStackage) E.&&.
+          do E.where_ ((p ^. PackageName' E.==. E.val pn) E.&&.
+                       (p ^. PackageStackage E.==. n ^. NightlyStackage) E.&&.
                        (s ^. StackageId E.==. n ^. NightlyStackage))
              E.orderBy [E.desc (n ^. NightlyDay)]
              return (n ^. NightlyDay
@@ -140,7 +141,8 @@ getLts pn =
   where boilerplate (E.Value a,Value b,Value c,Value d) =
           (a,b,c,d)
         query (p,n,s) =
-          do E.where_ ((p ^. PackageStackage E.==. n ^. LtsStackage) E.&&.
+          do E.where_ ((p ^. PackageName' E.==. E.val pn) E.&&.
+                       (p ^. PackageStackage E.==. n ^. LtsStackage) E.&&.
                        (s ^. StackageId E.==. n ^. LtsStackage))
              E.orderBy [E.desc (n ^. LtsMajor),E.desc (n ^. LtsMinor)]
              return (n ^. LtsMajor
