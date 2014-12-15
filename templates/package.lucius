@@ -57,6 +57,11 @@ h3 {
   margin-top: 0.5em;
   padding-top: 0.5em;
 }
+.docs {
+  margin-top: 0.5em;
+  border-top: 1px solid #ddd;
+  padding-top: 0.5em;
+}
 .downloads {
   margin-left: 1em;
 }
