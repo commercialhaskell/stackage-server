@@ -22,7 +22,7 @@
                   <a href=@{route}>#{route}
           $maybe Entity _ user <- muser
               <li>
-                  <a href=@{ProfileR}>
+                  <a href=@{ProfileR} .user-handle>
                       #{userDisplay user} (#{userHandle user})
               <li>
                 <a href=@{AuthR LogoutR}>Logout

@@ -31,31 +31,31 @@ $newline never
 
     <div .row>
         <div .span12>
-            <div .tags>
-                <span .likes .social>
+            <div .social>
+                <span .likes>
                     <span #likes>
                         #{nLikes}
                     \ likes #
                     <i .fa :liked:.fa-thumbs-up :not liked:.fa-thumbs-o-up #like title="#{likeTitle}">
-
-                $if null tags
-                    <span .no-tags>
-                        No tags yet. #
-                $forall (tag,count,tagged) <- tags
-                    <span .tag>
-                        <a href=@{TagR tag} .tag-name>
-                            #{tag} #
-                        <a .tag-count .tag-toggle data-slug=#{tag} :tagged:.tagged title="Add/remove vote for: #{tag}">
-                            #{count}
-                        , #
-                <i #add-tag class="fa fa-plus-square" title="Show/hide tag form">
-                <form #add-tag-form .hidden>
-                    <p>
-                        <strong>Add tag
-                    <div .input-append>
-                        <input type="text" id="new-tag">
-                        <input type="submit" .btn #add-form-btn value="Confirm">
-                    <p #tag-msg .alert .alert-error style="display:none">
+                <span .tags>
+                    $if null tags
+                        <span .no-tags>
+                            No tags yet. #
+                    $forall (tag,count,tagged) <- tags
+                        <span .tag>
+                            <a href=@{TagR tag} .tag-name>
+                                #{tag} #
+                            <a .tag-count .tag-toggle data-slug=#{tag} :tagged:.tagged title="Add/remove vote for: #{tag}">
+                                #{count}
+                            , #
+                    <i #add-tag class="fa fa-plus-square" title="Show/hide tag form">
+                    <form #add-tag-form .hidden>
+                        <p>
+                            <strong>Add tag
+                        <div .input-append>
+                            <input type="text" id="new-tag">
+                            <input type="submit" .btn #add-form-btn value="Confirm">
+                        <p #tag-msg .alert .alert-error style="display:none">
 
             <div .authorship>
                 <span .license>
