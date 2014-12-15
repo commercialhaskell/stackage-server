@@ -9,7 +9,7 @@
         <img src="/static/img/stackage.png" title="FP Complete">
       <div>
         <ul class="nav">
-          $forall route <- [AllSnapshotsR,UploadStackageR,AuthR LoginR]
+          $forall route <- [AllSnapshotsR,UploadStackageR]
             $maybe current <- cur
               $if route == current
                 <li .active>
@@ -20,7 +20,15 @@
             $nothing
               <li>
                   <a href=@{route}>#{route}
-
+          $maybe Entity _ user <- muser
+              <li>
+                  <a href=@{ProfileR}>
+                      #{userDisplay user} (#{userHandle user})
+              <li>
+                <a href=@{AuthR LogoutR}>Logout
+          $nothing
+              <li>
+                <a href=@{AuthR LoginR}>Login
 
 $maybe msg <- mmsg
     <div .container>
