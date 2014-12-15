@@ -9,11 +9,6 @@ $newline never
            <span>
                <a href=@{SnapshotR slug StackageCabalConfigR}>
                    \cabal.config
-    $if isOwner
-        <p>
-            You are the owner of this snapshot. You can #
-            <a href=@{UploadHaddockR $ toPathPiece slug}>upload haddocks#
-            .
     <h3>
         Setup guide #
             <small>
@@ -25,7 +20,7 @@ $newline never
           <span class="accordion-toggle" data-parent="#accordion#{base + 0}" href="#collapse1">
             <span .number>1
             Download the #
-            <a href=@{SnapshotR slug StackageCabalConfigR}>
+            <a href=@{SnapshotR slug StackageCabalConfigR}?download=true>
               \cabal.config
             \ into your project or sandbox root directory
 
@@ -39,17 +34,6 @@ $newline never
           <span class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse3">
             <span .number>3
             <code>cabal install
-
-    <p>
-       Alternatively, to exclusively use only packages that are in #
-       Stackage, you can set your #
-       <code>remote-repo
-       \ in your Cabal #
-       <code>config
-       \ file to:
-    <pre>
-        <span class="keyword">remote-repo</span>: stackage-#{slug}:
-        <span class="url">@{SnapshotR slug StackageHomeR}
 
     <h3>
         Packages

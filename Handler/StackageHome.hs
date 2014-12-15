@@ -39,6 +39,7 @@ getStackageHomeR slug = do
                 return
                     ( u E.^. UploadedName
                     , m E.^. MetadataSynopsis
+                    , E.max_ (p E.^. PackageVersion)
                     , E.max_ $ E.case_
                         [ ( p E.^. PackageHasHaddocks
                           , p E.^. PackageVersion
@@ -46,9 +47,9 @@ getStackageHomeR slug = do
                         ]
                         (E.val (Version ""))
                     )
-            let packages = flip map packages' $ \(name, syn, forceNotNull -> mversion) ->
+            let packages = flip map packages' $ \(name, syn, latestVersion, forceNotNull -> mversion) ->
                     ( E.unValue name
-                    , mversion
+                    , fmap unVersion $ E.unValue latestVersion
                     , strip $ E.unValue syn
                     , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
                         [ toPathPiece $ E.unValue name
