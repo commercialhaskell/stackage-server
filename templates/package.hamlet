@@ -102,7 +102,6 @@ $newline never
 
             $maybe (version, modules) <- mdocs
                 <div .docs>
-                    <p>Documentation for version #{version}
                     <ul>
                         $forall Module _ name url <- modules
                             <li>

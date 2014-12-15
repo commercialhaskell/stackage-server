@@ -56,6 +56,12 @@ h3 {
   margin-top: 0.5em;
   border-top: 1px solid #ddd;
   padding-top: 0.5em;
+  ul {
+    list-style-type: none;
+    margin-left: 0;
+    padding-left: 0;
+    li { line-height: 1.5em }
+  }
 }
 .downloads {
   margin-left: 1em;
