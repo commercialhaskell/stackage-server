@@ -212,11 +212,19 @@ instance YesodAuth App where
                                 , " added to your account."
                                 ]
                             redirect ProfileR
-                    Just _  -> invalidArgs $ return $ concat
-                        [ "The email address "
-                        , credsIdent creds
-                        , " is already associated with a different account."
-                        ]
+                    Just (Entity _ email)
+                        | emailUser email == uid -> return $ do
+                            setMessage $ toHtml $ concat
+                                [ "The email address "
+                                , credsIdent creds
+                                , " is already part of your account"
+                                ]
+                            redirect ProfileR
+                        | otherwise -> invalidArgs $ return $ concat
+                            [ "The email address "
+                            , credsIdent creds
+                            , " is already associated with a different account."
+                            ]
       where
         handleBase = takeWhile (/= '@') (credsIdent creds)
         getHandle cnt | cnt > 50 = error "Could not get a unique slug"
