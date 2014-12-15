@@ -57,13 +57,17 @@ $(function(){
 
       if (action == 'like') {
         $this.attr('title','You liked this!');
-        $likes.text(nLikes + 1);
+        nLikes += 1;
         $.post("@{PackageLikeR pn}");
       } else {
         $this.attr('title','You disliked this.');
-        $likes.text(nLikes - 1);
+        nLikes -= 1;
         $.post("@{PackageUnlikeR pn}");
       }
+
+      $likes.text(nLikes);
+      $('#like-or-likes').text(nLikes == 1 ? ' like ' : ' likes ');
+
     } else {
       login();
     }

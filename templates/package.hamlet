@@ -35,7 +35,8 @@ $newline never
                 <span .likes>
                     <span #likes>
                         #{nLikes}
-                    \ likes #
+                    <span #like-or-likes>
+                        \ #{format (plural "like" "likes") nLikes} #
                     <i .fa :liked:.fa-thumbs-up :not liked:.fa-thumbs-o-up #like title="#{likeTitle}">
                 <span .tags>
                     $if null tags
