@@ -134,7 +134,7 @@ $maybe log <- metadataChangelog metadata
 <div .container #snapshot-home .content>
     <div .row>
         <div .span12>
-            <div .dependencies>
+            <div .dependencies #dependencies>
                 Depends on
                 <div .dep-list>
                     $forall (i,name) <- deps
@@ -143,7 +143,7 @@ $maybe log <- metadataChangelog metadata
                         <a href=@{PackageR (PackageName name)}>
                             #{name}
             $if not $ null revdeps
-              <div .reverse-dependencies .expanding>
+              <div .reverse-dependencies .expanding #reverse-dependencies>
                 Used by
                 <div .dep-list>
                     $forall (i,name) <- revdeps
