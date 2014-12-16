@@ -108,15 +108,14 @@ $newline never
                             <li>
                                 <a href=#{url}>#{name}
 
-
-
-<div .markdown-container .readme-container>
-    <div .container .content>
-        <div .row>
-            <div .span12 .expanding>
-                #{metadataReadme metadata}
-                <div .bottom-gradient>
-                    <i class="fa fa-angle-down">
+$if not (LT.null (LT.renderHtml (metadataReadme metadata)))
+    <div .markdown-container .readme-container>
+        <div .container .content>
+            <div .row>
+                <div .span12 .expanding>
+                    #{metadataReadme metadata}
+                    <div .bottom-gradient>
+                        <i class="fa fa-angle-down">
 
 $maybe log <- metadataChangelog metadata
     <div .container .content>
