@@ -10,7 +10,7 @@ import           Data.Tag
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as LT
-import           Data.Time (addUTCTime)
+
 import           Database.Esqueleto ((^.), (&&.), Value (Value))
 import qualified Database.Esqueleto as E
 import qualified Database.Persist as P
@@ -22,21 +22,19 @@ import           Text.Email.Validate
 -- | Page metadata package.
 getPackageR :: PackageName -> Handler Html
 getPackageR pn = do
-    let maxSnaps = 10
-        haddocksLink ident version =
+    let haddocksLink ident version =
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
     muid <- maybeAuthId
-    (mnightly, mlts, downloads, recentDownloads, nLikes, liked,
+    (mnightly, mlts, nLikes, liked,
       Entity _ metadata, revdeps', mdocs) <- runDB $ do
         mnightly <- getNightly pn
         mlts <- getLts pn
         nLikes <- count [LikePackage ==. pn]
         let getLiked uid = (>0) <$> count [LikePackage ==. pn, LikeVoter ==. uid]
         liked <- maybe (return False) getLiked muid
-        downloads <- count [DownloadPackage ==. pn]
-        now' <- liftIO getCurrentTime
-        let nowMinus30 = addUTCTime (-30 * 24 * 60 * 60) now'
-        recentDownloads <- count [DownloadPackage ==. pn, DownloadTimestamp >=. nowMinus30]
+
+
+
         metadata <- getBy404 (UniqueMetadata pn)
         revdeps' <- reverseDeps pn
         mdocsent <- selectFirst [DocsName ==. pn] [Desc DocsUploaded]
@@ -46,8 +44,6 @@ getPackageR pn = do
                  selectList [ModuleDocs ==. docsid] [Asc ModuleName])
         return ( mnightly
                , mlts
-               , downloads
-               , recentDownloads
                , nLikes
                , liked
                , metadata
@@ -56,7 +52,7 @@ getPackageR pn = do
                )
 
     myTags <- maybe (return []) (runDB . user'sTagsOf pn) muid
-    tags <- fmap (map (\(v,count) -> (v,count,any (==v) myTags)))
+    tags <- fmap (map (\(v,count') -> (v,count',any (==v) myTags)))
                  (runDB (packageTags pn))
 
     let likeTitle = if liked
@@ -81,8 +77,6 @@ getPackageR pn = do
             ])
         $(widgetFile "package")
   where enumerate = zip [0::Int ..]
-        reformat (Value version, Value title, Value ident, Value hasHaddocks) =
-            (version,fromMaybe title (stripPrefix "Stackage build for " title),ident,hasHaddocks)
 
 -- | Get tags of the given package.
 packageTags :: PackageName -> YesodDB App [(Slug,Int)]
@@ -292,7 +286,6 @@ getPackageSnapshotsR :: PackageName -> Handler Html
 getPackageSnapshotsR pn =
   do let haddocksLink ident version =
              HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
-     muid <- maybeAuthId
      snapshots <- (runDB .
                    fmap (map reformat) .
                    E.select . E.from)

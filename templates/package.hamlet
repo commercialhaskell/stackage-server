@@ -13,7 +13,7 @@ $newline never
                    <a href="#{url}">
                        #{url}
 
-            $maybe (ltsMajor,ltsMinor,pkgVersion,ltsSlug) <- mlts
+            $maybe (_ltsMajor,_ltsMinor,pkgVersion,ltsSlug) <- mlts
                  <a href=@{SnapshotR ltsSlug StackageHomeR}>LTS Haskell
                  \ (
                  <a href=@{haddocksLink ltsSlug pkgVersion}>
@@ -22,7 +22,7 @@ $newline never
                 $maybe _ <- mnightly
                   , #
 
-            $maybe (nightlyDay,ghcVersion,pkgVersion,nightlySlug) <- mnightly
+            $maybe (_nightlyDay,ghcVersion,pkgVersion,nightlySlug) <- mnightly
                  <a href=@{SnapshotR nightlySlug StackageHomeR}>Stackage Nightly GHC #{ghcVersion}
                  \ (
                  <a href=@{haddocksLink nightlySlug pkgVersion}>

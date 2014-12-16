@@ -9,11 +9,9 @@ import Handler.PackageList (cachedWidget)
 
 getStackageHomeR :: SnapSlug -> Handler Html
 getStackageHomeR slug = do
-    muid <- maybeAuthId
     stackage <- runDB $ do
         Entity _ stackage <- getBy404 $ UniqueSnapshot slug
         return stackage
-    let isOwner = muid == Just (stackageUser stackage)
 
     hasBundle <- storeExists $ SnapshotBundle $ stackageIdent stackage
     let minclusive =
@@ -63,7 +61,6 @@ getStackageHomeR slug = do
                     | otherwise = Just v
             $(widgetFile "stackage-home")
   where strip x = fromMaybe x (stripSuffix "." x)
-        mback = Just (SnapshotR slug StackageHomeR, "Return to snapshot")
 
 getStackageMetadataR :: SnapSlug -> Handler TypedContent
 getStackageMetadataR slug = do

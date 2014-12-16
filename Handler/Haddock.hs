@@ -314,7 +314,7 @@ getUploadDocMapR = do
         <*> areq textField "Stackage ID" { fsName = Just "snapshot" } Nothing
     case res of
         FormSuccess (fi, snapshot) -> do
-            Entity sid stackage <-
+            Entity _sid stackage <-
                 runDB $ getBy404 $ UniqueStackage $ PackageSetIdent snapshot
             bs <- fileSource fi $$ foldC
             case Y.decodeEither bs of
