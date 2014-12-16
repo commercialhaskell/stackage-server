@@ -107,7 +107,11 @@ getStackageCabalConfigR slug = do
             ]
             [ Asc PackageName'
             , Asc PackageVersion
-            ] $= (header render >> goFirst >> mapC (Chunk . showPackage))
+            ] $= (do
+                header render
+                goFirst
+                mapC (Chunk . showPackage)
+                yield $ Chunk $ toBuilder '\n')
 
     header render = yield $ Chunk $
         toBuilder (asText "-- Stackage snapshot from: ") ++
