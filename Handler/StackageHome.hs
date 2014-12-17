@@ -103,7 +103,6 @@ getStackageCabalConfigR slug = do
     stream render sid =
         selectSource
             [ PackageStackage ==. sid
-            , PackageOverwrite ==. False
             ]
             [ Asc PackageName'
             , Asc PackageVersion
