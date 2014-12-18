@@ -314,8 +314,15 @@ getUploadDocMapR = do
         <*> areq textField "Stackage ID" { fsName = Just "snapshot" } Nothing
     case res of
         FormSuccess (fi, snapshot) -> do
-            Entity _sid stackage <-
-                runDB $ getBy404 $ UniqueStackage $ PackageSetIdent snapshot
+            Entity _sid stackage <- runDB $ do
+                ment <- getBy $ UniqueStackage $ PackageSetIdent snapshot
+                case ment of
+                    Just ent -> return ent
+                    Nothing -> do
+                        slug <- maybe notFound return $ fromPathPiece snapshot
+                        getBy404 $ UniqueSnapshot slug
+            unless (stackageHasHaddocks stackage) $ invalidArgs $ return
+                "Cannot use a snapshot without docs for a docmap"
             bs <- fileSource fi $$ foldC
             case Y.decodeEither bs of
                 Left e -> invalidArgs [pack e]
