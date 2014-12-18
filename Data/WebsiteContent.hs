@@ -22,7 +22,7 @@ loadWebsiteContent dir = do
                     \_ -> readMarkdown "older-releases.md"
     return WebsiteContent {..}
   where
-    readHtml fp = fmap (preEscapedToMarkup :: Text -> Html)
+    readHtml fp = fmap (preEscapedToMarkup . decodeUtf8 :: ByteString -> Html)
                 $ readFile $ dir </> fp
     readMarkdown fp = fmap (markdown def
                         { msXssProtect   = False
