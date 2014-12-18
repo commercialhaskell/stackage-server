@@ -9,10 +9,7 @@ $newline never
            <span>
                <a href=@{SnapshotR slug StackageCabalConfigR}>
                    \cabal.config
-    <h3>
-        Setup guide #
-            <small>
-                (click to expand)
+    <h3>Setup guide
     <div class="accordion" id="accordion2">
 
       <div class="accordion-group">
