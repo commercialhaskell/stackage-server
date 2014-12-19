@@ -37,6 +37,12 @@ $newline never
 
 <div .container .content>
     <div .packages>
+        $if packageListClipped
+            <p>
+                Note: due to a large number of packages, not all packages are display.
+                For a full listing, please see #
+                <a href=@{SnapshotR slug StackageMetadataR}>the metadata listing
+                .
         <table .table>
             <thead>
                 <th>Package

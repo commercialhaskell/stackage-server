@@ -25,26 +25,32 @@ getStackageHomeR slug = do
     defaultLayout $ do
         setTitle $ toHtml $ stackageTitle stackage
         cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
-            packages' <- handlerToWidget $ runDB $ E.select $ E.from $ \(u,m,p) -> do
-                E.where_ $
-                    (m E.^. MetadataName E.==. u E.^. UploadedName) E.&&.
-                    (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
-                    (p E.^. PackageStackage E.==. E.val sid)
-                E.orderBy [E.asc $ u E.^. UploadedName]
-                E.groupBy ( u E.^. UploadedName
-                          , m E.^. MetadataSynopsis
-                          )
-                return
-                    ( u E.^. UploadedName
-                    , m E.^. MetadataSynopsis
-                    , E.max_ (p E.^. PackageVersion)
-                    , E.max_ $ E.case_
-                        [ ( p E.^. PackageHasHaddocks
-                          , p E.^. PackageVersion
-                          )
-                        ]
-                        (E.val (Version ""))
-                    )
+            let maxPackages = 5000
+            (packageListClipped, packages') <- handlerToWidget $ runDB $ do
+                packages' <- E.select $ E.from $ \(u,m,p) -> do
+                    E.where_ $
+                        (m E.^. MetadataName E.==. u E.^. UploadedName) E.&&.
+                        (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
+                        (p E.^. PackageStackage E.==. E.val sid)
+                    E.orderBy [E.asc $ u E.^. UploadedName]
+                    E.groupBy ( u E.^. UploadedName
+                              , m E.^. MetadataSynopsis
+                              )
+                    E.limit maxPackages
+                    return
+                        ( u E.^. UploadedName
+                        , m E.^. MetadataSynopsis
+                        , E.max_ (p E.^. PackageVersion)
+                        , E.max_ $ E.case_
+                            [ ( p E.^. PackageHasHaddocks
+                              , p E.^. PackageVersion
+                              )
+                            ]
+                            (E.val (Version ""))
+                        )
+                packageCount <- count [PackageStackage ==. sid]
+                let packageListClipped = packageCount > maxPackages
+                return (packageListClipped, packages')
             let packages = flip map packages' $ \(name, syn, latestVersion, forceNotNull -> mversion) ->
                     ( E.unValue name
                     , fmap unVersion $ E.unValue latestVersion
