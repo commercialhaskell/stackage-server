@@ -6,3 +6,4 @@ stanzas:
   env:
     STACKAGE_CABAL_LOADER: "0"
   host: www.stackage.org
+copy-to: fpuser@www.stackage.org:/var/opt/keter/incoming
