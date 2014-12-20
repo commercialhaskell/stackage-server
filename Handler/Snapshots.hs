@@ -8,6 +8,9 @@ import           Formatting
 import           Formatting.Time
 import           Import
 
+snapshotsPerPage :: Integral a => a
+snapshotsPerPage = 50
+
 -- This is a handler function for the GET request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in
 -- config/routes
@@ -18,10 +21,15 @@ import           Import
 getAllSnapshotsR :: Handler Html
 getAllSnapshotsR = do
     now' <- liftIO getCurrentTime
+    currentPageMay <- lookupGetParam "page"
+    let currentPage :: Int64
+        currentPage = fromMaybe 1 (currentPageMay >>= readMay)
     groups <- fmap (groupBy (on (==) (\(_,_,uploaded,_,_) -> uploaded)) . map (uncrapify now')) $
         runDB $ E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
           E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
           E.orderBy [E.desc $ stackage E.^. StackageUploaded]
+          E.limit snapshotsPerPage
+          E.offset ((currentPage - 1) * snapshotsPerPage)
           return
               ( stackage E.^. StackageSlug
               , stackage E.^. StackageTitle
@@ -31,6 +39,7 @@ getAllSnapshotsR = do
               )
     defaultLayout $ do
         setTitle "Stackage Server"
+        let snapshotsNav = $(widgetFile "snapshots-nav")
         $(widgetFile "all-snapshots")
   where uncrapify now' c =
             let (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle') = c

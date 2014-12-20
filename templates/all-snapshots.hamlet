@@ -1,6 +1,7 @@
 <div .container>
     <div .content>
         <h1>Snapshots
+        ^{snapshotsNav}
         $forall stackages <- groups
             $forall (_, _, uploaded, _, _) <- take 1 stackages
                 <h3>
@@ -13,3 +14,4 @@
                                 #{title}
                         <p>
                             #{display} (#{handle})
+        ^{snapshotsNav}
