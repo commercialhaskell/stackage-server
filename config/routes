@@ -50,3 +50,5 @@
 /authors AuthorsR GET
 /install InstallR GET
 /older-releases OlderReleasesR GET
+
+/refresh-deprecated RefreshDeprecatedR GET

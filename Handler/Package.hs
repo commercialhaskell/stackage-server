@@ -26,7 +26,7 @@ getPackageR pn = do
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
     muid <- maybeAuthId
     (mnightly, mlts, nLikes, liked,
-      Entity _ metadata, revdeps', mdocs) <- runDB $ do
+      Entity _ metadata, revdeps', mdocs, deprecated, inFavourOf) <- runDB $ do
         mnightly <- getNightly pn
         mlts <- getLts pn
         nLikes <- count [LikePackage ==. pn]
@@ -42,6 +42,8 @@ getPackageR pn = do
             <$> pure version
             <*> (map entityVal <$>
                  selectList [ModuleDocs ==. docsid] [Asc ModuleName])
+        deprecated <- getDeprecated pn
+        inFavourOf <- getInFavourOf pn
         return ( mnightly
                , mlts
                , nLikes
@@ -49,7 +51,11 @@ getPackageR pn = do
                , metadata
                , revdeps'
                , mdocs
+               , deprecated
+               , inFavourOf
                )
+
+    let ixInFavourOf = zip [0::Int ..] inFavourOf
 
     myTags <- maybe (return []) (runDB . user'sTagsOf pn) muid
     tags <- fmap (map (\(v,count') -> (v,count',any (==v) myTags)))
@@ -145,6 +151,18 @@ getLts pn =
                     ,n ^. LtsMinor
                     ,p ^. PackageVersion
                     ,s ^. StackageSlug)
+
+getDeprecated :: PackageName -> YesodDB App Bool
+getDeprecated pn = fmap ((>0) . length) $ E.select $ E.from $ \d -> do
+  E.where_ $ d ^. DeprecatedPackage E.==. E.val pn
+  return ()
+
+getInFavourOf :: PackageName -> YesodDB App [PackageName]
+getInFavourOf pn = fmap unBoilerplate $ E.select $ E.from $ \s -> do
+    E.where_ $ s ^. SuggestedInsteadOf E.==. E.val pn
+    return (s ^. SuggestedPackage)
+  where
+    unBoilerplate = map (\(E.Value p) -> p)
 
 -- | An identifier specified in a package. Because this field has
 -- quite liberal requirements, we often encounter various forms. A

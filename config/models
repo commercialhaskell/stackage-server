@@ -122,3 +122,12 @@ Lts
     minor Int
     stackage StackageId
     UniqueLts major minor
+
+Deprecated
+    package PackageName
+    UniqueDeprecated package
+
+Suggested
+    package PackageName
+    insteadOf PackageName
+    UniqueSuggested package insteadOf

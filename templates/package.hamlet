@@ -1,7 +1,19 @@
 $newline never
-<div .container #snapshot-home .content>
+<div .container #snapshot-home .content :deprecated:.deprecated>
     <div .row>
         <div .span12>
+            $if deprecated
+              <h1 .package-deprecation-warning>
+                Deprecated
+              $if (not $ null ixInFavourOf)
+                <div .in-favour-of>
+                  In favour of
+                  <div .in-favour-of-list>
+                    $forall (i, pn) <- ixInFavourOf
+                      $if i /= 0
+                        , #
+                      <a href="@{PackageR pn}">
+                        #{pn}
             <h1>
                #{pn} #
                <span .latest-version>

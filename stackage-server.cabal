@@ -25,6 +25,7 @@ library
                      Data.Tag
                      Data.BlobStore
                      Data.Hackage
+                     Data.Hackage.DeprecationInfo
                      Data.Hackage.Views
                      Data.WebsiteContent
                      Types
@@ -49,6 +50,7 @@ library
                      Handler.CompressorStatus
                      Handler.Tag
                      Handler.BannedTags
+                     Handler.RefreshDeprecated
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

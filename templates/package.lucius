@@ -224,3 +224,26 @@ h2.changes-title {
 div.plain-text {
   white-space: pre-wrap;
 }
+
+
+.deprecated {
+  color: #aaa;
+
+  h1,h2,h3,h4,h5,a {
+    color: #aaa;
+  }
+
+  .package-deprecation-warning{
+    color: red;
+  }
+
+  .in-favour-of {
+    color: #333;
+
+    .in-favour-of-list {
+      a {
+        color: #08c;
+      }
+    }
+  }
+}
