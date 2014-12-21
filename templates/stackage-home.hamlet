@@ -32,6 +32,12 @@ $newline never
             <span .number>3
             <code>cabal install
 
+    <p>
+        <strong>Note: #
+        Homebrew users please see #
+        <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#homebrew-users">
+            this page about potential issues.
+
     <h3>
         Packages
 
