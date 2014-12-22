@@ -88,10 +88,10 @@ getStackageMetadataR slug = do
             , Asc PackageVersion
             ] $= mapC (Chunk . toBuilder . showPackage)
 
-    showPackage (Entity _ (Package _ name version _ _)) = concat
-        [ toPathPiece name
+    showPackage (Entity _ p) = concat
+        [ toPathPiece $ packageName' p
         , "-"
-        , toPathPiece version
+        , toPathPiece $ packageVersion p
         , "\n"
         ]
 
@@ -128,17 +128,20 @@ getStackageCabalConfigR slug = do
         toBuilder '\n'
     goFirst = do
         mx <- await
-        forM_ mx $ \(Entity _ (Package _ name version _ _)) -> yield $ Chunk $
+        forM_ mx $ \(Entity _ p) -> yield $ Chunk $
             toBuilder (asText "constraints: ") ++
-            toBuilder (toPathPiece name) ++
-            toBuilder (asText " ==") ++
-            toBuilder (toPathPiece version)
+            toBuilder (toPathPiece $ packageName' p) ++
+            constraint p
 
-    showPackage (Entity _ (Package _ name version _ _)) =
+    constraint p
+        | packageCore p = toBuilder $ asText " installed"
+        | otherwise = toBuilder (asText " ==") ++
+                      toBuilder (toPathPiece $ packageVersion p)
+
+    showPackage (Entity _ p) =
         toBuilder (asText ",\n             ") ++
-        toBuilder (toPathPiece name) ++
-        toBuilder (asText " ==") ++
-        toBuilder (toPathPiece version)
+        toBuilder (toPathPiece $ packageName' p) ++
+        constraint p
 
 yearMonthDay :: FormatTime t => t -> String
 yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"

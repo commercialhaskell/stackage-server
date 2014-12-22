@@ -13,7 +13,7 @@ import qualified Data.Text as T
 import Filesystem.Path (splitExtension)
 import Data.BlobStore
 import Filesystem (createTree)
-import Control.Monad.State.Strict (execStateT, get, put)
+import Control.Monad.State.Strict (execStateT, get, put, modify)
 import qualified Codec.Compression.GZip as GZip
 import Control.Monad.Trans.Resource (allocate)
 import System.Directory (removeFile, getTemporaryDirectory)
@@ -127,12 +127,13 @@ putUploadStackageR = do
                 -- Evil lazy I/O thanks to tar package
                 lbs <- readFile $ fpFromString fp
                 withSystemTempDirectory "build00index." $ \dir -> do
-                    LoopState _ stackage files _ contents <- execStateT (loop isAdmin update (Tar.read lbs)) LoopState
+                    LoopState _ stackage files _ contents cores <- execStateT (loop isAdmin update (Tar.read lbs)) LoopState
                         { lsRoot = fpFromString dir
                         , lsStackage = initial
                         , lsFiles = mempty
                         , lsIdent = ident
                         , lsContents = []
+                        , lsCores = mempty
                         }
                     withSystemTempFile "newindex" $ \fp' h -> do
                         ec <- liftIO $ do
@@ -155,6 +156,7 @@ putUploadStackageR = do
                                         , packageVersion = version
                                         , packageOverwrite = overwrite
                                         , packageHasHaddocks = False
+                                        , packageCore = name `member` cores
                                         }
 
                                     setAlias
@@ -215,6 +217,13 @@ putUploadStackageR = do
                                     Just src -> addFile False name version src
 
                             Nothing -> return ()
+
+                    "core" -> forM_ (lines $ decodeUtf8 $ toStrict lbs) $ \name ->
+                        modify $ \ls -> ls
+                            { lsCores = insertSet (PackageName name)
+                                      $ lsCores ls
+                            }
+
                     fp | (base1, Just "gz") <- splitExtension fp
                        , (fpToText -> base, Just "tar") <- splitExtension base1 -> do
                             ident <- lsIdent <$> get
@@ -266,6 +275,7 @@ data LoopState = LoopState
     , lsIdent :: !PackageSetIdent
 
     , lsContents :: ![(PackageName, Version, IsOverride)] -- FIXME use SnocVector when ready
+    , lsCores :: !(Set PackageName) -- ^ core packages
     }
 
 type IsOverride = Bool

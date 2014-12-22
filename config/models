@@ -44,6 +44,7 @@ Package
     version Version
     hasHaddocks Bool default=true
     overwrite Bool
+    core Bool default=false
 
 Tag
     package PackageName
