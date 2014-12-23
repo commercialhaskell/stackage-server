@@ -104,21 +104,39 @@ getStackageCabalConfigR slug = do
     when (mdownload == Just "true") $
         addHeader "Content-Disposition" "attachment; filename=cabal.config"
 
-    respondSourceDB typePlain $ stream render sid
+    mglobal <- lookupGetParam "global"
+    let isGlobal = mglobal == Just "true"
+
+    respondSourceDB typePlain $ stream isGlobal render sid
   where
-    stream render sid =
+    stream isGlobal render sid =
         selectSource
             [ PackageStackage ==. sid
             ]
             [ Asc PackageName'
             , Asc PackageVersion
-            ] $= (do
-                header render
-                goFirst
-                mapC (Chunk . showPackage)
-                yield $ Chunk $ toBuilder '\n')
+            ] $= (if isGlobal then conduitGlobal else conduitLocal) render
 
-    header render = yield $ Chunk $
+    conduitGlobal render = do
+        headerGlobal render
+        mapC (Chunk . showPackageGlobal)
+
+    conduitLocal render = do
+        headerLocal render
+        goFirst
+        mapC (Chunk . showPackageLocal)
+        yield $ Chunk $ toBuilder '\n'
+
+    headerGlobal render = yield $ Chunk $
+        toBuilder (asText "-- Stackage snapshot from: ") ++
+        toBuilder (render $ SnapshotR slug StackageHomeR) ++
+        toBuilder (asText "\n-- Please place these contents in your global cabal config file.\n-- To only use tested packages, uncomment the following line\n-- and comment out other remote-repo lines:\n-- remote-repo: stackage-") ++
+        toBuilder (toPathPiece slug) ++
+        toBuilder ':' ++
+        toBuilder (render $ SnapshotR slug StackageHomeR) ++
+        toBuilder '\n'
+
+    headerLocal render = yield $ Chunk $
         toBuilder (asText "-- Stackage snapshot from: ") ++
         toBuilder (render $ SnapshotR slug StackageHomeR) ++
         toBuilder (asText "\n-- Please place this file next to your .cabal file as cabal.config\n-- To only use tested packages, uncomment the following line:\n-- remote-repo: stackage-") ++
@@ -126,6 +144,18 @@ getStackageCabalConfigR slug = do
         toBuilder ':' ++
         toBuilder (render $ SnapshotR slug StackageHomeR) ++
         toBuilder '\n'
+
+    constraint p
+        | packageCore p = toBuilder $ asText " installed"
+        | otherwise = toBuilder (asText " ==") ++
+                      toBuilder (toPathPiece $ packageVersion p)
+
+    showPackageGlobal (Entity _ p) =
+        toBuilder (asText "constraint: ") ++
+        toBuilder (toPathPiece $ packageName' p) ++
+        constraint p ++
+        toBuilder '\n'
+
     goFirst = do
         mx <- await
         forM_ mx $ \(Entity _ p) -> yield $ Chunk $
@@ -133,12 +163,7 @@ getStackageCabalConfigR slug = do
             toBuilder (toPathPiece $ packageName' p) ++
             constraint p
 
-    constraint p
-        | packageCore p = toBuilder $ asText " installed"
-        | otherwise = toBuilder (asText " ==") ++
-                      toBuilder (toPathPiece $ packageVersion p)
-
-    showPackage (Entity _ p) =
+    showPackageLocal (Entity _ p) =
         toBuilder (asText ",\n             ") ++
         toBuilder (toPathPiece $ packageName' p) ++
         constraint p
