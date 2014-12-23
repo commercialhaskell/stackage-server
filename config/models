@@ -44,7 +44,7 @@ Package
     version Version
     hasHaddocks Bool default=true
     overwrite Bool
-    core Bool default=false
+    core Bool Maybe -- use Maybe to speed up migration
 
 Tag
     package PackageName

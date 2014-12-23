@@ -156,7 +156,7 @@ putUploadStackageR = do
                                         , packageVersion = version
                                         , packageOverwrite = overwrite
                                         , packageHasHaddocks = False
-                                        , packageCore = name `member` cores
+                                        , packageCore = Just $ name `member` cores
                                         }
 
                                     setAlias

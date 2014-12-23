@@ -403,7 +403,11 @@ fixSnapSlugs =
 
 setCorePackages :: MonadIO m => ReaderT SqlBackend m ()
 setCorePackages =
-    updateWhere [PackageName' <-. defaultCorePackages] [PackageCore =. True]
+    updateWhere
+        [ PackageName' <-. defaultCorePackages
+        , PackageCore ==. Nothing
+        ]
+        [PackageCore =. Just True]
   where
     defaultCorePackages = map PackageName $ words =<<
         [ "ghc hoopl bytestring unix haskeline Cabal base time xhtml"

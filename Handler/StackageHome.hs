@@ -146,7 +146,7 @@ getStackageCabalConfigR slug = do
         toBuilder '\n'
 
     constraint p
-        | packageCore p = toBuilder $ asText " installed"
+        | Just True <- packageCore p = toBuilder $ asText " installed"
         | otherwise = toBuilder (asText " ==") ++
                       toBuilder (toPathPiece $ packageVersion p)
 
