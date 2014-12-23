@@ -1,8 +1,15 @@
-module Handler.Haddock where
+module Handler.Haddock
+    ( getUploadHaddockR
+    , putUploadHaddockR
+    , getHaddockR
+    , getUploadDocMapR
+    , putUploadDocMapR
+    , createHaddockUnpacker
+    ) where
 
 import Import
 import Data.BlobStore
-import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile, removeDirectory)
+import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile, removeDirectory, listDirectory)
 import Control.Concurrent (forkIO)
 import System.IO.Temp (withSystemTempFile, withTempFile)
 import System.Process (createProcess, proc, cwd, waitForProcess)
@@ -16,11 +23,12 @@ import qualified Data.ByteString.Base16 as B16
 import Data.Byteable (toBytes)
 import Crypto.Hash (Digest, SHA1)
 import qualified Filesystem.Path.CurrentOS as F
-import Data.Slug (SnapSlug)
+import Data.Slug (SnapSlug, unSlug)
 import qualified Data.Text as T
-import Data.Slug (unSlug)
 import qualified Data.Yaml as Y
 import Data.Aeson (withObject)
+import qualified Hoogle
+import Data.Char (isAlpha)
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"
@@ -30,7 +38,7 @@ form = renderDivs $ areq fileField "tarball containing docs"
 getUploadHaddockR, putUploadHaddockR :: Text -> Handler Html
 getUploadHaddockR slug0 = do
     uid <- requireAuthIdOrToken
-    Entity sid Stackage {..} <- runDB $ do
+    stackageEnt@(Entity sid Stackage {..}) <- runDB $ do
         -- Provide fallback for old URLs
         ment <- getBy $ UniqueStackage $ PackageSetIdent slug0
         case ment of
@@ -47,7 +55,7 @@ getUploadHaddockR slug0 = do
             fileSource fileInfo $$ storeWrite (HaddockBundle ident)
             runDB $ update sid [StackageHasHaddocks =. True]
             master <- getYesod
-            void $ liftIO $ forkIO $ haddockUnpacker master True ident
+            void $ liftIO $ forkIO $ haddockUnpacker master True stackageEnt
             setMessage "Haddocks uploaded"
             redirect $ SnapshotR slug StackageHomeR
         _ -> defaultLayout $ do
@@ -58,7 +66,7 @@ putUploadHaddockR = getUploadHaddockR
 
 getHaddockR :: SnapSlug -> [Text] -> Handler ()
 getHaddockR slug rest = do
-    ident <- runDB $ do
+    stackageEnt <- runDB $ do
         ment <- getBy $ UniqueSnapshot slug
         case ment of
             Just ent -> do
@@ -66,7 +74,7 @@ getHaddockR slug rest = do
                     [pkgver] -> tryContentsRedirect ent pkgver
                     [pkgver, "index.html"] -> tryContentsRedirect ent pkgver
                     _ -> return ()
-                return $ stackageIdent $ entityVal ent
+                return ent
             Nothing -> do
                 Entity _ stackage <- getBy404
                                   $ UniqueStackage
@@ -74,11 +82,12 @@ getHaddockR slug rest = do
                                   $ toPathPiece slug
                 redirectWith status301 $ HaddockR (stackageSlug stackage) rest
     mapM_ sanitize rest
-    dirs <- getDirs -- (gzdir, rawdir) <- getHaddockDir ident
+    dirs <- getDirs
     master <- getYesod
-    liftIO $ haddockUnpacker master False ident
+    liftIO $ haddockUnpacker master False stackageEnt
 
-    let rawfp = dirRawFp dirs ident rest
+    let ident = stackageIdent (entityVal stackageEnt)
+        rawfp = dirRawFp dirs ident rest
         gzfp  = dirGzFp dirs ident rest
         mime = defaultMimeLookup $ fpToText $ filename rawfp
 
@@ -123,19 +132,6 @@ tryContentsRedirect (Entity sid Stackage {..}) pkgver = do
 
 dropDash :: Text -> Text
 dropDash t = fromMaybe t $ stripSuffix "-" t
-
-getHaddockDir :: PackageSetIdent -> Handler (FilePath, FilePath)
-getHaddockDir ident = do
-    master <- getYesod
-    return $ mkDirPair (haddockRootDir master) ident
-
-mkDirPair :: FilePath -- ^ root
-          -> PackageSetIdent
-          -> (FilePath, FilePath) -- ^ compressed, uncompressed
-mkDirPair root ident =
-    ( root </> "idents-raw" </> fpFromText (toPathPiece ident)
-    , root </> "idents-gz"  </> fpFromText (toPathPiece ident)
-    )
 
 createCompressor
     :: Dirs
@@ -206,6 +202,7 @@ data Dirs = Dirs
     { dirRawRoot :: !FilePath
     , dirGzRoot :: !FilePath
     , dirCacheRoot :: !FilePath
+    , dirHoogleRoot :: !FilePath
     }
 
 getDirs :: Handler Dirs
@@ -216,15 +213,18 @@ mkDirs dir = Dirs
     { dirRawRoot = dir </> "idents-raw"
     , dirGzRoot = dir </> "idents-gz"
     , dirCacheRoot = dir </> "cachedir"
+    , dirHoogleRoot = dir </> "hoogle"
     }
 
-dirGzIdent, dirRawIdent :: Dirs -> PackageSetIdent -> FilePath
+dirGzIdent, dirRawIdent, dirHoogleIdent :: Dirs -> PackageSetIdent -> FilePath
 dirGzIdent dirs ident = dirGzRoot dirs </> fpFromText (toPathPiece ident)
 dirRawIdent dirs ident = dirRawRoot dirs </> fpFromText (toPathPiece ident)
+dirHoogleIdent dirs ident = dirHoogleRoot dirs </> fpFromText (toPathPiece ident)
 
-dirGzFp, dirRawFp :: Dirs -> PackageSetIdent -> [Text] -> FilePath
+dirGzFp, dirRawFp, dirHoogleFp :: Dirs -> PackageSetIdent -> [Text] -> FilePath
 dirGzFp dirs ident rest = dirGzIdent dirs ident </> mconcat (map fpFromText rest)
 dirRawFp dirs ident rest = dirRawIdent dirs ident </> mconcat (map fpFromText rest)
+dirHoogleFp dirs ident rest = dirHoogleIdent dirs ident </> mconcat (map fpFromText rest)
 
 dirCacheFp :: Dirs -> Digest SHA1 -> FilePath
 dirCacheFp dirs digest =
@@ -240,11 +240,13 @@ createHaddockUnpacker :: FilePath -- ^ haddock root
                       -> BlobStore StoreKey
                       -> (forall a m. (MonadIO m, MonadBaseControl IO m)
                             => SqlPersistT m a -> m a)
-                      -> IO (IORef Text, ForceUnpack -> PackageSetIdent -> IO ())
-createHaddockUnpacker root store runDB' = do
+                      -> IORef (Route App -> [(Text, Text)] -> Text)
+                      -> IO (IORef Text, ForceUnpack -> Entity Stackage -> IO ())
+createHaddockUnpacker root store runDB' urlRenderRef = do
     createTree $ dirCacheRoot dirs
     createTree $ dirRawRoot dirs
     createTree $ dirGzRoot dirs
+    createTree $ dirHoogleRoot dirs
 
     chan <- newChan
     (statusRef, compressor) <- createCompressor dirs
@@ -253,7 +255,8 @@ createHaddockUnpacker root store runDB' = do
         (forceUnpack, ident, res) <- readChan chan
         try (restore $ go forceUnpack ident) >>= putMVar res
         compressor
-    return (statusRef, \forceUnpack ident -> do
+    return (statusRef, \forceUnpack stackageEnt -> do
+        let ident = stackageIdent (entityVal stackageEnt)
         shouldAct <-
             if forceUnpack
                 then return True
@@ -261,7 +264,7 @@ createHaddockUnpacker root store runDB' = do
         if shouldAct
             then do
                 res <- newEmptyMVar
-                writeChan chan (forceUnpack, ident, res)
+                writeChan chan (forceUnpack, stackageEnt, res)
                 takeMVar res >>= either (throwM . asSomeException) return
             else return ())
   where
@@ -274,12 +277,14 @@ createHaddockUnpacker root store runDB' = do
         if e1
             then return True
             else isDirectory $ dirRawIdent dirs ident
-    go forceUnpack ident = do
+    go forceUnpack stackageEnt = do
+        let ident = stackageIdent (entityVal stackageEnt)
         toRun <-
             if forceUnpack
                 then do
                     removeTreeIfExists $ dirRawIdent dirs ident
                     removeTreeIfExists $ dirGzIdent dirs ident
+                    removeTreeIfExists $ dirHoogleIdent dirs ident
                     return True
                 else not <$> doDirsExist ident
         when toRun $ do
@@ -289,14 +294,20 @@ createHaddockUnpacker root store runDB' = do
                         Nothing -> error "No haddocks exist for that snapshot"
                         Just src -> src $$ sinkHandle temph
                 hClose temph
-                createTree $ dirRawIdent dirs ident
                 let destdir = dirRawIdent dirs ident
+                createTree destdir
                 (Nothing, Nothing, Nothing, ph) <- createProcess
                     (proc "tar" ["xf", tempfp])
                         { cwd = Just $ fpToString destdir
                         }
                 ec <- waitForProcess ph
                 if ec == ExitSuccess then return () else throwM ec
+
+                -- TODO: run hoogle and the database update in
+                -- concurrent threads.
+
+                urlRender <- readIORef urlRenderRef
+                createHoogleDb dirs stackageEnt destdir urlRender
 
                 -- Determine which packages have documentation and update the
                 -- database appropriately
@@ -307,12 +318,8 @@ createHaddockUnpacker root store runDB' = do
                             [PackageStackage ==. sid]
                             [PackageHasHaddocks =. False]
                         sourceDirectory destdir $$ mapM_C (\fp -> do
-                            let (name', version) =
-                                    T.breakOnEnd "-"
-                                  $ fpToText
-                                  $ filename fp
-                                mname = stripSuffix "-" name'
-                            forM_ mname $ \name -> updateWhere
+                            let mnv = nameAndVersionFromPath fp
+                            forM_ mnv $ \(name, version) -> updateWhere
                                 [ PackageStackage ==. sid
                                 , PackageName' ==. PackageName name
                                 , PackageVersion ==. Version version
@@ -379,3 +386,82 @@ getUploadDocMapR = do
 
 putUploadDocMapR :: Handler Html
 putUploadDocMapR = getUploadDocMapR
+
+createHoogleDb :: Dirs
+               -> Entity Stackage
+               -> FilePath
+               -> (Route App -> [(Text, Text)] -> Text)
+               -> IO ()
+createHoogleDb dirs (Entity _ stackage) packagedir urlRender = do
+    let ident = stackageIdent stackage
+        hoogleDir = dirHoogleIdent dirs ident
+    createTree hoogleDir
+    -- Create hoogle binary databases for each package
+    runResourceT $ sourceDirectory packagedir $$ mapM_C (\fp ->
+        lift $ forM_ (nameAndVersionFromPath fp) $ \(name, version) -> do
+            src <- readFile (fp </> fpFromText name <.> "txt")
+            let -- Preprocess the haddock-generated manifest file.
+                src' = unlines $ haddockHacks (Just (unpack docsUrl)) $ lines src
+                docsUrl = urlRender (HaddockR (stackageSlug stackage) urlPieces) []
+                urlPieces = [name <> "-" <> version, "index.html"]
+                -- Compute the filepath of the resulting hoogle
+                -- database.
+                out = fpToString $ dirHoogleFp dirs ident [dirname]
+                dirname = fpToText $ filename fp <.> "hoo"
+            errs <- Hoogle.createDatabase "foo" Hoogle.Haskell [] src' out
+            -- TODO: handle these more gracefully?
+            putStrLn $ "Hoogle errors: " <> tshow errs
+        )
+    -- Merge the individual binary databases into one big database.
+    dbs <- listDirectory hoogleDir
+    let merged = hoogleDir </> "default.hoo"
+    Hoogle.mergeDatabase
+        (map fpToString (filter (/= merged) dbs))
+        (fpToString merged)
+
+nameAndVersionFromPath :: FilePath -> Maybe (Text, Text)
+nameAndVersionFromPath fp =
+    (\name -> (name, version)) <$> stripSuffix "-" name'
+  where
+    (name', version) = T.breakOnEnd "-" $ fpToText $ filename fp
+
+---------------------------------------------------------------------
+-- HADDOCK HACKS
+-- (Copied from hoogle-4.2.36/src/Recipe/Haddock.hs)
+-- Modifications:
+-- 1) Some name qualification
+-- 2) Explicit type sig due to polymorphic elem
+-- 3) Fixed an unused binding warning
+
+-- Eliminate @version
+-- Change :*: to (:*:), Haddock bug
+-- Change !!Int to !Int, Haddock bug
+-- Change instance [overlap ok] to instance, Haddock bug
+-- Change instance [incoherent] to instance, Haddock bug
+-- Change instance [safe] to instance, Haddock bug
+-- Change !Int to Int, HSE bug
+-- Drop {-# UNPACK #-}, Haddock bug
+-- Drop everything after where, Haddock bug
+
+haddockHacks :: Maybe Hoogle.URL -> [String] -> [String]
+haddockHacks loc src = maybe id haddockPackageUrl loc (translate src)
+    where
+        translate :: [String] -> [String]
+        translate = map (unwords . g . map f . words) . filter (not . isPrefixOf "@version ")
+
+        f "::" = "::"
+        f (':':xs) = "(:" ++ xs ++ ")"
+        f ('!':'!':x:xs) | isAlpha x = xs
+        f ('!':x:xs) | isAlpha x || x `elem` ("[(" :: String) = x:xs
+        f x | x `elem` ["[overlap","ok]","[incoherent]","[safe]"] = ""
+        f x | x `elem` ["{-#","UNPACK","#-}"] = ""
+        f x = x
+
+        g ("where":_) = []
+        g (x:xs) = x : g xs
+        g [] = []
+
+haddockPackageUrl :: Hoogle.URL -> [String] -> [String]
+haddockPackageUrl x = concatMap f
+    where f y | "@package " `isPrefixOf` y = ["@url " ++ x, y]
+              | otherwise = [y]

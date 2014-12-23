@@ -150,6 +150,7 @@ library
                  , blaze-html
                  , haddock-library
                  , yesod-gitrepo
+                 , hoogle
 
 executable         stackage-server
     if flag(library-only)
