@@ -226,7 +226,8 @@ makeFoundation useEcho conf = do
         flip runLoggingT (messageLoggerSource foundation logger) $
         flip (Database.Persist.runPool dbconf) p $ do
             runMigration migrateAll
-            checkMigration 1 $ fixSnapSlugs
+            checkMigration 1 fixSnapSlugs
+            checkMigration 2 setCorePackages
 
 
     let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
@@ -399,3 +400,14 @@ fixSnapSlugs =
             case ms of
                 Nothing -> update sid [StackageSlug =. slug]
                 Just _ -> loop (i + 1)
+
+setCorePackages :: MonadIO m => ReaderT SqlBackend m ()
+setCorePackages =
+    updateWhere [PackageName' <-. defaultCorePackages] [PackageCore =. True]
+  where
+    defaultCorePackages = map PackageName $ words =<<
+        [ "ghc hoopl bytestring unix haskeline Cabal base time xhtml"
+        , "haskell98 hpc filepath process array integer-gmp bin-package-db"
+        , "containers haskell2010 binary ghc-prim old-time old-locale rts"
+        , "terminfo transformers deepseq pretty template-haskell directory"
+        ]

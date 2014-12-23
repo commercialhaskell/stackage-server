@@ -34,12 +34,6 @@ $newline never
 
     <p>
         <strong>Note: #
-        Homebrew users please see #
-        <a href="https://github.com/fpco/stackage/wiki/Stackage-Server-FAQ#homebrew-users">
-            this page about potential issues.
-
-    <p>
-        <strong>Note: #
         For a global installation, please use #
         <a href=@{SnapshotR slug StackageCabalConfigR}?global=true>
             the global configuration instructions
