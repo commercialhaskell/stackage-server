@@ -5,7 +5,7 @@ import Data.Hackage
 import Handler.StackageSdist (addDownload)
 
 getHackageViewSdistR :: HackageView -> PackageNameVersion -> Handler TypedContent
-getHackageViewSdistR viewName (PackageNameVersion name version) = do
+getHackageViewSdistR viewName (PNVTarball name version) = do
     addDownload Nothing (Just viewName) name version
     msrc <- sourceHackageViewSdist viewName name version
     case msrc of
@@ -19,3 +19,4 @@ getHackageViewSdistR viewName (PackageNameVersion name version) = do
                 , ".tar.gz"
                 ]
             respondSource "application/x-gzip" $ mapOutput (Chunk . toBuilder) src
+getHackageViewSdistR _ _ = notFound

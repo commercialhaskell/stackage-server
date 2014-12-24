@@ -21,7 +21,14 @@ import           Text.Email.Validate
 
 -- | Page metadata package.
 getPackageR :: PackageName -> Handler Html
-getPackageR pn = do
+getPackageR pn =
+    packagePage pn Nothing (selectFirst [DocsName ==. pn] [Desc DocsUploaded])
+
+packagePage :: PackageName
+            -> Maybe Version
+            -> YesodDB App (Maybe (Entity Docs))
+            -> Handler Html
+packagePage pn mversion getDocs = do
     let haddocksLink ident version =
             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
     muid <- maybeAuthId
@@ -37,8 +44,8 @@ getPackageR pn = do
 
         metadata <- getBy404 (UniqueMetadata pn)
         revdeps' <- reverseDeps pn
-        mdocsent <- selectFirst [DocsName ==. pn] [Desc DocsUploaded]
-        mdocs <- forM mdocsent $ \(Entity docsid (Docs _ version _)) -> (,)
+        mdocsent <- getDocs
+        mdocs <- forM mdocsent $ \(Entity docsid (Docs _ version _ _)) -> (,)
             <$> pure version
             <*> (map entityVal <$>
                  selectList [ModuleDocs ==. docsid] [Asc ModuleName])
@@ -56,6 +63,7 @@ getPackageR pn = do
                )
 
     let ixInFavourOf = zip [0::Int ..] inFavourOf
+        displayedVersion = fromMaybe (metadataVersion metadata) mversion
 
     myTags <- maybe (return []) (runDB . user'sTagsOf pn) muid
     tags <- fmap (map (\(v,count') -> (v,count',any (==v) myTags)))

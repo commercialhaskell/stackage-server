@@ -58,10 +58,13 @@ $newline never
                 $forall (name,mversion,synopsis,mdoc) <- packages
                     <tr>
                         <td>
-                            <a href=@{PackageR name}>
-                                #{name}
-                                $maybe version <- mversion
+                            $maybe version <- mversion
+                                <a href=@{SnapshotR slug $ StackageSdistR $ PNVNameVersion name $ Version version}>
+                                    #{name}
                                     -#{asText version}
+                            $nothing
+                                <a href=@{SnapshotR slug $ StackageSdistR $ PNVName name}>
+                                    #{name}
                         <td>
                             $maybe doc <- mdoc
                                 <a href=@{doc}>Docs

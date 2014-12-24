@@ -17,7 +17,7 @@ $newline never
             <h1>
                #{pn} #
                <span .latest-version>
-                 #{metadataVersion metadata} #
+                 #{displayedVersion} #
             <p .synopsis>
                 #{synopsis}
                \ #

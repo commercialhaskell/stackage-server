@@ -61,7 +61,12 @@ getHaddockR slug rest = do
     ident <- runDB $ do
         ment <- getBy $ UniqueSnapshot slug
         case ment of
-            Just ent -> return $ stackageIdent $ entityVal ent
+            Just ent -> do
+                case rest of
+                    [pkgver] -> tryContentsRedirect ent pkgver
+                    [pkgver, "index.html"] -> tryContentsRedirect ent pkgver
+                    _ -> return ()
+                return $ stackageIdent $ entityVal ent
             Nothing -> do
                 Entity _ stackage <- getBy404
                                   $ UniqueStackage
@@ -97,6 +102,27 @@ getHaddockR slug rest = do
         | ("/" `isInfixOf` p) || p `member` (asHashSet $ setFromList ["", ".", ".."]) =
             permissionDenied "Invalid request"
         | otherwise = return ()
+
+-- | Try to redirect to the snapshot's package page instead of the
+-- Haddock-generated HTML.
+tryContentsRedirect :: Entity Stackage -> Text -> YesodDB App ()
+tryContentsRedirect (Entity sid Stackage {..}) pkgver = do
+    mdocs <- selectFirst
+        [ DocsName ==. name
+        , DocsVersion ==. version
+        , DocsSnapshot ==. Just sid
+        ]
+        []
+    forM_ mdocs $ const
+         $ redirect
+         $ SnapshotR stackageSlug
+         $ StackageSdistR
+         $ PNVNameVersion name version
+  where
+    (PackageName . dropDash -> name, Version -> version) = T.breakOnEnd "-" pkgver
+
+dropDash :: Text -> Text
+dropDash t = fromMaybe t $ stripSuffix "-" t
 
 getHaddockDir :: PackageSetIdent -> Handler (FilePath, FilePath)
 getHaddockDir ident = do
@@ -314,7 +340,7 @@ getUploadDocMapR = do
         <*> areq textField "Stackage ID" { fsName = Just "snapshot" } Nothing
     case res of
         FormSuccess (fi, snapshot) -> do
-            Entity _sid stackage <- runDB $ do
+            Entity sid stackage <- runDB $ do
                 ment <- getBy $ UniqueStackage $ PackageSetIdent snapshot
                 case ment of
                     Just ent -> return ent
@@ -330,7 +356,12 @@ getUploadDocMapR = do
                     now <- liftIO getCurrentTime
                     render <- getUrlRender
                     runDB $ forM_ (mapToList $ asMap m0) $ \(package, DocInfo version ms) -> do
-                        did <- insert $ Docs (PackageName package) version now
+                        did <- insert Docs
+                            { docsName = PackageName package
+                            , docsVersion = version
+                            , docsUploaded = now
+                            , docsSnapshot = Just sid
+                            }
                         forM_ (mapToList ms) $ \(name, pieces) -> do
                             let url = render $ HaddockR (stackageSlug stackage) pieces
                             insert_ $ Module did name url

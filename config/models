@@ -93,6 +93,7 @@ Docs
     name PackageName
     version Version
     uploaded UTCTime
+    snapshot StackageId Maybe
 Module
     docs DocsId
     name Text

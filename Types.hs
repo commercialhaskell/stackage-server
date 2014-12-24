@@ -23,17 +23,31 @@ newtype HackageView = HackageView { unHackageView :: Text }
 instance PersistFieldSql HackageView where
     sqlType = sqlType . liftM unHackageView
 
-data PackageNameVersion = PackageNameVersion !PackageName !Version
+data PackageNameVersion = PNVTarball !PackageName !Version
+                        | PNVNameVersion !PackageName !Version
+                        | PNVName !PackageName
     deriving (Show, Read, Typeable, Eq, Ord)
 
 instance PathPiece PackageNameVersion where
-    toPathPiece (PackageNameVersion x y) = concat [toPathPiece x, "-", toPathPiece y, ".tar.gz"]
+    toPathPiece (PNVTarball x y) = concat [toPathPiece x, "-", toPathPiece y, ".tar.gz"]
+    toPathPiece (PNVNameVersion x y) = concat [toPathPiece x, "-", toPathPiece y]
+    toPathPiece (PNVName x) = toPathPiece x
     fromPathPiece t' | Just t <- stripSuffix ".tar.gz" t' =
         case T.breakOnEnd "-" t of
             ("", _) -> Nothing
             (_, "") -> Nothing
-            (T.init -> name, version) -> Just $ PackageNameVersion (PackageName name) (Version version)
-    fromPathPiece _ = Nothing
+            (T.init -> name, version) -> Just $ PNVTarball (PackageName name) (Version version)
+    fromPathPiece t = Just $
+        case T.breakOnEnd "-" t of
+            ("", _) -> PNVName (PackageName t)
+            (T.init -> name, version) | validVersion version ->
+                PNVNameVersion (PackageName name) (Version version)
+            _ -> PNVName (PackageName t)
+      where
+        validVersion =
+            all f
+          where
+            f c = (c == '.') || ('0' <= c && c <= '9')
 
 data StoreKey = HackageCabal !PackageName !Version
               | HackageSdist !PackageName !Version
