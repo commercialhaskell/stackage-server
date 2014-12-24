@@ -213,6 +213,7 @@ putUploadStackageR = do
                                     ]
                                 msrc <- storeRead (HackageCabal name version)
                                 case msrc of
+                                    Nothing | name == "base" -> return () -- workaround in case base isn't uploaded to Hackage
                                     Nothing -> invalidArgs ["Unknown Hackage name/version: " ++ tshow (name, version)]
                                     Just src -> addFile False name version src
 
