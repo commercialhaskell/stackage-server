@@ -42,12 +42,18 @@ getStackageSdistR slug (PNVNameVersion name version) = packagePage
   name (Just version)
   (do
     Entity sid _ <- getBy404 $ UniqueSnapshot slug
-    selectFirst
-        [ DocsName ==. name
-        , DocsVersion ==. version
-        , DocsSnapshot ==. Just sid
+    let loop [] = return Nothing
+        loop (x:xs) = do
+            mdocs <- selectFirst x []
+            case mdocs of
+                Nothing -> loop xs
+                Just _ -> return mdocs
+    loop
+        [ [DocsName ==. name, DocsVersion ==. version, DocsSnapshot ==. Just sid]
+        , [DocsName ==. name, DocsVersion ==. version]
+        , [DocsName ==. name]
         ]
-        []) >>= sendResponse
+    ) >>= sendResponse
 
 addDownload :: Maybe PackageSetIdent
             -> Maybe HackageView
