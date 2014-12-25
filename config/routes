@@ -24,6 +24,7 @@
     /bundle StackageBundleR GET
     /package/#PackageNameVersion StackageSdistR GET
     /packages SnapshotPackagesR GET
+    /docs DocsR GET
 
 /hackage-view/#HackageView/00-index.tar.gz HackageViewIndexR GET
 /hackage-view/#HackageView/package/#PackageNameVersion HackageViewSdistR GET

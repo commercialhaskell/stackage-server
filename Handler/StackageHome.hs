@@ -220,3 +220,30 @@ getSnapshotPackagesR slug = do
             $(widgetFile "package-list")
   where strip x = fromMaybe x (stripSuffix "." x)
         mback = Just (SnapshotR slug StackageHomeR, "Return to snapshot")
+
+getDocsR :: SnapSlug -> Handler Html
+getDocsR slug = do
+    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+    defaultLayout $ do
+        setTitle $ toHtml $ "Module list for " ++ toPathPiece slug
+        cachedWidget (20 * 60) ("module-list-" ++ toPathPiece slug) $ do
+            modules' <- handlerToWidget $ runDB $ E.select $ E.from $ \(d,m) -> do
+                E.where_ $
+                    (d E.^. DocsSnapshot E.==. E.val (Just sid)) E.&&.
+                    (d E.^. DocsId E.==. m E.^. ModuleDocs)
+                E.orderBy [ E.asc $ m E.^. ModuleName
+                          , E.asc $ d E.^. DocsName
+                          ]
+                return
+                    ( m E.^. ModuleName
+                    , m E.^. ModuleUrl
+                    , d E.^. DocsName
+                    , d E.^. DocsVersion
+                    )
+            let modules = flip map modules' $ \(name, url, package, version) ->
+                    ( E.unValue name
+                    , E.unValue url
+                    , E.unValue package
+                    , E.unValue version
+                    )
+            $(widgetFile "doc-list")

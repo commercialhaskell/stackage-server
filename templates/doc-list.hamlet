@@ -1,0 +1,8 @@
+<h1>Module listing for #{toPathPiece slug}
+<p>
+    <a href=@{SnapshotR slug DocsR}>Return to snapshot
+<ul>
+    $forall (name, url, package, version) <- modules
+        <li>
+            <a href=#{url}>#{name}
+            (#{package}-#{version})
