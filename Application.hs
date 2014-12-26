@@ -68,6 +68,7 @@ import           Handler.CompressorStatus
 import           Handler.Tag
 import           Handler.BannedTags
 import           Handler.RefreshDeprecated
+import           Handler.UploadV2
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -198,6 +199,8 @@ makeFoundation useEcho conf = do
             loadWebsiteContent
 #endif
 
+    snapshotInfoCache' <- newIORef mempty
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
             { settings = conf
@@ -215,6 +218,7 @@ makeFoundation useEcho conf = do
             , widgetCache = widgetCache'
             , compressorStatus = statusRef
             , websiteContent = websiteContent'
+            , snapshotInfoCache = snapshotInfoCache'
             }
 
     env <- getEnvironment

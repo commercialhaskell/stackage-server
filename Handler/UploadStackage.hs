@@ -122,6 +122,7 @@ putUploadStackageR = do
                         , stackageDesc = "No description provided"
                         , stackageHasHaddocks = False
                         , stackageSlug = baseSlug
+                        , stackageYaml = False
                         }
 
                 -- Evil lazy I/O thanks to tar package

@@ -22,6 +22,8 @@ import           Yesod.Core.Types (Logger, GWData)
 import           Yesod.Default.Config
 import           Yesod.Default.Util (addStaticContentExternal)
 import           Yesod.GitRepo
+import Stackage.ServerBundle (SnapshotType, DocMap)
+import Stackage.BuildPlan (BuildPlan)
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -47,6 +49,13 @@ data App = App
     , widgetCache :: !(IORef (HashMap Text (UTCTime, GWData (Route App))))
     , compressorStatus :: !(IORef Text)
     , websiteContent :: GitRepo WebsiteContent
+    , snapshotInfoCache :: !(IORef (HashMap PackageSetIdent SnapshotInfo))
+    }
+
+data SnapshotInfo = SnapshotInfo
+    { siType :: !SnapshotType
+    , siPlan :: !BuildPlan
+    , siDocMap :: !DocMap
     }
 
 type ForceUnpack = Bool
@@ -152,6 +161,7 @@ instance Yesod App where
 
     maximumContentLength _ (Just UploadStackageR) = Just 50000000
     maximumContentLength _ (Just UploadHaddockR{}) = Just 100000000
+    maximumContentLength _ (Just UploadV2R) = Just 100000000
     maximumContentLength _ _ = Just 2000000
 
 instance ToMarkup (Route App) where

@@ -6,12 +6,15 @@ import Data.Time (FormatTime)
 import Data.Slug (SnapSlug)
 import qualified Database.Esqueleto as E
 import Handler.PackageList (cachedWidget)
+import Stackage.ServerBundle (PackageDocs (..))
+import Control.Monad.Writer.Strict (tell, execWriter)
+import Stackage.BuildPlan (bpSystemInfo, bpPackages, ppVersion)
+import Stackage.BuildConstraints (siCorePackages)
+import Stackage.Prelude (display)
 
 getStackageHomeR :: SnapSlug -> Handler Html
 getStackageHomeR slug = do
-    stackage <- runDB $ do
-        Entity _ stackage <- getBy404 $ UniqueSnapshot slug
-        return stackage
+    (Entity sid stackage, msi) <- getStackage slug
 
     hasBundle <- storeExists $ SnapshotBundle $ stackageIdent stackage
     let minclusive =
@@ -21,7 +24,7 @@ getStackageHomeR slug = do
                        then Just False
                        else Nothing
         base = maybe 0 (const 1) minclusive :: Int
-    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+
     defaultLayout $ do
         setTitle $ toHtml $ stackageTitle stackage
         cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
@@ -70,7 +73,7 @@ getStackageHomeR slug = do
 
 getStackageMetadataR :: SnapSlug -> Handler TypedContent
 getStackageMetadataR slug = do
-    Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
+    (Entity sid _, msi) <- getStackage slug
     respondSourceDB typePlain $ do
         sendChunkBS "Override packages\n"
         sendChunkBS "=================\n"
@@ -97,7 +100,7 @@ getStackageMetadataR slug = do
 
 getStackageCabalConfigR :: SnapSlug -> Handler TypedContent
 getStackageCabalConfigR slug = do
-    Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
+    (Entity sid _, msi) <- getStackage slug
     render <- getUrlRender
 
     mdownload <- lookupGetParam "download"
@@ -107,15 +110,30 @@ getStackageCabalConfigR slug = do
     mglobal <- lookupGetParam "global"
     let isGlobal = mglobal == Just "true"
 
-    respondSourceDB typePlain $ stream isGlobal render sid
+    respondSourceDB typePlain $
+        stream (maybe (Left sid) Right msi) $=
+        (if isGlobal then conduitGlobal else conduitLocal) render
   where
-    stream isGlobal render sid =
+    stream (Left sid) =
         selectSource
             [ PackageStackage ==. sid
             ]
             [ Asc PackageName'
             , Asc PackageVersion
-            ] $= (if isGlobal then conduitGlobal else conduitLocal) render
+            ] $= mapC (\(Entity _ p) ->
+                            ( toPathPiece $ packageName' p
+                            , case packageCore p of
+                                Just True -> Nothing
+                                _ -> Just $ toPathPiece $ packageVersion p
+                            ))
+    stream (Right SnapshotInfo {..}) = forM_ (mapToList m) $ \(name, mversion) ->
+        yield ( display name
+              , display <$> mversion
+              )
+      where
+        core = fmap (const Nothing) $ siCorePackages $ bpSystemInfo siPlan
+        noncore = fmap (Just . ppVersion) $ bpPackages siPlan
+        m = core ++ noncore
 
     conduitGlobal render = do
         headerGlobal render
@@ -145,28 +163,28 @@ getStackageCabalConfigR slug = do
         toBuilder (render $ SnapshotR slug StackageHomeR) ++
         toBuilder '\n'
 
-    constraint p
-        | Just True <- packageCore p = toBuilder $ asText " installed"
-        | otherwise = toBuilder (asText " ==") ++
-                      toBuilder (toPathPiece $ packageVersion p)
+    constraint Nothing = toBuilder $ asText " installed"
+    constraint (Just version) =
+                      toBuilder (asText " ==") ++
+                      toBuilder (toPathPiece version)
 
-    showPackageGlobal (Entity _ p) =
+    showPackageGlobal (name, mversion) =
         toBuilder (asText "constraint: ") ++
-        toBuilder (toPathPiece $ packageName' p) ++
-        constraint p ++
+        toBuilder (toPathPiece name) ++
+        constraint mversion ++
         toBuilder '\n'
 
     goFirst = do
         mx <- await
-        forM_ mx $ \(Entity _ p) -> yield $ Chunk $
+        forM_ mx $ \(name, mversion) -> yield $ Chunk $
             toBuilder (asText "constraints: ") ++
-            toBuilder (toPathPiece $ packageName' p) ++
-            constraint p
+            toBuilder (toPathPiece name) ++
+            constraint mversion
 
-    showPackageLocal (Entity _ p) =
+    showPackageLocal (name, mversion) =
         toBuilder (asText ",\n             ") ++
-        toBuilder (toPathPiece $ packageName' p) ++
-        constraint p
+        toBuilder (toPathPiece name) ++
+        constraint mversion
 
 yearMonthDay :: FormatTime t => t -> String
 yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
@@ -180,7 +198,7 @@ getOldStackageR ident pieces = do
 
 getSnapshotPackagesR :: SnapSlug -> Handler Html
 getSnapshotPackagesR slug = do
-    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+    (Entity sid _stackage, msi) <- getStackage slug
     defaultLayout $ do
         setTitle $ toHtml $ "Package list for " ++ toPathPiece slug
         cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
@@ -223,27 +241,44 @@ getSnapshotPackagesR slug = do
 
 getDocsR :: SnapSlug -> Handler Html
 getDocsR slug = do
-    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+    (Entity sid _stackage, msi) <- getStackage slug
     defaultLayout $ do
         setTitle $ toHtml $ "Module list for " ++ toPathPiece slug
         cachedWidget (20 * 60) ("module-list-" ++ toPathPiece slug) $ do
-            modules' <- handlerToWidget $ runDB $ E.select $ E.from $ \(d,m) -> do
-                E.where_ $
-                    (d E.^. DocsSnapshot E.==. E.val (Just sid)) E.&&.
-                    (d E.^. DocsId E.==. m E.^. ModuleDocs)
-                E.orderBy [ E.asc $ m E.^. ModuleName
-                          , E.asc $ d E.^. DocsName
-                          ]
-                return
-                    ( m E.^. ModuleName
-                    , m E.^. ModuleUrl
-                    , d E.^. DocsName
-                    , d E.^. DocsVersion
-                    )
-            let modules = flip map modules' $ \(name, url, package, version) ->
-                    ( E.unValue name
-                    , E.unValue url
-                    , E.unValue package
-                    , E.unValue version
-                    )
+            modules <- handlerToWidget $ maybe (getFromDB sid) convertYaml msi
             $(widgetFile "doc-list")
+  where
+    getFromDB sid = do
+        modules' <- runDB $ E.select $ E.from $ \(d,m) -> do
+            E.where_ $
+                (d E.^. DocsSnapshot E.==. E.val (Just sid)) E.&&.
+                (d E.^. DocsId E.==. m E.^. ModuleDocs)
+            E.orderBy [ E.asc $ m E.^. ModuleName
+                      , E.asc $ d E.^. DocsName
+                      ]
+            return
+                ( m E.^. ModuleName
+                , m E.^. ModuleUrl
+                , d E.^. DocsName
+                , d E.^. DocsVersion
+                )
+        return $ flip map modules' $ \(name, url, package, version) ->
+                ( E.unValue name
+                , E.unValue url
+                , E.unValue package
+                , E.unValue version
+                )
+
+    convertYaml :: SnapshotInfo -> Handler [(Text, Text, PackageName, Version)]
+    convertYaml SnapshotInfo {..} = do
+        render <- getUrlRender
+        return $ sortBy comp $ ($ []) $ execWriter $ do
+            forM_ (mapToList siDocMap) $ \(PackageName -> package, pd) -> do
+                let version = Version $ pdVersion pd
+                forM_ (mapToList $ pdModules pd) $ \(modname, path) -> do
+                    let url = render $ HaddockR
+                            slug
+                            path
+                    tell ((modname, url, package, version):)
+      where
+        comp (a, _, x, _) (b, _, y, _) = compare (a, x) (b, y)

@@ -23,6 +23,7 @@ Stackage
     title Text
     desc Text
     hasHaddocks Bool default=false
+    yaml Bool default=false
     UniqueStackage ident
     UniqueSnapshot slug
 

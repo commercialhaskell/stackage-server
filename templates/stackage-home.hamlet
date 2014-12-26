@@ -4,11 +4,10 @@ $newline never
         #{stackageTitle stackage}
     <p>
         Published on #{yearMonthDay (stackageUploaded stackage)}
-        $if hasBundle
-           <span .separator>
-           <span>
-               <a href=@{SnapshotR slug StackageCabalConfigR}>
-                   \cabal.config
+        <span .separator>
+        <span>
+            <a href=@{SnapshotR slug StackageCabalConfigR}>
+                \cabal.config
     <h3>Setup guide
     <div class="accordion" id="accordion2">
 

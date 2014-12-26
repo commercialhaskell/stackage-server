@@ -202,30 +202,6 @@ gzipHash dirs suffix = do
     src = dirRawRoot dirs </> suffix
     dst = dirGzRoot dirs </> suffix
 
-data Dirs = Dirs
-    { dirRawRoot :: !FilePath
-    , dirGzRoot :: !FilePath
-    , dirCacheRoot :: !FilePath
-    }
-
-getDirs :: Handler Dirs
-getDirs = mkDirs . haddockRootDir <$> getYesod
-
-mkDirs :: FilePath -> Dirs
-mkDirs dir = Dirs
-    { dirRawRoot = dir </> "idents-raw"
-    , dirGzRoot = dir </> "idents-gz"
-    , dirCacheRoot = dir </> "cachedir"
-    }
-
-dirGzIdent, dirRawIdent :: Dirs -> PackageSetIdent -> FilePath
-dirGzIdent dirs ident = dirGzRoot dirs </> fpFromText (toPathPiece ident)
-dirRawIdent dirs ident = dirRawRoot dirs </> fpFromText (toPathPiece ident)
-
-dirGzFp, dirRawFp :: Dirs -> PackageSetIdent -> [Text] -> FilePath
-dirGzFp dirs ident rest = dirGzIdent dirs ident </> mconcat (map fpFromText rest)
-dirRawFp dirs ident rest = dirRawIdent dirs ident </> mconcat (map fpFromText rest)
-
 dirCacheFp :: Dirs -> Digest SHA1 -> FilePath
 dirCacheFp dirs digest =
     dirCacheRoot dirs </> fpFromText x </> fpFromText y <.> "gz"
