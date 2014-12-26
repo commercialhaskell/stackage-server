@@ -267,6 +267,8 @@ createHaddockUnpacker root store runDB' = do
   where
     dirs = mkDirs root
 
+    removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
+
     doDirsExist ident = do
         e1 <- isDirectory $ dirGzIdent dirs ident
         if e1
@@ -276,8 +278,8 @@ createHaddockUnpacker root store runDB' = do
         toRun <-
             if forceUnpack
                 then do
-                    removeTree $ dirRawIdent dirs ident
-                    removeTree $ dirGzIdent dirs ident
+                    removeTreeIfExists $ dirRawIdent dirs ident
+                    removeTreeIfExists $ dirGzIdent dirs ident
                     return True
                 else not <$> doDirsExist ident
         when toRun $ do
