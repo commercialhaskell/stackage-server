@@ -82,6 +82,7 @@ library
                 RecordWildCards
                 ScopedTypeVariables
                 BangPatterns
+                TupleSections
 
     build-depends:
                     base                          >= 4

@@ -12,6 +12,12 @@ import Stackage.BuildPlan (bpSystemInfo, bpPackages, ppVersion)
 import Stackage.BuildConstraints (siCorePackages)
 import Stackage.Prelude (display)
 
+allPackageVersions :: SnapshotInfo -> Map Text Text
+allPackageVersions SnapshotInfo {..} =
+    mapKeysWith const display $ map display $
+    fmap ppVersion (bpPackages siPlan) ++
+    siCorePackages (bpSystemInfo siPlan)
+
 getStackageHomeR :: SnapSlug -> Handler Html
 getStackageHomeR slug = do
     (Entity sid stackage, msi) <- getStackage slug
@@ -28,59 +34,99 @@ getStackageHomeR slug = do
     defaultLayout $ do
         setTitle $ toHtml $ stackageTitle stackage
         cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
-            let maxPackages = 5000
-            (packageListClipped, packages') <- handlerToWidget $ runDB $ do
-                packages' <- E.select $ E.from $ \(u,m,p) -> do
-                    E.where_ $
-                        (m E.^. MetadataName E.==. u E.^. UploadedName) E.&&.
-                        (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
-                        (p E.^. PackageStackage E.==. E.val sid)
-                    E.orderBy [E.asc $ u E.^. UploadedName]
-                    E.groupBy ( u E.^. UploadedName
-                              , m E.^. MetadataSynopsis
-                              )
-                    E.limit maxPackages
-                    return
-                        ( u E.^. UploadedName
-                        , m E.^. MetadataSynopsis
-                        , E.max_ (p E.^. PackageVersion)
-                        , E.max_ $ E.case_
-                            [ ( p E.^. PackageHasHaddocks
-                              , p E.^. PackageVersion
-                              )
-                            ]
-                            (E.val (Version ""))
-                        )
-                packageCount <- count [PackageStackage ==. sid]
-                let packageListClipped = packageCount > maxPackages
-                return (packageListClipped, packages')
-            let packages = flip map packages' $ \(name, syn, latestVersion, forceNotNull -> mversion) ->
-                    ( E.unValue name
-                    , fmap unVersion $ E.unValue latestVersion
-                    , strip $ E.unValue syn
-                    , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
-                        [ toPathPiece $ E.unValue name
-                        , "-"
-                        , version
-                        ]
-                    )
-                forceNotNull (E.Value Nothing) = Nothing
-                forceNotNull (E.Value (Just (Version v)))
-                    | null v = Nothing
-                    | otherwise = Just v
+            (packages, packageListClipped) <- handlerToWidget $ case msi of
+                Nothing -> packagesFromDB sid
+                Just si -> packagesFromSI si
             $(widgetFile "stackage-home")
-  where strip x = fromMaybe x (stripSuffix "." x)
+  where
+    strip x = fromMaybe x (stripSuffix "." x)
+
+    -- name, maybe version, synopsis, maybe doc route
+    packagesFromSI :: SnapshotInfo -> Handler ([(PackageName, Maybe Text, Text, Maybe (Route App))], Bool)
+    packagesFromSI si@SnapshotInfo {..} =
+        fmap (, False) $ runDB $ mapM go $ mapToList $ allPackageVersions si
+      where
+        go :: (Text, Text) -> YesodDB App (PackageName, Maybe Text, Text, Maybe (Route App))
+        go (name, version) = do
+            let name' = PackageName name
+            -- FIXME cache the synopsis metadata somewhere
+            s <- E.select $ E.from $ \m -> do
+                E.where_ $ m E.^. MetadataName E.==. E.val name'
+                return $ m E.^. MetadataSynopsis
+            return
+                ( name'
+                , Just version
+                , fromMaybe "No synopsis available" $ listToMaybe $ map E.unValue $ s
+                , case lookup name siDocMap of
+                    Nothing -> Nothing
+                    Just _ -> Just $ SnapshotR slug $ StackageSdistR
+                            $ PNVNameVersion name' (Version version)
+                )
+
+    packagesFromDB :: StackageId -> Handler ([(PackageName, Maybe Text, Text, Maybe (Route App))], Bool)
+    packagesFromDB sid = do
+        let maxPackages = 5000
+        (packageListClipped, packages') <- runDB $ do
+            packages' <- E.select $ E.from $ \(u,m,p) -> do
+                E.where_ $
+                    (m E.^. MetadataName E.==. u E.^. UploadedName) E.&&.
+                    (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
+                    (p E.^. PackageStackage E.==. E.val sid)
+                E.orderBy [E.asc $ u E.^. UploadedName]
+                E.groupBy ( u E.^. UploadedName
+                          , m E.^. MetadataSynopsis
+                          )
+                E.limit maxPackages
+                return
+                    ( u E.^. UploadedName
+                    , m E.^. MetadataSynopsis
+                    , E.max_ (p E.^. PackageVersion)
+                    , E.max_ $ E.case_
+                        [ ( p E.^. PackageHasHaddocks
+                          , p E.^. PackageVersion
+                          )
+                        ]
+                        (E.val (Version ""))
+                    )
+            packageCount <- count [PackageStackage ==. sid]
+            let packageListClipped = packageCount > maxPackages
+            return (packageListClipped, packages')
+        let packages = flip map packages' $ \(name, syn, latestVersion, forceNotNull -> mversion) ->
+                ( E.unValue name
+                , fmap unVersion $ E.unValue latestVersion
+                , strip $ E.unValue syn
+                , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
+                    [ toPathPiece $ E.unValue name
+                    , "-"
+                    , version
+                    ]
+                )
+            forceNotNull (E.Value Nothing) = Nothing
+            forceNotNull (E.Value (Just (Version v)))
+                | null v = Nothing
+                | otherwise = Just v
+        return (packages, packageListClipped)
 
 getStackageMetadataR :: SnapSlug -> Handler TypedContent
 getStackageMetadataR slug = do
     (Entity sid _, msi) <- getStackage slug
-    respondSourceDB typePlain $ do
-        sendChunkBS "Override packages\n"
-        sendChunkBS "=================\n"
-        stream sid True
-        sendChunkBS "\nPackages from Hackage\n"
-        sendChunkBS   "=====================\n"
-        stream sid False
+    respondSourceDB typePlain $
+        case msi of
+            Nothing -> do
+                sendChunkBS "Override packages\n"
+                sendChunkBS "=================\n"
+                stream sid True
+                sendChunkBS "\nPackages from Hackage\n"
+                sendChunkBS   "=====================\n"
+                stream sid False
+            Just si -> do
+                sendChunkBS "Packages from Hackage\n"
+                sendChunkBS "=====================\n"
+                forM_ (mapToList $ allPackageVersions si) $ \(name, version) -> do
+                    sendChunkText name
+                    sendChunkBS "-"
+                    sendChunkText version
+                    sendChunkBS "\n"
   where
     stream sid isOverwrite =
         selectSource
@@ -196,48 +242,10 @@ getOldStackageR ident pieces = do
         Nothing -> notFound
         Just route -> redirect (route :: Route App)
 
+-- | Just here for historical reasons, this functionality has been merged into
+-- the snapshot homepage.
 getSnapshotPackagesR :: SnapSlug -> Handler Html
-getSnapshotPackagesR slug = do
-    (Entity sid _stackage, msi) <- getStackage slug
-    defaultLayout $ do
-        setTitle $ toHtml $ "Package list for " ++ toPathPiece slug
-        cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
-            packages' <- handlerToWidget $ runDB $ E.select $ E.from $ \(u,m,p) -> do
-                E.where_ $
-                    (m E.^. MetadataName E.==. u E.^. UploadedName) E.&&.
-                    (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
-                    (p E.^. PackageStackage E.==. E.val sid)
-                E.orderBy [E.asc $ u E.^. UploadedName]
-                E.groupBy ( u E.^. UploadedName
-                          , m E.^. MetadataSynopsis
-                          )
-                return
-                    ( u E.^. UploadedName
-                    , m E.^. MetadataSynopsis
-                    , E.max_ $ E.case_
-                        [ ( p E.^. PackageHasHaddocks
-                          , p E.^. PackageVersion
-                          )
-                        ]
-                        (E.val (Version ""))
-                    )
-            let packages = flip map packages' $ \(name, syn, forceNotNull -> mversion) ->
-                    ( E.unValue name
-                    , mversion
-                    , strip $ E.unValue syn
-                    , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
-                        [ toPathPiece $ E.unValue name
-                        , "-"
-                        , version
-                        ]
-                    )
-                forceNotNull (E.Value Nothing) = Nothing
-                forceNotNull (E.Value (Just (Version v)))
-                    | null v = Nothing
-                    | otherwise = Just v
-            $(widgetFile "package-list")
-  where strip x = fromMaybe x (stripSuffix "." x)
-        mback = Just (SnapshotR slug StackageHomeR, "Return to snapshot")
+getSnapshotPackagesR = getStackageHomeR
 
 getDocsR :: SnapSlug -> Handler Html
 getDocsR slug = do

@@ -50,7 +50,7 @@ getStackage slug = do
     return (ent, msi)
 
 getSnapshotInfoByIdent :: PackageSetIdent -> Handler SnapshotInfo
-getSnapshotInfoByIdent ident = do
+getSnapshotInfoByIdent ident = withCache $ do
     dirs <- getDirs
     let sourceDocFile rest = do
             let rawfp = fpToString $ dirRawFp dirs ident rest
@@ -68,10 +68,24 @@ getSnapshotInfoByIdent ident = do
             bs <- sourceDocFile [name] $$ takeCE maxFileSize =$ foldC
             either throwM return $ decodeEither' bs
 
+    master <- getYesod
+    liftIO $ haddockUnpacker master False ident
+
     siType <- yaml "build-type.yaml"
     siPlan <- yaml "build-plan.yaml"
     siDocMap <- yaml "docs-map.yaml"
     return SnapshotInfo {..}
+  where
+    withCache inner = do
+        cacheRef <- snapshotInfoCache <$> getYesod
+        cache <- readIORef cacheRef
+        case lookup ident cache of
+            Just x -> return x
+            Nothing -> do
+                x <- inner
+                atomicModifyIORef' cacheRef $ \m ->
+                    (insertMap ident x m, x)
+
 
 data Dirs = Dirs
     { dirRawRoot :: !FilePath
