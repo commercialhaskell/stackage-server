@@ -1,15 +1,16 @@
 module Handler.Hoogle where
 
+import           Control.DeepSeq (NFData(..))
+import           Control.DeepSeq.Generics (genericRnf)
 import           Control.Spoon (spoon)
 import           Data.Data (Data (..))
 import           Data.Slug (SnapSlug)
 import           Data.Text.Read (decimal)
+import           Filesystem (isFile)
 import           Handler.Haddock (dirHoogleFp, getDirs)
 import qualified Hoogle
 import           Import
 import           Text.Blaze.Html (preEscapedToHtml)
-import           Control.DeepSeq (NFData(..))
-import           Control.DeepSeq.Generics (genericRnf)
 
 getHoogleR :: SnapSlug -> Handler Html
 getHoogleR slug = do
@@ -27,9 +28,15 @@ getHoogleR slug = do
                 Just (Right (i, "")) -> i
                 _ -> 1
         offset = (page - 1) * perPage
-    Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+    stackageEnt@(Entity _ stackage) <- runDB $ getBy404 $ UniqueSnapshot slug
+    -- Unpack haddocks and generate hoogle DB, if necessary.
+    master <- getYesod
+    liftIO $ haddockUnpacker master False stackageEnt
     let databasePath = dirHoogleFp dirs (stackageIdent stackage) ["default.hoo"]
         heDatabase = liftIO $ Hoogle.loadDatabase (fpToString databasePath)
+    -- If the hoogle DB isn't yet generated, yield 404.
+    dbExists <- liftIO $ isFile databasePath
+    when (not dbExists) notFound
     mresults <- case mquery of
         Just query -> runHoogleQuery heDatabase HoogleQueryInput
             { hqiQueryInput = query
