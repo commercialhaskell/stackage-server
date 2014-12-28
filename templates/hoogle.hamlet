@@ -1,11 +1,13 @@
 <div .container>
     <div .content>
         <h1>Hoogle Search
+        <p>Within <a href=@{snapshotLink}>#{stackageTitle stackage}</a>
         ^{hoogleForm}
         $case mresults
-            $of HoogleQueryBad _err
-            $of HoogleQueryOutput query results mtotalCount
-                <p>Searched for: #{preEscapedToHtml query}
+            $of HoogleQueryBad err
+                <p>#{err}
+                <p>For information on what queries should look like, see the <a href="http://www.haskell.org/haskellwiki/Hoogle">hoogle user manual</a>.
+            $of HoogleQueryOutput _query results mtotalCount
                 $if null results
                     <p>Your search produced no results.
                 $else

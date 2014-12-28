@@ -37,12 +37,13 @@ getHoogleR slug = do
             , hqiLimitTo = count'
             , hqiOffsetBy = offset
             }
-        Nothing -> return $ HoogleQueryBad "No query provided"
-    let q = fromMaybe "" mquery
+        Nothing -> return $ HoogleQueryOutput "" [] Nothing
+    let queryText = fromMaybe "" mquery
         pageLink p = (HoogleR slug
             , (if exact then (("exact", "true"):) else id)
             $ (maybe id (\q' -> (("q", q'):)) mquery)
               [("page", tshow p)])
+        snapshotLink = SnapshotR slug StackageHomeR
         hoogleForm = $(widgetFile "hoogle-form")
     defaultLayout $ do
         setTitle "Hoogle Search"

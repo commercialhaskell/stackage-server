@@ -6,6 +6,16 @@ ol.search-results {
 
 .self {
   margin-bottom: 0;
+  /* Use bold instead of italics to indicate matching part of search */
+  a {
+    b {
+      font-weight: normal;
+    }
+    i {
+      font-weight: bold;
+      font-style: normal;
+    }
+  }
 }
 
 table.sources {
@@ -24,7 +34,7 @@ table.sources {
 
 .docs {
   white-space: pre-wrap;
-  background: #f8f8f8;
+  background: #e8e8e8;
 }
 
 .docs, .nodocs {
