@@ -5,6 +5,8 @@ module Handler.Haddock
     , getUploadDocMapR
     , putUploadDocMapR
     , createHaddockUnpacker
+    -- Exported for use in Handler.Hoogle
+    , Dirs, getDirs, dirHoogleFp
     ) where
 
 import Import
