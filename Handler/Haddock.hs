@@ -314,20 +314,19 @@ createHaddockUnpacker root store runDB' urlRenderRef = do
                 -- Determine which packages have documentation and update the
                 -- database appropriately
                 runResourceT $ runDB' $ do
-                    ment <- getBy $ UniqueStackage ident
-                    forM_ ment $ \(Entity sid _) -> do
-                        updateWhere
-                            [PackageStackage ==. sid]
-                            [PackageHasHaddocks =. False]
-                        sourceDirectory destdir $$ mapM_C (\fp -> do
-                            let mnv = nameAndVersionFromPath fp
-                            forM_ mnv $ \(name, version) -> updateWhere
-                                [ PackageStackage ==. sid
-                                , PackageName' ==. PackageName name
-                                , PackageVersion ==. Version version
-                                ]
-                                [PackageHasHaddocks =. True]
-                            )
+                    let sid = entityKey stackageEnt
+                    updateWhere
+                        [PackageStackage ==. sid]
+                        [PackageHasHaddocks =. False]
+                    sourceDirectory destdir $$ mapM_C (\fp -> do
+                        let mnv = nameAndVersionFromPath fp
+                        forM_ mnv $ \(name, version) -> updateWhere
+                            [ PackageStackage ==. sid
+                            , PackageName' ==. PackageName name
+                            , PackageVersion ==. Version version
+                            ]
+                            [PackageHasHaddocks =. True]
+                        )
 
 data DocInfo = DocInfo Version (Map Text [Text])
 instance FromJSON DocInfo where
