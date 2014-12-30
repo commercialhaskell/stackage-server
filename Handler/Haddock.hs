@@ -12,13 +12,14 @@ module Handler.Haddock
 import Import
 import Data.BlobStore
 import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile, removeDirectory, listDirectory)
+import System.Directory (getTemporaryDirectory)
 import Control.Concurrent (forkIO)
-import System.IO.Temp (withSystemTempFile, withTempFile)
+import System.IO.Temp (withSystemTempFile, withTempFile, createTempDirectory)
 import System.Process (createProcess, proc, cwd, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
 import Network.Mime (defaultMimeLookup)
 import Crypto.Hash.Conduit (sinkHash)
-import System.IO (IOMode (ReadMode), withBinaryFile)
+import System.IO (IOMode (ReadMode), withBinaryFile, openBinaryFile)
 import Data.Conduit.Zlib (gzip)
 import System.Posix.Files (createLink)
 import qualified Data.ByteString.Base16 as B16
@@ -31,6 +32,7 @@ import qualified Data.Yaml as Y
 import Data.Aeson (withObject)
 import qualified Hoogle
 import Data.Char (isAlpha)
+import Control.Monad.Trans.Resource (allocate, resourceForkIO, release)
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"
@@ -309,7 +311,13 @@ createHaddockUnpacker root store runDB' urlRenderRef = do
                 -- concurrent threads.
 
                 urlRender <- readIORef urlRenderRef
-                createHoogleDb dirs stackageEnt destdir urlRender
+                runResourceT $ do
+                    tmp <- liftIO getTemporaryDirectory
+                    (_releasekey, hoogletemp) <- allocate
+                        (fpFromString <$> createTempDirectory tmp "hoogle-database-gen")
+                        removeTree
+                    copyHoogleTextFiles destdir hoogletemp
+                    void $ resourceForkIO $ createHoogleDb dirs stackageEnt hoogletemp urlRender
 
                 -- Determine which packages have documentation and update the
                 -- database appropriately
@@ -388,37 +396,62 @@ getUploadDocMapR = do
 putUploadDocMapR :: Handler Html
 putUploadDocMapR = getUploadDocMapR
 
+copyHoogleTextFiles :: FilePath -- ^ raw unpacked Haddock files
+                    -> FilePath -- ^ temporary work directory
+                    -> ResourceT IO ()
+copyHoogleTextFiles raw tmp = do
+    let tmptext = tmp </> "text"
+    liftIO $ createTree tmptext
+    sourceDirectory raw $$ mapM_C (\fp ->
+        forM_ (nameAndVersionFromPath fp) $ \(name, version) -> do
+            let src = fp </> fpFromText name <.> "txt"
+                dst = tmptext </> fpFromText (name ++ "-" ++ version)
+            whenM (liftIO $ isFile src) $
+                sourceFile src $$ (sinkFile dst :: Sink ByteString (ResourceT IO) ())
+            )
+
 createHoogleDb :: Dirs
                -> Entity Stackage
-               -> FilePath
+               -> FilePath -- ^ temp directory
                -> (Route App -> [(Text, Text)] -> Text)
-               -> IO ()
-createHoogleDb dirs (Entity _ stackage) packagedir urlRender = do
+               -> ResourceT IO ()
+createHoogleDb dirs (Entity _ stackage) tmpdir urlRender = do
     let ident = stackageIdent stackage
+        tmpbin = tmpdir </> "binary"
         hoogleDir = dirHoogleIdent dirs ident
-    createTree hoogleDir
+    liftIO $ do
+        createTree hoogleDir
+        createTree tmpbin
     -- Create hoogle binary databases for each package
-    runResourceT $ sourceDirectory packagedir $$ mapM_C (\fp ->
-        lift $ forM_ (nameAndVersionFromPath fp) $ \(name, version) -> do
-            src <- readFile (fp </> fpFromText name <.> "txt")
+    sourceDirectory (tmpdir </> "text") $$ mapM_C
+      ( \fp -> do
+        (releaseKey, srcH) <- allocate (openBinaryFile (fpToString fp) ReadMode) hClose
+        forM_ (nameAndVersionFromPath fp) $ \(name, version) -> liftIO $ do
+            src <- unpack . decodeUtf8 . asLByteString <$> hGetContents srcH
             let -- Preprocess the haddock-generated manifest file.
                 src' = unlines $ haddockHacks (Just (unpack docsUrl)) $ lines src
                 docsUrl = urlRender (HaddockR (stackageSlug stackage) urlPieces) []
                 urlPieces = [name <> "-" <> version, "index.html"]
                 -- Compute the filepath of the resulting hoogle
                 -- database.
-                out = fpToString $ dirHoogleFp dirs ident [dirname]
-                dirname = fpToText $ filename fp <.> "hoo"
+                out = fpToString $ tmpbin </> base <.> "hoo"
+                base = F.dropExtension $ filename fp
             errs <- Hoogle.createDatabase "foo" Hoogle.Haskell [] src' out
             -- TODO: handle these more gracefully?
-            putStrLn $ "Hoogle errors: " <> tshow errs
+            when (not $ null errs) $ putStrLn $ concat
+                [ fpToText base
+                , " Hoogle errors: "
+                , tshow errs
+                ]
+        release releaseKey
         )
     -- Merge the individual binary databases into one big database.
-    dbs <- listDirectory hoogleDir
-    let merged = hoogleDir </> "default.hoo"
-    Hoogle.mergeDatabase
-        (map fpToString (filter (/= merged) dbs))
-        (fpToString merged)
+    liftIO $ do
+        dbs <- listDirectory tmpbin
+        let merged = hoogleDir </> "default.hoo"
+        Hoogle.mergeDatabase
+            (map fpToString (filter (/= merged) dbs))
+            (fpToString merged)
 
 nameAndVersionFromPath :: FilePath -> Maybe (Text, Text)
 nameAndVersionFromPath fp =
