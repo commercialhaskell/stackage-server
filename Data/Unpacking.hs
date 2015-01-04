@@ -130,15 +130,6 @@ unpacker dirs runDB store say urlRender stackageEnt@(Entity _ Stackage {..}) = d
         createTree $ dirHoogleIdent dirs stackageIdent
         tmp <- getTemporaryDirectory
 
-        withSystemTempDirectory "hoogle-database-gen" $ \hoogletemp' -> do
-            let hoogletemp = fpFromString hoogletemp'
-                logFp = fpToString (dirHoogleFp dirs stackageIdent ["error-log"])
-            withBinaryFile logFp WriteMode $ \errorLog -> do
-                say "Copying Hoogle text files to temp directory"
-                runResourceT $ copyHoogleTextFiles errorLog destdir hoogletemp
-                say "Creating Hoogle database"
-                createHoogleDb say dirs stackageEnt errorLog hoogletemp urlRender
-
         -- Determine which packages have documentation and update the
         -- database appropriately
         say "Updating database for available documentation"
@@ -156,6 +147,15 @@ unpacker dirs runDB store say urlRender stackageEnt@(Entity _ Stackage {..}) = d
                     ]
                     [PackageHasHaddocks =. True]
                 )
+
+        withSystemTempDirectory "hoogle-database-gen" $ \hoogletemp' -> do
+            let hoogletemp = fpFromString hoogletemp'
+                logFp = fpToString (dirHoogleFp dirs stackageIdent ["error-log"])
+            withBinaryFile logFp WriteMode $ \errorLog -> do
+                say "Copying Hoogle text files to temp directory"
+                runResourceT $ copyHoogleTextFiles errorLog destdir hoogletemp
+                say "Creating Hoogle database"
+                createHoogleDb say dirs stackageEnt errorLog hoogletemp urlRender
 
 copyHoogleTextFiles :: Handle -- ^ error log handle
                     -> FilePath -- ^ raw unpacked Haddock files
