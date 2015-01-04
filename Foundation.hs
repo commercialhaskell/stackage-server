@@ -39,17 +39,20 @@ data App = App
     , progressMap :: !(IORef (IntMap Progress))
     , nextProgressKey :: !(IORef Int)
     , haddockRootDir :: !FilePath
-    , haddockUnpacker :: !(ForceUnpack -> Entity Stackage -> IO ())
+    , appDocUnpacker :: DocUnpacker
     -- ^ We have a dedicated thread so that (1) we don't try to unpack too many
     -- things at once, (2) we never unpack the same thing twice at the same
     -- time, and (3) so that even if the client connection dies, we finish the
     -- unpack job.
     , widgetCache :: !(IORef (HashMap Text (UTCTime, GWData (Route App))))
-    , compressorStatus :: !(IORef Text)
     , websiteContent :: GitRepo WebsiteContent
     }
 
-type ForceUnpack = Bool
+data DocUnpacker = DocUnpacker
+    { duRequestDocs :: Entity Stackage -> IO UnpackStatus
+    , duGetStatus   :: IO Text
+    , duForceReload :: Entity Stackage -> IO ()
+    }
 
 data Progress = ProgressWorking !Text
               | ProgressDone !Text !(Route App)

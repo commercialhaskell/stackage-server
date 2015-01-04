@@ -28,6 +28,7 @@ library
                      Data.Hackage.DeprecationInfo
                      Data.Hackage.Views
                      Data.WebsiteContent
+                     Data.Unpacking
                      Types
                      Handler.Home
                      Handler.Snapshots

@@ -13,6 +13,7 @@ import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Hackage
 import           Data.Hackage.Views
+import           Data.Unpacking (newDocUnpacker)
 import           Data.WebsiteContent
 import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
 import           Data.Time (diffUTCTime)
@@ -165,12 +166,6 @@ makeFoundation useEcho conf = do
     blobStore' <- loadBlobStore manager conf
 
     let haddockRootDir' = "/tmp/stackage-server-haddocks2"
-    urlRenderRef' <- newIORef (error "urlRenderRef not initialized")
-    (statusRef, unpacker) <- createHaddockUnpacker
-        haddockRootDir'
-        blobStore'
-        (flip (Database.Persist.runPool dbconf) p)
-        urlRenderRef'
     widgetCache' <- newIORef mempty
 
 #if MIN_VERSION_yesod_gitrepo(0,1,1)
@@ -204,7 +199,7 @@ makeFoundation useEcho conf = do
 #endif
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-        foundation = App
+        mkFoundation du = App
             { settings = conf
             , getStatic = s
             , connPool = p
@@ -216,13 +211,18 @@ makeFoundation useEcho conf = do
             , progressMap = progressMap'
             , nextProgressKey = nextProgressKey'
             , haddockRootDir = haddockRootDir'
-            , haddockUnpacker = unpacker
+            , appDocUnpacker = du
             , widgetCache = widgetCache'
-            , compressorStatus = statusRef
             , websiteContent = websiteContent'
             }
 
-    writeIORef urlRenderRef' (yesodRender foundation (appRoot conf))
+    let urlRender' = yesodRender (mkFoundation (error "docUnpacker forced")) (appRoot conf)
+    docUnpacker <- newDocUnpacker
+        haddockRootDir'
+        blobStore'
+        (flip (Database.Persist.runPool dbconf) p)
+        urlRender'
+    let foundation = mkFoundation docUnpacker
 
     env <- getEnvironment
 

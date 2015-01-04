@@ -34,3 +34,23 @@ parseLtsPair t1 = do
     t3 <- stripPrefix "." t2
     (y, "") <- either (const Nothing) Just $ decimal t3
     Just (x, y)
+
+requireDocs :: Entity Stackage -> Handler ()
+requireDocs stackageEnt = do
+    master <- getYesod
+    status <- liftIO $ duRequestDocs (appDocUnpacker master) stackageEnt
+    case status of
+        USReady -> return ()
+        USBusy -> (>>= sendResponse) $ defaultLayout $ do
+            setTitle "Docs unpacking, please wait"
+            addHeader "Refresh" "1"
+            msg <- liftIO $ duGetStatus $ appDocUnpacker master
+            [whamlet|
+                <div .container>
+                    <p>Docs are currently being unpacked, please wait.
+                    <p>This page will automatically reload every second.
+                    <p>Current status: #{msg}
+            |]
+        USFailed e -> invalidArgs
+            [ "Docs not available: " ++ e
+            ]

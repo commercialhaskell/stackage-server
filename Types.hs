@@ -113,3 +113,7 @@ class HasHackageRoot a where
     getHackageRoot :: a -> HackageRoot
 instance HasHackageRoot HackageRoot where
     getHackageRoot = id
+
+data UnpackStatus = USReady
+                  | USBusy
+                  | USFailed !Text

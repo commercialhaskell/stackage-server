@@ -30,8 +30,7 @@ getHoogleR slug = do
         offset = (page - 1) * perPage
     stackageEnt@(Entity _ stackage) <- runDB $ getBy404 $ UniqueSnapshot slug
     -- Unpack haddocks and generate hoogle DB, if necessary.
-    master <- getYesod
-    liftIO $ haddockUnpacker master False stackageEnt
+    requireDocs stackageEnt
     let databasePath = dirHoogleFp dirs (stackageIdent stackage) ["default.hoo"]
         heDatabase = liftIO $ Hoogle.loadDatabase (fpToString databasePath)
     -- If the hoogle DB isn't yet generated, yield 404.

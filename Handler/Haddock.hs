@@ -4,9 +4,11 @@ module Handler.Haddock
     , getHaddockR
     , getUploadDocMapR
     , putUploadDocMapR
-    , createHaddockUnpacker
     -- Exported for use in Handler.Hoogle
-    , Dirs, getDirs, dirHoogleFp
+    , Dirs (..), getDirs, dirHoogleFp, mkDirs
+    , dirRawIdent
+    , dirGzIdent
+    , dirHoogleIdent
     ) where
 
 import Import
@@ -59,7 +61,7 @@ getUploadHaddockR slug0 = do
             fileSource fileInfo $$ storeWrite (HaddockBundle ident)
             runDB $ update sid [StackageHasHaddocks =. True]
             master <- getYesod
-            void $ liftIO $ forkIO $ haddockUnpacker master True stackageEnt
+            liftIO $ duForceReload (appDocUnpacker master) stackageEnt
             setMessage "Haddocks uploaded"
             redirect $ SnapshotR slug StackageHomeR
         _ -> defaultLayout $ do
@@ -87,8 +89,7 @@ getHaddockR slug rest = do
                 redirectWith status301 $ HaddockR (stackageSlug stackage) rest
     mapM_ sanitize rest
     dirs <- getDirs
-    master <- getYesod
-    liftIO $ haddockUnpacker master False stackageEnt
+    requireDocs stackageEnt
 
     let ident = stackageIdent (entityVal stackageEnt)
         rawfp = dirRawFp dirs ident rest
@@ -237,107 +238,6 @@ dirCacheFp dirs digest =
     name = decodeUtf8 $ B16.encode $ toBytes digest
     (x, y) = splitAt 2 name
 
--- Should have two threads: one to unpack, one to convert. Never serve the
--- uncompressed files, only the compressed files. When serving, convert on
--- demand.
-createHaddockUnpacker :: FilePath -- ^ haddock root
-                      -> BlobStore StoreKey
-                      -> (forall a m. (MonadIO m, MonadBaseControl IO m)
-                            => SqlPersistT m a -> m a)
-                      -> IORef (Route App -> [(Text, Text)] -> Text)
-                      -> IO (IORef Text, ForceUnpack -> Entity Stackage -> IO ())
-createHaddockUnpacker root store runDB' urlRenderRef = do
-    createTree $ dirCacheRoot dirs
-    createTree $ dirRawRoot dirs
-    createTree $ dirGzRoot dirs
-    createTree $ dirHoogleRoot dirs
-
-    chan <- newChan
-    (statusRef, compressor) <- createCompressor dirs
-
-    mask $ \restore -> void $ forkIO $ forever $ do
-        (forceUnpack, ident, res) <- readChan chan
-        try (restore $ go forceUnpack ident) >>= putMVar res
-        compressor
-    return (statusRef, \forceUnpack stackageEnt -> do
-        let ident = stackageIdent (entityVal stackageEnt)
-        shouldAct <-
-            if forceUnpack
-                then return True
-                else not <$> doDirsExist ident
-        if shouldAct
-            then do
-                res <- newEmptyMVar
-                writeChan chan (forceUnpack, stackageEnt, res)
-                takeMVar res >>= either (throwM . asSomeException) return
-            else return ())
-  where
-    dirs = mkDirs root
-
-    removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
-
-    doDirsExist ident = do
-        e1 <- isDirectory $ dirGzIdent dirs ident
-        if e1
-            then return True
-            else isDirectory $ dirRawIdent dirs ident
-    go forceUnpack stackageEnt = do
-        let ident = stackageIdent (entityVal stackageEnt)
-        toRun <-
-            if forceUnpack
-                then do
-                    removeTreeIfExists $ dirRawIdent dirs ident
-                    removeTreeIfExists $ dirGzIdent dirs ident
-                    removeTreeIfExists $ dirHoogleIdent dirs ident
-                    return True
-                else not <$> doDirsExist ident
-        when toRun $ do
-            withSystemTempFile "haddock-bundle.tar.xz" $ \tempfp temph -> do
-                withAcquire (storeRead' store (HaddockBundle ident)) $ \msrc ->
-                    case msrc of
-                        Nothing -> error "No haddocks exist for that snapshot"
-                        Just src -> src $$ sinkHandle temph
-                hClose temph
-                let destdir = dirRawIdent dirs ident
-                createTree destdir
-                (Nothing, Nothing, Nothing, ph) <- createProcess
-                    (proc "tar" ["xf", tempfp])
-                        { cwd = Just $ fpToString destdir
-                        }
-                ec <- waitForProcess ph
-                if ec == ExitSuccess then return () else throwM ec
-
-                urlRender <- readIORef urlRenderRef
-                runResourceT $ do
-                    liftIO $ createTree $ dirHoogleIdent dirs ident
-                    tmp <- liftIO getTemporaryDirectory
-                    (_releasekey, hoogletemp) <- allocate
-                        (fpFromString <$> createTempDirectory tmp "hoogle-database-gen")
-                        removeTree
-                    let logFp = fpToString (dirHoogleFp dirs ident ["error-log"])
-                    (_, errorLog) <- allocate (openBinaryFile logFp WriteMode) hClose
-                    copyHoogleTextFiles errorLog destdir hoogletemp
-                    -- TODO: Have hoogle requests block on this finishing.
-                    -- (Or display a "compiling DB" message to the user)
-                    void $ resourceForkIO $ createHoogleDb dirs stackageEnt errorLog hoogletemp urlRender
-
-                -- Determine which packages have documentation and update the
-                -- database appropriately
-                runResourceT $ runDB' $ do
-                    let sid = entityKey stackageEnt
-                    updateWhere
-                        [PackageStackage ==. sid]
-                        [PackageHasHaddocks =. False]
-                    sourceDirectory destdir $$ mapM_C (\fp -> do
-                        let mnv = nameAndVersionFromPath fp
-                        forM_ mnv $ \(name, version) -> updateWhere
-                            [ PackageStackage ==. sid
-                            , PackageName' ==. PackageName name
-                            , PackageVersion ==. Version version
-                            ]
-                            [PackageHasHaddocks =. True]
-                        )
-
 data DocInfo = DocInfo Version (Map Text [Text])
 instance FromJSON DocInfo where
     parseJSON = withObject "DocInfo" $ \o -> DocInfo
@@ -397,140 +297,3 @@ getUploadDocMapR = do
 
 putUploadDocMapR :: Handler Html
 putUploadDocMapR = getUploadDocMapR
-
-copyHoogleTextFiles :: Handle -- ^ error log handle
-                    -> FilePath -- ^ raw unpacked Haddock files
-                    -> FilePath -- ^ temporary work directory
-                    -> ResourceT IO ()
-copyHoogleTextFiles errorLog raw tmp = do
-    let tmptext = tmp </> "text"
-    liftIO $ createTree tmptext
-    sourceDirectory raw $$ mapM_C (\fp ->
-        forM_ (nameAndVersionFromPath fp) $ \(name, version) -> do
-            let src = fp </> fpFromText name <.> "txt"
-                dst = tmptext </> fpFromText (name ++ "-" ++ version)
-            exists <- liftIO $ isFile src
-            if exists
-                then sourceFile src $$ (sinkFile dst :: Sink ByteString (ResourceT IO) ())
-                else liftIO $ appendHoogleErrors errorLog $ HoogleErrors
-                    { packageName = name
-                    , packageVersion = version
-                    , errors = ["No textual Hoogle DB (use \"cabal haddock --hoogle\")"]
-                    }
-            )
-
-createHoogleDb :: Dirs
-               -> Entity Stackage
-               -> Handle -- ^ error log handle
-               -> FilePath -- ^ temp directory
-               -> (Route App -> [(Text, Text)] -> Text)
-               -> ResourceT IO ()
-createHoogleDb dirs (Entity _ stackage) errorLog tmpdir urlRender = do
-    let ident = stackageIdent stackage
-        tmpbin = tmpdir </> "binary"
-    liftIO $ createTree tmpbin
-    eres <- tryAny $ do
-        -- Create hoogle binary databases for each package.
-        sourceDirectory (tmpdir </> "text") $$ mapM_C
-          ( \fp -> do
-            (releaseKey, srcH) <- allocate (openBinaryFile (fpToString fp) ReadMode) hClose
-            forM_ (nameAndVersionFromPath fp) $ \(name, version) -> liftIO $ do
-                src <- unpack . decodeUtf8 . asLByteString <$> hGetContents srcH
-                let -- Preprocess the haddock-generated manifest file.
-                    src' = unlines $ haddockHacks (Just (unpack docsUrl)) $ lines src
-                    docsUrl = urlRender (HaddockR (stackageSlug stackage) urlPieces) []
-                    urlPieces = [name <> "-" <> version, "index.html"]
-                    -- Compute the filepath of the resulting hoogle
-                    -- database.
-                    out = fpToString $ tmpbin </> fpFromText base
-                    base = name <> "-" <> version <> ".hoo"
-                errs <- Hoogle.createDatabase "" Hoogle.Haskell [] src' out
-                when (not $ null errs) $ do
-                    -- TODO: remove this printing once errors are yielded
-                    -- to the user.
-                    putStrLn $ concat
-                        [ base
-                        , " Hoogle errors: "
-                        , tshow errs
-                        ]
-                    appendHoogleErrors errorLog $ HoogleErrors
-                        { packageName = name
-                        , packageVersion = version
-                        , errors = map show errs
-                        }
-            release releaseKey
-            )
-        -- Merge the individual binary databases into one big database.
-        liftIO $ do
-            dbs <- listDirectory tmpbin
-            Hoogle.mergeDatabase
-                (map fpToString dbs)
-                (fpToString (dirHoogleFp dirs ident ["default.hoo"]))
-    case eres of
-        Right () -> return ()
-        Left err -> liftIO $ appendHoogleErrors errorLog $ HoogleErrors
-             { packageName = "Exception thrown while building hoogle DB"
-             , packageVersion = ""
-             , errors = [show err]
-             }
-
-data HoogleErrors = HoogleErrors
-    { packageName :: Text
-    , packageVersion :: Text
-    , errors :: [String]
-    } deriving (Generic)
-
-instance ToJSON HoogleErrors where
-instance FromJSON HoogleErrors where
-
--- Appends hoogle errors to a log file.  By encoding within a single
--- list, the resulting file can be decoded as [HoogleErrors].
-appendHoogleErrors :: Handle -> HoogleErrors -> IO ()
-appendHoogleErrors h errs = hPut h (Y.encode [errs])
-
-nameAndVersionFromPath :: FilePath -> Maybe (Text, Text)
-nameAndVersionFromPath fp =
-    (\name -> (name, version)) <$> stripSuffix "-" name'
-  where
-    (name', version) = T.breakOnEnd "-" $ fpToText $ filename fp
-
----------------------------------------------------------------------
--- HADDOCK HACKS
--- (Copied from hoogle-4.2.36/src/Recipe/Haddock.hs)
--- Modifications:
--- 1) Some name qualification
--- 2) Explicit type sig due to polymorphic elem
--- 3) Fixed an unused binding warning
-
--- Eliminate @version
--- Change :*: to (:*:), Haddock bug
--- Change !!Int to !Int, Haddock bug
--- Change instance [overlap ok] to instance, Haddock bug
--- Change instance [incoherent] to instance, Haddock bug
--- Change instance [safe] to instance, Haddock bug
--- Change !Int to Int, HSE bug
--- Drop {-# UNPACK #-}, Haddock bug
--- Drop everything after where, Haddock bug
-
-haddockHacks :: Maybe Hoogle.URL -> [String] -> [String]
-haddockHacks loc src = maybe id haddockPackageUrl loc (translate src)
-    where
-        translate :: [String] -> [String]
-        translate = map (unwords . g . map f . words) . filter (not . isPrefixOf "@version ")
-
-        f "::" = "::"
-        f (':':xs) = "(:" ++ xs ++ ")"
-        f ('!':'!':x:xs) | isAlpha x = xs
-        f ('!':x:xs) | isAlpha x || x `elem` ("[(" :: String) = x:xs
-        f x | x `elem` ["[overlap","ok]","[incoherent]","[safe]"] = ""
-        f x | x `elem` ["{-#","UNPACK","#-}"] = ""
-        f x = x
-
-        g ("where":_) = []
-        g (x:xs) = x : g xs
-        g [] = []
-
-haddockPackageUrl :: Hoogle.URL -> [String] -> [String]
-haddockPackageUrl x = concatMap f
-    where f y | "@package " `isPrefixOf` y = ["@url " ++ x, y]
-              | otherwise = [y]
