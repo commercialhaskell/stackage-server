@@ -1,6 +1,6 @@
 <div .container>
     <div .content>
-        <h1>Hoogle Search
+        <h1>Hoogle Search (experimental)
         <p>Within <a href=@{snapshotLink}>#{stackageTitle stackage}</a>
         ^{hoogleForm}
         $case mresults
