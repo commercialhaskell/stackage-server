@@ -7,7 +7,9 @@ module Data.Unpacking
 import Import hiding (runDB)
 import Data.BlobStore
 import Handler.Haddock
-import Filesystem (createTree, isFile, removeTree, isDirectory, listDirectory)
+import Filesystem (createTree, isFile, removeTree, isDirectory, listDirectory, copyFile, removeDirectory, removeFile, rename)
+import System.Posix.Files (createLink)
+import Crypto.Hash.Conduit (sinkHash)
 import Control.Concurrent (forkIO)
 import Control.Monad.Trans.Resource (allocate, resourceForkIO, release)
 import Data.Char (isAlpha)
@@ -19,6 +21,11 @@ import System.IO.Temp (withSystemTempFile, withTempFile, createTempDirectory, wi
 import System.Directory (getTemporaryDirectory)
 import System.Exit (ExitCode (ExitSuccess))
 import System.Process (createProcess, proc, cwd, waitForProcess)
+import qualified Filesystem.Path.CurrentOS as F
+import Data.Conduit.Zlib (gzip)
+import qualified Data.ByteString.Base16 as B16
+import Data.Byteable (toBytes)
+import Crypto.Hash (Digest, SHA1)
 
 newDocUnpacker
     :: FilePath -- ^ haddock root
@@ -72,10 +79,10 @@ createDirs dirs = do
 -- | Check for the presence of file system artifacts indicating that the docs
 -- have been unpacked.
 isUnpacked :: Dirs -> Entity Stackage -> IO Bool
-isUnpacked dirs (Entity _ stackage) =
-    isFile databasePath
-  where
-    databasePath = dirHoogleFp dirs (stackageIdent stackage) ["default.hoo"]
+isUnpacked dirs (Entity _ stackage) = isFile $ defaultHooDest dirs stackage
+
+defaultHooDest :: Dirs -> Stackage -> FilePath
+defaultHooDest dirs stackage = dirHoogleFp dirs (stackageIdent stackage) ["default.hoo"]
 
 forkForever :: IO () -> IO ()
 forkForever inner = mask $ \restore ->
@@ -103,7 +110,7 @@ unpackWorker dirs runDB store statusMapVar messageVar urlRender workChan = do
 removeTreeIfExists :: FilePath -> IO ()
 removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
 
-unpacker dirs runDB store say urlRender stackageEnt@(Entity _ Stackage {..}) = do
+unpacker dirs runDB store say urlRender stackageEnt@(Entity _ stackage@Stackage {..}) = do
     say "Removing old directories, if they exist"
     removeTreeIfExists $ dirRawIdent dirs stackageIdent
     removeTreeIfExists $ dirGzIdent dirs stackageIdent
@@ -148,14 +155,79 @@ unpacker dirs runDB store say urlRender stackageEnt@(Entity _ Stackage {..}) = d
                     [PackageHasHaddocks =. True]
                 )
 
-        withSystemTempDirectory "hoogle-database-gen" $ \hoogletemp' -> do
-            let hoogletemp = fpFromString hoogletemp'
-                logFp = fpToString (dirHoogleFp dirs stackageIdent ["error-log"])
-            withBinaryFile logFp WriteMode $ \errorLog -> do
-                say "Copying Hoogle text files to temp directory"
-                runResourceT $ copyHoogleTextFiles errorLog destdir hoogletemp
-                say "Creating Hoogle database"
-                createHoogleDb say dirs stackageEnt errorLog hoogletemp urlRender
+        let defaultHoo = destdir </> "default.hoo"
+        defaultHooExists <- isFile defaultHoo
+        if defaultHooExists
+            then copyFile defaultHoo $ defaultHooDest dirs stackage
+            else when isHoogleActive $ handleAny print $ withSystemTempDirectory "hoogle-database-gen" $ \hoogletemp' -> do
+                let hoogletemp = fpFromString hoogletemp'
+                    logFp = fpToString (dirHoogleFp dirs stackageIdent ["error-log"])
+                withBinaryFile logFp WriteMode $ \errorLog -> do
+                    say "Copying Hoogle text files to temp directory"
+                    runResourceT $ copyHoogleTextFiles errorLog destdir hoogletemp
+                    say "Creating Hoogle database"
+                    createHoogleDb say dirs stackageEnt errorLog hoogletemp urlRender
+
+        runCompressor say dirs
+
+isHoogleActive :: Bool
+isHoogleActive = False
+
+runCompressor :: (Text -> IO ()) -> Dirs -> IO ()
+runCompressor say dirs =
+    runResourceT $ goDir $ dirRawRoot dirs
+  where
+    goDir dir = do
+        liftIO $ say $ "Compressing directory: " ++ fpToText dir
+        sourceDirectory dir $$ mapM_C goFP
+        liftIO $ void $ tryIO $ removeDirectory dir
+
+    goFP fp = do
+        e <- liftIO $ isFile fp
+        if e
+            then liftIO $ do
+                liftIO $ say $ "Compressing file: " ++ fpToText fp
+                handle (print . asSomeException)
+                    $ gzipHash dirs suffix
+            else goDir fp
+      where
+        Just suffix = F.stripPrefix (dirRawRoot dirs </> "") fp
+
+-- Procedure is to:
+--
+-- * Gzip the src file to a temp file, and get a hash of the gzipped contents
+-- * If that hash doesn't exist in the cache, move the new file to the cache
+-- * Create a hard link from dst to the file in the cache
+-- * Delete src
+gzipHash :: Dirs
+         -> FilePath -- ^ suffix
+         -> IO ()
+gzipHash dirs suffix = do
+    withTempFile (fpToString $ dirCacheRoot dirs) "haddock-file.gz" $ \tempfp temph -> do
+        digest <- withBinaryFile (fpToString src) ReadMode $ \inh ->
+            sourceHandle inh
+            $= gzip
+            $$ (getZipSink $
+                ZipSink (sinkHandle temph) *>
+                ZipSink sinkHash)
+        hClose temph
+        let fpcache = dirCacheFp dirs digest
+        unlessM (isFile fpcache) $ do
+            createTree $ F.parent fpcache
+            rename (fpFromString tempfp) fpcache
+        createTree $ F.parent dst
+        createLink (fpToString fpcache) (fpToString dst)
+        removeFile src
+  where
+    src = dirRawRoot dirs </> suffix
+    dst = dirGzRoot dirs </> suffix
+
+dirCacheFp :: Dirs -> Digest SHA1 -> FilePath
+dirCacheFp dirs digest =
+    dirCacheRoot dirs </> fpFromText x </> fpFromText y <.> "gz"
+  where
+    name = decodeUtf8 $ B16.encode $ toBytes digest
+    (x, y) = splitAt 2 name
 
 copyHoogleTextFiles :: Handle -- ^ error log handle
                     -> FilePath -- ^ raw unpacked Haddock files
@@ -232,7 +304,7 @@ createHoogleDb say dirs (Entity _ stackage) errorLog tmpdir urlRender = do
             dbs <- listDirectory tmpbin
             Hoogle.mergeDatabase
                 (map fpToString dbs)
-                (fpToString (dirHoogleFp dirs ident ["default.hoo"]))
+                (fpToString $ defaultHooDest dirs stackage)
     case eres of
         Right () -> return ()
         Left err -> liftIO $ appendHoogleErrors errorLog $ HoogleErrors
