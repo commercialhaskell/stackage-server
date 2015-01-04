@@ -2,6 +2,7 @@
 -- and compressing/deduping contents.
 module Data.Unpacking
     ( newDocUnpacker
+    , defaultHooDest
     ) where
 
 import Import hiding (runDB)
@@ -11,18 +12,17 @@ import Filesystem (createTree, isFile, removeTree, isDirectory, listDirectory, c
 import System.Posix.Files (createLink)
 import Crypto.Hash.Conduit (sinkHash)
 import Control.Concurrent (forkIO)
-import Control.Monad.Trans.Resource (allocate, resourceForkIO, release)
+import Control.Monad.Trans.Resource (allocate, release)
 import Data.Char (isAlpha)
 import qualified Hoogle
 import qualified Data.Text as T
 import qualified Data.Yaml as Y
 import System.IO (IOMode (ReadMode, WriteMode), withBinaryFile, openBinaryFile)
-import System.IO.Temp (withSystemTempFile, withTempFile, createTempDirectory, withSystemTempDirectory)
-import System.Directory (getTemporaryDirectory)
+import System.IO.Temp (withSystemTempFile, withTempFile, withSystemTempDirectory)
 import System.Exit (ExitCode (ExitSuccess))
 import System.Process (createProcess, proc, cwd, waitForProcess)
 import qualified Filesystem.Path.CurrentOS as F
-import Data.Conduit.Zlib (gzip)
+import Data.Conduit.Zlib (gzip, ungzip)
 import qualified Data.ByteString.Base16 as B16
 import Data.Byteable (toBytes)
 import Crypto.Hash (Digest, SHA1)
@@ -46,7 +46,7 @@ newDocUnpacker root store runDB urlRender = do
                        $ insertMap (stackageSlug $ entityVal ent) var
             writeTChan workChan (forceUnpack, ent, var)
 
-    forkForever $ unpackWorker dirs runDB store statusMapVar messageVar urlRender workChan
+    forkForever $ unpackWorker dirs runDB store messageVar urlRender workChan
 
     return DocUnpacker
         { duRequestDocs = \ent -> do
@@ -82,13 +82,22 @@ isUnpacked :: Dirs -> Entity Stackage -> IO Bool
 isUnpacked dirs (Entity _ stackage) = isFile $ defaultHooDest dirs stackage
 
 defaultHooDest :: Dirs -> Stackage -> FilePath
-defaultHooDest dirs stackage = dirHoogleFp dirs (stackageIdent stackage) ["default.hoo"]
+defaultHooDest dirs stackage = dirHoogleFp dirs (stackageIdent stackage)
+    ["default-" ++ VERSION_hoogle ++ ".hoo"]
 
 forkForever :: IO () -> IO ()
 forkForever inner = mask $ \restore ->
     void $ forkIO $ forever $ handleAny print $ restore $ forever inner
 
-unpackWorker dirs runDB store statusMapVar messageVar urlRender workChan = do
+unpackWorker
+    :: Dirs
+    -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
+    -> BlobStore StoreKey
+    -> TVar Text
+    -> (Route App -> [(Text, Text)] -> Text)
+    -> TChan (Bool, Entity Stackage, TVar UnpackStatus)
+    -> IO ()
+unpackWorker dirs runDB store messageVar urlRender workChan = do
     atomically $ writeTVar messageVar "Waiting for new work item"
     (forceUnpack, ent, resVar) <- atomically $ readTChan workChan
     shouldUnpack <-
@@ -110,6 +119,14 @@ unpackWorker dirs runDB store statusMapVar messageVar urlRender workChan = do
 removeTreeIfExists :: FilePath -> IO ()
 removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
 
+unpacker
+    :: Dirs
+    -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
+    -> BlobStore StoreKey
+    -> (Text -> IO ())
+    -> (Route App -> [(Text, Text)] -> Text)
+    -> Entity Stackage
+    -> IO ()
 unpacker dirs runDB store say urlRender stackageEnt@(Entity _ stackage@Stackage {..}) = do
     say "Removing old directories, if they exist"
     removeTreeIfExists $ dirRawIdent dirs stackageIdent
@@ -135,7 +152,6 @@ unpacker dirs runDB store say urlRender stackageEnt@(Entity _ stackage@Stackage 
         if ec == ExitSuccess then return () else throwM ec
 
         createTree $ dirHoogleIdent dirs stackageIdent
-        tmp <- getTemporaryDirectory
 
         -- Determine which packages have documentation and update the
         -- database appropriately
@@ -155,23 +171,34 @@ unpacker dirs runDB store say urlRender stackageEnt@(Entity _ stackage@Stackage 
                     [PackageHasHaddocks =. True]
                 )
 
-        let defaultHoo = destdir </> "default.hoo"
-        defaultHooExists <- isFile defaultHoo
+        let srcDefaultHoo = destdir </> "default.hoo"
+            dstDefaultHoo = defaultHooDest dirs stackage
+            hoogleKey = HoogleDB stackageIdent $ HoogleVersion VERSION_hoogle
+        defaultHooExists <- isFile srcDefaultHoo
         if defaultHooExists
-            then copyFile defaultHoo $ defaultHooDest dirs stackage
-            else when isHoogleActive $ handleAny print $ withSystemTempDirectory "hoogle-database-gen" $ \hoogletemp' -> do
-                let hoogletemp = fpFromString hoogletemp'
-                    logFp = fpToString (dirHoogleFp dirs stackageIdent ["error-log"])
-                withBinaryFile logFp WriteMode $ \errorLog -> do
-                    say "Copying Hoogle text files to temp directory"
-                    runResourceT $ copyHoogleTextFiles errorLog destdir hoogletemp
-                    say "Creating Hoogle database"
-                    createHoogleDb say dirs stackageEnt errorLog hoogletemp urlRender
+            then copyFile srcDefaultHoo dstDefaultHoo
+            else withAcquire (storeRead' store hoogleKey) $ \msrc ->
+                case msrc of
+                    Just src -> do
+                        say "Downloading compiled Hoogle database"
+                        withBinaryFile (fpToString dstDefaultHoo) WriteMode
+                              $ \h -> src $$ ungzip =$ sinkHandle h
+                    Nothing ->
+                      handleAny print
+                      $ withSystemTempDirectory "hoogle-database-gen"
+                      $ \hoogletemp' -> do
+                        let hoogletemp = fpFromString hoogletemp'
+                            logFp = fpToString (dirHoogleFp dirs stackageIdent ["error-log"])
+                        withBinaryFile logFp WriteMode $ \errorLog -> do
+                            say "Copying Hoogle text files to temp directory"
+                            runResourceT $ copyHoogleTextFiles errorLog destdir hoogletemp
+                            say "Creating Hoogle database"
+                            createHoogleDb say dirs stackageEnt errorLog hoogletemp urlRender
+                            say "Uploading database to persistent storage"
+                            withAcquire (storeWrite' store hoogleKey) $ \sink ->
+                                runResourceT $ sourceFile dstDefaultHoo $$ gzip =$ sink
 
         runCompressor say dirs
-
-isHoogleActive :: Bool
-isHoogleActive = False
 
 runCompressor :: (Text -> IO ()) -> Dirs -> IO ()
 runCompressor say dirs =
@@ -258,8 +285,7 @@ createHoogleDb :: (Text -> IO ())
                -> (Route App -> [(Text, Text)] -> Text)
                -> IO ()
 createHoogleDb say dirs (Entity _ stackage) errorLog tmpdir urlRender = do
-    let ident = stackageIdent stackage
-        tmpbin = tmpdir </> "binary"
+    let tmpbin = tmpdir </> "binary"
     createTree tmpbin
     eres <- tryAny $ runResourceT $ do
         -- Create hoogle binary databases for each package.

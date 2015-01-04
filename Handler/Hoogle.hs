@@ -6,8 +6,9 @@ import           Control.Spoon (spoon)
 import           Data.Data (Data (..))
 import           Data.Slug (SnapSlug)
 import           Data.Text.Read (decimal)
+import           Data.Unpacking (defaultHooDest)
 import           Filesystem (isFile)
-import           Handler.Haddock (dirHoogleFp, getDirs)
+import           Handler.Haddock (getDirs)
 import qualified Hoogle
 import           Import
 import           Text.Blaze.Html (preEscapedToHtml)
@@ -31,7 +32,7 @@ getHoogleR slug = do
     stackageEnt@(Entity _ stackage) <- runDB $ getBy404 $ UniqueSnapshot slug
     -- Unpack haddocks and generate hoogle DB, if necessary.
     requireDocs stackageEnt
-    let databasePath = dirHoogleFp dirs (stackageIdent stackage) ["default.hoo"]
+    let databasePath = defaultHooDest dirs stackage
         heDatabase = liftIO $ Hoogle.loadDatabase (fpToString databasePath)
     -- If the hoogle DB isn't yet generated, yield 404.
     dbExists <- liftIO $ isFile databasePath
