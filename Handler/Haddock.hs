@@ -492,7 +492,7 @@ nameAndVersionFromPath :: FilePath -> Maybe (Text, Text)
 nameAndVersionFromPath fp =
     (\name -> (name, version)) <$> stripSuffix "-" name'
   where
-    (name', version) = T.breakOnEnd "-" $ fpToText $ F.dropExtension $ filename fp
+    (name', version) = T.breakOnEnd "-" $ fpToText $ filename fp
 
 ---------------------------------------------------------------------
 -- HADDOCK HACKS
