@@ -43,6 +43,9 @@ $newline never
 
     <h3>Packages
 
+    <p>
+        <a href=@{SnapshotR slug DocsR}>View documentation by modules
+
 <div .container .content>
     <div .packages>
         $if packageListClipped
