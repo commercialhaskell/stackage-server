@@ -68,6 +68,7 @@ import           Handler.CompressorStatus
 import           Handler.Tag
 import           Handler.BannedTags
 import           Handler.RefreshDeprecated
+import           Handler.Hoogle
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -164,8 +165,12 @@ makeFoundation useEcho conf = do
     blobStore' <- loadBlobStore manager conf
 
     let haddockRootDir' = "/tmp/stackage-server-haddocks2"
-    (statusRef, unpacker) <- createHaddockUnpacker haddockRootDir' blobStore'
+    urlRenderRef' <- newIORef (error "urlRenderRef not initialized")
+    (statusRef, unpacker) <- createHaddockUnpacker
+        haddockRootDir'
+        blobStore'
         (flip (Database.Persist.runPool dbconf) p)
+        urlRenderRef'
     widgetCache' <- newIORef mempty
 
 #if MIN_VERSION_yesod_gitrepo(0,1,1)
@@ -216,6 +221,8 @@ makeFoundation useEcho conf = do
             , compressorStatus = statusRef
             , websiteContent = websiteContent'
             }
+
+    writeIORef urlRenderRef' (yesodRender foundation (appRoot conf))
 
     env <- getEnvironment
 

@@ -33,6 +33,7 @@
 /progress/#Int ProgressR GET
 /system SystemR GET
 /haddock/#SnapSlug/*Texts HaddockR GET
+/hoogle/#SnapSlug HoogleR GET
 /package/#PackageName PackageR GET
 /package/#PackageName/snapshots PackageSnapshotsR GET
 /package PackageListR GET

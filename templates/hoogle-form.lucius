@@ -1,0 +1,14 @@
+form.hoogle {
+  margin-bottom: 20px;
+  .search {
+    width: 25em;
+  }
+  input {
+    margin-bottom: 0;
+  }
+}
+
+.exact-lookup {
+  display: inline-block;
+  margin-left: 1em;
+}
