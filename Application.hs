@@ -198,6 +198,8 @@ makeFoundation useEcho conf = do
             loadWebsiteContent
 #endif
 
+    env <- getEnvironment
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         mkFoundation du = App
             { settings = conf
@@ -219,12 +221,11 @@ makeFoundation useEcho conf = do
     let urlRender' = yesodRender (mkFoundation (error "docUnpacker forced")) (appRoot conf)
     docUnpacker <- newDocUnpacker
         haddockRootDir'
+        (lookup "STACKAGE_HOOGLE_LOADER" env /= Just "0")
         blobStore'
         (flip (Database.Persist.runPool dbconf) p)
         urlRender'
     let foundation = mkFoundation docUnpacker
-
-    env <- getEnvironment
 
     -- Perform database migration using our application's logging settings.
     when (lookup "STACKAGE_SKIP_MIGRATION" env /= Just "1") $

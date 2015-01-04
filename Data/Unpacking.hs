@@ -29,11 +29,12 @@ import Crypto.Hash (Digest, SHA1)
 
 newDocUnpacker
     :: FilePath -- ^ haddock root
+    -> Bool -- ^ loadHoogleDBs
     -> BlobStore StoreKey
     -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
     -> (Route App -> [(Text, Text)] -> Text)
     -> IO DocUnpacker
-newDocUnpacker root store runDB urlRender = do
+newDocUnpacker root loadHoogleDBs store runDB urlRender = do
     createDirs dirs
 
     statusMapVar <- newTVarIO $ asMap mempty
@@ -46,7 +47,7 @@ newDocUnpacker root store runDB urlRender = do
                        $ insertMap (stackageSlug $ entityVal ent) var
             writeTChan workChan (forceUnpack, ent, var)
 
-    forkForever $ unpackWorker dirs runDB store messageVar urlRender workChan
+    forkForever $ unpackWorker dirs loadHoogleDBs runDB store messageVar urlRender workChan
 
     return DocUnpacker
         { duRequestDocs = \ent -> do
@@ -91,13 +92,14 @@ forkForever inner = mask $ \restore ->
 
 unpackWorker
     :: Dirs
+    -> Bool -- ^ load Hoogle DBs?
     -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
     -> BlobStore StoreKey
     -> TVar Text
     -> (Route App -> [(Text, Text)] -> Text)
     -> TChan (Bool, Entity Stackage, TVar UnpackStatus)
     -> IO ()
-unpackWorker dirs runDB store messageVar urlRender workChan = do
+unpackWorker dirs loadHoogleDBs runDB store messageVar urlRender workChan = do
     atomically $ writeTVar messageVar "Waiting for new work item"
     (forceUnpack, ent, resVar) <- atomically $ readTChan workChan
     shouldUnpack <-
@@ -111,7 +113,7 @@ unpackWorker dirs runDB store messageVar urlRender workChan = do
                 , msg
                 ]
         say "Beginning of processing"
-        eres <- tryAny $ unpacker dirs runDB store say urlRender ent
+        eres <- tryAny $ unpacker dirs loadHoogleDBs runDB store say urlRender ent
         atomically $ writeTVar resVar $ case eres of
             Left e -> USFailed $ tshow e
             Right () -> USReady
@@ -121,13 +123,14 @@ removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
 
 unpacker
     :: Dirs
+    -> Bool -- ^ load Hoogle DBs?
     -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
     -> BlobStore StoreKey
     -> (Text -> IO ())
     -> (Route App -> [(Text, Text)] -> Text)
     -> Entity Stackage
     -> IO ()
-unpacker dirs runDB store say urlRender stackageEnt@(Entity _ stackage@Stackage {..}) = do
+unpacker dirs loadHoogleDBs runDB store say urlRender stackageEnt@(Entity _ stackage@Stackage {..}) = do
     say "Removing old directories, if they exist"
     removeTreeIfExists $ dirRawIdent dirs stackageIdent
     removeTreeIfExists $ dirGzIdent dirs stackageIdent
@@ -183,8 +186,8 @@ unpacker dirs runDB store say urlRender stackageEnt@(Entity _ stackage@Stackage 
                         say "Downloading compiled Hoogle database"
                         withBinaryFile (fpToString dstDefaultHoo) WriteMode
                               $ \h -> src $$ ungzip =$ sinkHandle h
-                    Nothing ->
-                      handleAny print
+                    Nothing -> when loadHoogleDBs
+                      $ handleAny print
                       $ withSystemTempDirectory "hoogle-database-gen"
                       $ \hoogletemp' -> do
                         let hoogletemp = fpFromString hoogletemp'
