@@ -9,6 +9,7 @@ import Data.Slug (Slug)
 import Handler.StackageHome (getStackageHomeR, getStackageMetadataR, getStackageCabalConfigR, getSnapshotPackagesR, getDocsR)
 import Handler.StackageIndex (getStackageIndexR, getStackageBundleR)
 import Handler.StackageSdist (getStackageSdistR)
+import Handler.Hoogle (getHoogleR)
 
 handleAliasR :: Slug -> Slug -> [Text] -> Handler ()
 handleAliasR user name pieces = do
@@ -77,4 +78,5 @@ goSid sid pieces = do
                 StackageSdistR pnv -> getStackageSdistR slug pnv >>= sendResponse
                 SnapshotPackagesR -> getSnapshotPackagesR slug >>= sendResponse
                 DocsR -> getDocsR slug >>= sendResponse
+                HoogleR -> getHoogleR slug >>= sendResponse
         _ -> notFound

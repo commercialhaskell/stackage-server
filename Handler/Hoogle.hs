@@ -46,7 +46,7 @@ getHoogleR slug = do
             }
         Nothing -> return $ HoogleQueryOutput "" [] Nothing
     let queryText = fromMaybe "" mquery
-        pageLink p = (HoogleR slug
+        pageLink p = (SnapshotR slug HoogleR
             , (if exact then (("exact", "true"):) else id)
             $ (maybe id (\q' -> (("q", q'):)) mquery)
               [("page", tshow p)])
