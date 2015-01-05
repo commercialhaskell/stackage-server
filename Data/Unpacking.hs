@@ -111,7 +111,11 @@ unpackWorker dirs runDB store messageVar workChan = do
                 , msg
                 ]
         say "Beginning of processing"
-        eres <- tryAny $ unpacker dirs runDB store say ent
+
+        -- As soon as the raw unpack is complete, start serving docs
+        let onRawComplete = atomically $ writeTVar resVar USReady
+
+        eres <- tryAny $ unpacker dirs runDB store say onRawComplete ent
         atomically $ writeTVar resVar $ case eres of
             Left e -> USFailed $ tshow e
             Right () -> USReady
@@ -149,9 +153,10 @@ unpacker
     -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
     -> BlobStore StoreKey
     -> (Text -> IO ())
+    -> IO () -- ^ onRawComplete
     -> Entity Stackage
     -> IO ()
-unpacker dirs runDB store say (Entity sid stackage@Stackage {..}) = do
+unpacker dirs runDB store say onRawComplete (Entity sid stackage@Stackage {..}) = do
     say "Removing old directories, if they exist"
     removeTreeIfExists $ dirRawIdent dirs stackageIdent
     removeTreeIfExists $ dirGzIdent dirs stackageIdent
@@ -159,6 +164,7 @@ unpacker dirs runDB store say (Entity sid stackage@Stackage {..}) = do
 
     let destdir = dirRawIdent dirs stackageIdent
     unpackRawDocsTo store stackageIdent say destdir
+    onRawComplete
 
     createTree $ dirHoogleIdent dirs stackageIdent
 
