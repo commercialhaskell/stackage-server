@@ -163,7 +163,7 @@ unpacker
     -> IO () -- ^ onRawComplete
     -> Entity Stackage
     -> IO ()
-unpacker dirs runDB store say onRawComplete (Entity sid Stackage {..}) = do
+unpacker dirs runDB store say onRawComplete (Entity sid stackage@Stackage {..}) = do
     say "Removing old directories, if they exist"
     removeTreeIfExists $ dirRawIdent dirs stackageIdent
     removeTreeIfExists $ dirGzIdent dirs stackageIdent
@@ -193,7 +193,7 @@ unpacker dirs runDB store say onRawComplete (Entity sid Stackage {..}) = do
             )
 
     say "Unpack complete"
-    writeFile "completeUnpackFile dirs ent" ("Complete" :: ByteString)
+    writeFile (completeUnpackFile dirs stackage) ("Complete" :: ByteString)
 
 completeUnpackFile :: Dirs -> Stackage -> FilePath
 completeUnpackFile dirs stackage =
