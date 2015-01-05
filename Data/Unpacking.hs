@@ -193,7 +193,10 @@ unpacker dirs runDB store say onRawComplete (Entity sid stackage@Stackage {..}) 
             )
 
     say "Unpack complete"
-    writeFile (completeUnpackFile dirs stackage) ("Complete" :: ByteString)
+    let completeFP = completeUnpackFile dirs stackage
+    liftIO $ do
+        createTree $ F.parent completeFP
+        writeFile completeFP ("Complete" :: ByteString)
 
 completeUnpackFile :: Dirs -> Stackage -> FilePath
 completeUnpackFile dirs stackage =
