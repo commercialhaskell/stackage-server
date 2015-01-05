@@ -35,9 +35,10 @@ getHoogleR slug = do
         Nothing -> (>>= sendResponse) $ defaultLayout $ do
             setTitle "Hoogle database not available"
             [whamlet|
-                <p>The given Hoogle database is not available.
-                <p>
-                    <a href=@{SnapshotR slug StackageHomeR}>Return to snapshot homepage
+                <div .container>
+                    <p>The given Hoogle database is not available.
+                    <p>
+                        <a href=@{SnapshotR slug StackageHomeR}>Return to snapshot homepage
             |]
 
     mresults <- case mquery of
