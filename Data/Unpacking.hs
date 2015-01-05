@@ -98,7 +98,12 @@ unpackWorker
     -> TChan (Bool, Entity Stackage, TVar UnpackStatus)
     -> IO ()
 unpackWorker dirs runDB store messageVar workChan = do
-    atomically $ writeTVar messageVar "Waiting for new work item"
+    let say' = atomically . writeTVar messageVar
+    say' "Running the compressor"
+    let shouldStop = fmap not $ atomically $ isEmptyTChan workChan
+    handleAny print $ runCompressor shouldStop say' dirs
+
+    say' "Waiting for new work item"
     (forceUnpack, ent, resVar) <- atomically $ readTChan workChan
     shouldUnpack <-
         if forceUnpack
@@ -121,10 +126,6 @@ unpackWorker dirs runDB store messageVar workChan = do
         atomically $ writeTVar resVar $ case eres of
             Left e -> USFailed $ tshow e
             Right () -> USReady
-
-    say "Running the compressor"
-    let shouldStop = fmap not $ atomically $ isEmptyTChan workChan
-    runCompressor shouldStop say dirs
 
 removeTreeIfExists :: FilePath -> IO ()
 removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
