@@ -2,13 +2,15 @@
 -- and compressing/deduping contents.
 module Data.Unpacking
     ( newDocUnpacker
-    , defaultHooDest
+    , getHoogleDB
+    , makeHoogle
+    , createHoogleDatabases
     ) where
 
 import Import hiding (runDB)
 import Data.BlobStore
 import Handler.Haddock
-import Filesystem (createTree, isFile, removeTree, isDirectory, listDirectory, copyFile, removeDirectory, removeFile, rename)
+import Filesystem (createTree, isFile, removeTree, isDirectory, listDirectory, removeDirectory, removeFile, rename)
 import System.Posix.Files (createLink)
 import Crypto.Hash.Conduit (sinkHash)
 import Control.Concurrent (forkIO)
@@ -29,12 +31,10 @@ import Crypto.Hash (Digest, SHA1)
 
 newDocUnpacker
     :: FilePath -- ^ haddock root
-    -> Bool -- ^ loadHoogleDBs
     -> BlobStore StoreKey
     -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
-    -> (Route App -> [(Text, Text)] -> Text)
     -> IO DocUnpacker
-newDocUnpacker root loadHoogleDBs store runDB urlRender = do
+newDocUnpacker root store runDB = do
     createDirs dirs
 
     statusMapVar <- newTVarIO $ asMap mempty
@@ -47,14 +47,14 @@ newDocUnpacker root loadHoogleDBs store runDB urlRender = do
                        $ insertMap (stackageSlug $ entityVal ent) var
             writeTChan workChan (forceUnpack, ent, var)
 
-    forkForever $ unpackWorker dirs loadHoogleDBs runDB store messageVar urlRender workChan
+    forkForever $ unpackWorker dirs runDB store messageVar workChan
 
     return DocUnpacker
         { duRequestDocs = \ent -> do
             m <- readTVarIO statusMapVar
             case lookup (stackageSlug $ entityVal ent) m of
                 Nothing -> do
-                    b <- isUnpacked dirs ent
+                    b <- isUnpacked dirs (entityVal ent)
                     if b
                         then return USReady
                         else do
@@ -79,8 +79,8 @@ createDirs dirs = do
 
 -- | Check for the presence of file system artifacts indicating that the docs
 -- have been unpacked.
-isUnpacked :: Dirs -> Entity Stackage -> IO Bool
-isUnpacked dirs (Entity _ stackage) = isFile $ defaultHooDest dirs stackage
+isUnpacked :: Dirs -> Stackage -> IO Bool
+isUnpacked dirs stackage = isFile $ completeUnpackFile dirs stackage
 
 defaultHooDest :: Dirs -> Stackage -> FilePath
 defaultHooDest dirs stackage = dirHoogleFp dirs (stackageIdent stackage)
@@ -92,20 +92,18 @@ forkForever inner = mask $ \restore ->
 
 unpackWorker
     :: Dirs
-    -> Bool -- ^ load Hoogle DBs?
     -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
     -> BlobStore StoreKey
     -> TVar Text
-    -> (Route App -> [(Text, Text)] -> Text)
     -> TChan (Bool, Entity Stackage, TVar UnpackStatus)
     -> IO ()
-unpackWorker dirs loadHoogleDBs runDB store messageVar urlRender workChan = do
+unpackWorker dirs runDB store messageVar workChan = do
     atomically $ writeTVar messageVar "Waiting for new work item"
     (forceUnpack, ent, resVar) <- atomically $ readTChan workChan
     shouldUnpack <-
         if forceUnpack
             then return True
-            else not <$> isUnpacked dirs ent
+            else not <$> isUnpacked dirs (entityVal ent)
     when shouldUnpack $ do
         let say msg = atomically $ writeTVar messageVar $ concat
                 [ toPathPiece (stackageSlug $ entityVal ent)
@@ -113,7 +111,7 @@ unpackWorker dirs loadHoogleDBs runDB store messageVar urlRender workChan = do
                 , msg
                 ]
         say "Beginning of processing"
-        eres <- tryAny $ unpacker dirs loadHoogleDBs runDB store say urlRender ent
+        eres <- tryAny $ unpacker dirs runDB store say ent
         atomically $ writeTVar resVar $ case eres of
             Left e -> USFailed $ tshow e
             Right () -> USReady
@@ -121,30 +119,21 @@ unpackWorker dirs loadHoogleDBs runDB store messageVar urlRender workChan = do
 removeTreeIfExists :: FilePath -> IO ()
 removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
 
-unpacker
-    :: Dirs
-    -> Bool -- ^ load Hoogle DBs?
-    -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
-    -> BlobStore StoreKey
+unpackRawDocsTo
+    :: BlobStore StoreKey
+    -> PackageSetIdent
     -> (Text -> IO ())
-    -> (Route App -> [(Text, Text)] -> Text)
-    -> Entity Stackage
+    -> FilePath
     -> IO ()
-unpacker dirs loadHoogleDBs runDB store say urlRender stackageEnt@(Entity _ stackage@Stackage {..}) = do
-    say "Removing old directories, if they exist"
-    removeTreeIfExists $ dirRawIdent dirs stackageIdent
-    removeTreeIfExists $ dirGzIdent dirs stackageIdent
-    removeTreeIfExists $ dirHoogleIdent dirs stackageIdent
-
+unpackRawDocsTo store ident say destdir =
     withSystemTempFile "haddock-bundle.tar.xz" $ \tempfp temph -> do
-        say "Downloading raw tarball"
-        withAcquire (storeRead' store (HaddockBundle stackageIdent)) $ \msrc ->
+        say "Downloading raw doc tarball"
+        withAcquire (storeRead' store (HaddockBundle ident)) $ \msrc ->
             case msrc of
                 Nothing -> error "No haddocks exist for that snapshot"
                 Just src -> src $$ sinkHandle temph
         hClose temph
 
-        let destdir = dirRawIdent dirs stackageIdent
         createTree destdir
         say "Unpacking tarball"
         (Nothing, Nothing, Nothing, ph) <- createProcess
@@ -154,54 +143,135 @@ unpacker dirs loadHoogleDBs runDB store say urlRender stackageEnt@(Entity _ stac
         ec <- waitForProcess ph
         if ec == ExitSuccess then return () else throwM ec
 
-        createTree $ dirHoogleIdent dirs stackageIdent
 
-        -- Determine which packages have documentation and update the
-        -- database appropriately
-        say "Updating database for available documentation"
-        runResourceT $ runDB $ do
-            let sid = entityKey stackageEnt
-            updateWhere
-                [PackageStackage ==. sid]
-                [PackageHasHaddocks =. False]
-            sourceDirectory destdir $$ mapM_C (\fp -> do
-                let mnv = nameAndVersionFromPath fp
-                forM_ mnv $ \(name, version) -> updateWhere
-                    [ PackageStackage ==. sid
-                    , PackageName' ==. PackageName name
-                    , PackageVersion ==. Version version
-                    ]
-                    [PackageHasHaddocks =. True]
-                )
+unpacker
+    :: Dirs
+    -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
+    -> BlobStore StoreKey
+    -> (Text -> IO ())
+    -> Entity Stackage
+    -> IO ()
+unpacker dirs runDB store say (Entity sid stackage@Stackage {..}) = do
+    say "Removing old directories, if they exist"
+    removeTreeIfExists $ dirRawIdent dirs stackageIdent
+    removeTreeIfExists $ dirGzIdent dirs stackageIdent
+    removeTreeIfExists $ dirHoogleIdent dirs stackageIdent
 
-        let srcDefaultHoo = destdir </> "default.hoo"
-            dstDefaultHoo = defaultHooDest dirs stackage
-            hoogleKey = HoogleDB stackageIdent $ HoogleVersion VERSION_hoogle
-        defaultHooExists <- isFile srcDefaultHoo
-        if defaultHooExists
-            then copyFile srcDefaultHoo dstDefaultHoo
-            else withAcquire (storeRead' store hoogleKey) $ \msrc ->
-                case msrc of
-                    Just src -> do
-                        say "Downloading compiled Hoogle database"
-                        withBinaryFile (fpToString dstDefaultHoo) WriteMode
-                              $ \h -> src $$ ungzip =$ sinkHandle h
-                    Nothing -> when loadHoogleDBs
-                      $ handleAny print
-                      $ withSystemTempDirectory "hoogle-database-gen"
-                      $ \hoogletemp' -> do
-                        let hoogletemp = fpFromString hoogletemp'
-                            logFp = fpToString (dirHoogleFp dirs stackageIdent ["error-log"])
-                        withBinaryFile logFp WriteMode $ \errorLog -> do
-                            say "Copying Hoogle text files to temp directory"
-                            runResourceT $ copyHoogleTextFiles errorLog destdir hoogletemp
-                            say "Creating Hoogle database"
-                            createHoogleDb say dirs stackageEnt errorLog hoogletemp urlRender
-                            say "Uploading database to persistent storage"
-                            withAcquire (storeWrite' store hoogleKey) $ \sink ->
-                                runResourceT $ sourceFile dstDefaultHoo $$ gzip =$ sink
+    let destdir = dirRawIdent dirs stackageIdent
+    unpackRawDocsTo store stackageIdent say destdir
 
-        runCompressor say dirs
+    createTree $ dirHoogleIdent dirs stackageIdent
+
+    -- Determine which packages have documentation and update the
+    -- database appropriately
+    say "Updating database for available documentation"
+    runResourceT $ runDB $ do
+        updateWhere
+            [PackageStackage ==. sid]
+            [PackageHasHaddocks =. False]
+        sourceDirectory destdir $$ mapM_C (\fp -> do
+            let mnv = nameAndVersionFromPath fp
+            forM_ mnv $ \(name, version) -> updateWhere
+                [ PackageStackage ==. sid
+                , PackageName' ==. PackageName name
+                , PackageVersion ==. Version version
+                ]
+                [PackageHasHaddocks =. True]
+            )
+
+    say "Running the compressor"
+    runCompressor say dirs
+
+    say "Unpack complete"
+    writeFile "completeUnpackFile dirs ent" ("Complete" :: ByteString)
+
+completeUnpackFile :: Dirs -> Stackage -> FilePath
+completeUnpackFile dirs stackage =
+    dirGzIdent dirs (stackageIdent stackage) </> "unpack-complete"
+
+-- | Get the path to the Hoogle database, downloading from persistent storage
+-- if necessary. This function will /not/ generate a new database, and
+-- therefore is safe to run on a live web server.
+getHoogleDB :: Dirs
+            -> Stackage
+            -> Handler (Maybe FilePath)
+getHoogleDB dirs stackage = do
+    exists <- liftIO $ isFile fp
+    if exists
+        then return $ Just fp
+        else do
+            msrc <- storeRead key
+            case msrc of
+                Nothing -> return Nothing
+                Just src -> do
+                    liftIO $ createTree $ F.parent fp
+                    let tmpfp = fp <.> "tmp" -- FIXME add something random
+                    src $$ ungzip =$ sinkFile tmpfp
+                    liftIO $ rename tmpfp fp
+                    return $ Just fp
+  where
+    fp = defaultHooDest dirs stackage
+    key = HoogleDB (stackageIdent stackage) $ HoogleVersion VERSION_hoogle
+
+-- | Make sure that the last 5 LTS and last 5 Nightly releases all have Hoogle
+-- databases available.
+createHoogleDatabases
+    :: BlobStore StoreKey
+    -> (forall a m. (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a)
+    -> (Text -> IO ())
+    -> (Route App -> [(Text, Text)] -> Text)
+    -> IO ()
+createHoogleDatabases store runDB say urlRender = do
+    stackages <- runDB $ do
+        sids <- (++)
+            <$> fmap (map $ ltsStackage . entityVal)
+                    (selectList [] [Desc LtsMajor, Desc LtsMinor, LimitTo 5])
+            <*> fmap (map $ nightlyStackage . entityVal)
+                    (selectList [] [Desc NightlyDay, LimitTo 5])
+        catMaybes <$> mapM get sids
+    forM_ stackages $ \stackage -> do
+        let say' x = say $ concat
+                [ toPathPiece $ stackageSlug stackage
+                , ": "
+                , x
+                ]
+        handleAny (say' . tshow) $ makeHoogle store say' urlRender stackage
+
+-- | Either download the Hoogle database from persistent storage, or create it.
+makeHoogle
+    :: BlobStore StoreKey
+    -> (Text -> IO ())
+    -> (Route App -> [(Text, Text)] -> Text)
+    -> Stackage
+    -> IO ()
+makeHoogle store say urlRender stackage = do
+    say "Making hoogle database"
+    exists <- storeExists' store hoogleKey
+    if exists
+        then say "Hoogle database already exists, skipping"
+        else do
+            say "Generating Hoogle database"
+            generate
+  where
+    ident = stackageIdent stackage
+    hoogleKey = HoogleDB ident $ HoogleVersion VERSION_hoogle
+
+    generate = withSystemTempDirectory "hoogle-database-gen" $ \hoogletemp' -> do
+        let hoogletemp = fpFromString hoogletemp'
+            rawdocs = hoogletemp </> "rawdocs"
+
+        unpackRawDocsTo store ident say rawdocs
+
+        say "Copying Hoogle text files to temp directory"
+        runResourceT $ copyHoogleTextFiles say rawdocs hoogletemp
+        say "Creating Hoogle database"
+        withSystemTempFile "default.hoo" $ \dstFP' dstH -> do
+            let dstFP = fpFromString dstFP'
+            hClose dstH
+            createHoogleDb say dstFP stackage hoogletemp urlRender
+            say "Uploading database to persistent storage"
+            withAcquire (storeWrite' store hoogleKey) $ \sink ->
+                runResourceT $ sourceFile dstFP $$ gzip =$ sink
 
 runCompressor :: (Text -> IO ()) -> Dirs -> IO ()
 runCompressor say dirs =
@@ -259,11 +329,11 @@ dirCacheFp dirs digest =
     name = decodeUtf8 $ B16.encode $ toBytes digest
     (x, y) = splitAt 2 name
 
-copyHoogleTextFiles :: Handle -- ^ error log handle
+copyHoogleTextFiles :: (Text -> IO ()) -- ^ log
                     -> FilePath -- ^ raw unpacked Haddock files
                     -> FilePath -- ^ temporary work directory
                     -> ResourceT IO ()
-copyHoogleTextFiles errorLog raw tmp = do
+copyHoogleTextFiles say raw tmp = do
     let tmptext = tmp </> "text"
     liftIO $ createTree tmptext
     sourceDirectory raw $$ mapM_C (\fp ->
@@ -273,7 +343,7 @@ copyHoogleTextFiles errorLog raw tmp = do
             exists <- liftIO $ isFile src
             if exists
                 then sourceFile src $$ (sinkFile dst :: Sink ByteString (ResourceT IO) ())
-                else liftIO $ appendHoogleErrors errorLog $ HoogleErrors
+                else liftIO $ appendHoogleErrors say $ HoogleErrors
                     { packageName = name
                     , packageVersion = version
                     , errors = ["No textual Hoogle DB (use \"cabal haddock --hoogle\")"]
@@ -281,13 +351,12 @@ copyHoogleTextFiles errorLog raw tmp = do
             )
 
 createHoogleDb :: (Text -> IO ())
-               -> Dirs
-               -> Entity Stackage
-               -> Handle -- ^ error log handle
+               -> FilePath -- ^ default.hoo output location
+               -> Stackage
                -> FilePath -- ^ temp directory
                -> (Route App -> [(Text, Text)] -> Text)
                -> IO ()
-createHoogleDb say dirs (Entity _ stackage) errorLog tmpdir urlRender = do
+createHoogleDb say dstDefaultHoo stackage tmpdir urlRender = do
     let tmpbin = tmpdir </> "binary"
     createTree tmpbin
     eres <- tryAny $ runResourceT $ do
@@ -320,7 +389,7 @@ createHoogleDb say dirs (Entity _ stackage) errorLog tmpdir urlRender = do
                         , " Hoogle errors: "
                         , tshow errs
                         ]
-                    appendHoogleErrors errorLog $ HoogleErrors
+                    appendHoogleErrors say $ HoogleErrors
                         { packageName = name
                         , packageVersion = version
                         , errors = map show errs
@@ -333,10 +402,10 @@ createHoogleDb say dirs (Entity _ stackage) errorLog tmpdir urlRender = do
             dbs <- listDirectory tmpbin
             Hoogle.mergeDatabase
                 (map fpToString dbs)
-                (fpToString $ defaultHooDest dirs stackage)
+                (fpToString dstDefaultHoo)
     case eres of
         Right () -> return ()
-        Left err -> liftIO $ appendHoogleErrors errorLog $ HoogleErrors
+        Left err -> liftIO $ appendHoogleErrors say $ HoogleErrors
              { packageName = "Exception thrown while building hoogle DB"
              , packageVersion = ""
              , errors = [show err]
@@ -353,8 +422,8 @@ instance FromJSON HoogleErrors where
 
 -- Appends hoogle errors to a log file.  By encoding within a single
 -- list, the resulting file can be decoded as [HoogleErrors].
-appendHoogleErrors :: Handle -> HoogleErrors -> IO ()
-appendHoogleErrors h errs = hPut h (Y.encode [errs])
+appendHoogleErrors :: (Text -> IO ()) -> HoogleErrors -> IO ()
+appendHoogleErrors say errs = say $ decodeUtf8 $ Y.encode [errs]
 
 nameAndVersionFromPath :: FilePath -> Maybe (Text, Text)
 nameAndVersionFromPath fp =

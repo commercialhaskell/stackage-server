@@ -34,17 +34,17 @@ data App = App
     , httpManager :: Manager
     , persistConfig :: Settings.PersistConf
     , appLogger :: Logger
-    , genIO :: !MWC.GenIO
-    , blobStore :: !(BlobStore StoreKey)
-    , progressMap :: !(IORef (IntMap Progress))
-    , nextProgressKey :: !(IORef Int)
-    , haddockRootDir :: !FilePath
+    , genIO :: MWC.GenIO
+    , blobStore :: BlobStore StoreKey
+    , progressMap :: IORef (IntMap Progress)
+    , nextProgressKey :: IORef Int
+    , haddockRootDir :: FilePath
     , appDocUnpacker :: DocUnpacker
     -- ^ We have a dedicated thread so that (1) we don't try to unpack too many
     -- things at once, (2) we never unpack the same thing twice at the same
     -- time, and (3) so that even if the client connection dies, we finish the
     -- unpack job.
-    , widgetCache :: !(IORef (HashMap Text (UTCTime, GWData (Route App))))
+    , widgetCache :: IORef (HashMap Text (UTCTime, GWData (Route App)))
     , websiteContent :: GitRepo WebsiteContent
     }
 

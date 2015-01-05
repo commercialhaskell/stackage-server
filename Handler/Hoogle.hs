@@ -6,8 +6,7 @@ import           Control.Spoon (spoon)
 import           Data.Data (Data (..))
 import           Data.Slug (SnapSlug)
 import           Data.Text.Read (decimal)
-import           Data.Unpacking (defaultHooDest)
-import           Filesystem (isFile)
+import           Data.Unpacking (getHoogleDB)
 import           Handler.Haddock (getDirs)
 import qualified Hoogle
 import           Import
@@ -29,14 +28,18 @@ getHoogleR slug = do
                 Just (Right (i, "")) -> i
                 _ -> 1
         offset = (page - 1) * perPage
-    stackageEnt@(Entity _ stackage) <- runDB $ getBy404 $ UniqueSnapshot slug
-    -- Unpack haddocks and generate hoogle DB, if necessary.
-    requireDocs stackageEnt
-    let databasePath = defaultHooDest dirs stackage
-        heDatabase = liftIO $ Hoogle.loadDatabase (fpToString databasePath)
-    -- If the hoogle DB isn't yet generated, yield 404.
-    dbExists <- liftIO $ isFile databasePath
-    when (not dbExists) notFound
+    Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+    mdatabasePath <- getHoogleDB dirs stackage
+    heDatabase <- case mdatabasePath of
+        Just x -> return $ liftIO $ Hoogle.loadDatabase $ fpToString x
+        Nothing -> (>>= sendResponse) $ defaultLayout $ do
+            setTitle "Hoogle database not available"
+            [whamlet|
+                <p>The given Hoogle database is not available.
+                <p>
+                    <a href=@{SnapshotR slug StackageHomeR}>Return to snapshot homepage
+            |]
+
     mresults <- case mquery of
         Just query -> runHoogleQuery heDatabase HoogleQueryInput
             { hqiQueryInput = query

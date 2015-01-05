@@ -13,7 +13,7 @@ import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Hackage
 import           Data.Hackage.Views
-import           Data.Unpacking (newDocUnpacker)
+import           Data.Unpacking (newDocUnpacker, createHoogleDatabases)
 import           Data.WebsiteContent
 import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
 import           Data.Time (diffUTCTime)
@@ -200,8 +200,12 @@ makeFoundation useEcho conf = do
 
     env <- getEnvironment
 
+    let runDB' :: (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a
+        runDB' = flip (Database.Persist.runPool dbconf) p
+    docUnpacker <- newDocUnpacker haddockRootDir' blobStore' runDB'
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
-        mkFoundation du = App
+        foundation = App
             { settings = conf
             , getStatic = s
             , connPool = p
@@ -213,19 +217,12 @@ makeFoundation useEcho conf = do
             , progressMap = progressMap'
             , nextProgressKey = nextProgressKey'
             , haddockRootDir = haddockRootDir'
-            , appDocUnpacker = du
+            , appDocUnpacker = docUnpacker
             , widgetCache = widgetCache'
             , websiteContent = websiteContent'
             }
 
-    let urlRender' = yesodRender (mkFoundation (error "docUnpacker forced")) (appRoot conf)
-    docUnpacker <- newDocUnpacker
-        haddockRootDir'
-        (lookup "STACKAGE_HOOGLE_LOADER" env /= Just "0")
-        blobStore'
-        (flip (Database.Persist.runPool dbconf) p)
-        urlRender'
-    let foundation = mkFoundation docUnpacker
+    let urlRender' = yesodRender foundation (appRoot conf)
 
     -- Perform database migration using our application's logging settings.
     when (lookup "STACKAGE_SKIP_MIGRATION" env /= Just "1") $
@@ -250,6 +247,8 @@ makeFoundation useEcho conf = do
         $logInfoS "CLEANUP" "Cleaning up complete"
 
         loadCabalFiles'
+
+        liftIO $ createHoogleDatabases blobStore' runDB' putStrLn urlRender'
 
         liftIO $ threadDelay $ 30 * 60 * 1000000
     return foundation
@@ -291,6 +290,28 @@ cabalLoaderMain = do
             }
         dbconf
         pool
+
+    let foundation = App
+            { settings = conf
+            , getStatic = error "getStatic"
+            , connPool = pool
+            , httpManager = manager
+            , persistConfig = dbconf
+            , appLogger = error "appLogger"
+            , genIO = error "genIO"
+            , blobStore = bs
+            , progressMap = error "progressMap"
+            , nextProgressKey = error "nextProgressKey"
+            , haddockRootDir = error "haddockRootDir"
+            , appDocUnpacker = error "appDocUnpacker"
+            , widgetCache = error "widgetCache"
+            , websiteContent = error "websiteContent"
+            }
+    createHoogleDatabases
+        bs
+        (flip (Database.Persist.runPool dbconf) pool)
+        putStrLn
+        (yesodRender foundation (appRoot conf))
   where
     logFunc loc src level str
         | level > LevelDebug = S.hPutStr stdout $ fromLogStr $ defaultLogStr loc src level str
