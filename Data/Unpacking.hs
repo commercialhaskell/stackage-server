@@ -19,7 +19,7 @@ import Data.Char (isAlpha)
 import qualified Hoogle
 import qualified Data.Text as T
 import qualified Data.Yaml as Y
-import System.IO (IOMode (ReadMode, WriteMode), withBinaryFile, openBinaryFile)
+import System.IO (IOMode (ReadMode), withBinaryFile, openBinaryFile)
 import System.IO.Temp (withSystemTempFile, withTempFile, withSystemTempDirectory)
 import System.Exit (ExitCode (ExitSuccess))
 import System.Process (createProcess, proc, cwd, waitForProcess)
@@ -104,12 +104,14 @@ unpackWorker dirs runDB store messageVar workChan = do
         if forceUnpack
             then return True
             else not <$> isUnpacked dirs (entityVal ent)
+
+    let say msg = atomically $ writeTVar messageVar $ concat
+            [ toPathPiece (stackageSlug $ entityVal ent)
+            , ": "
+            , msg
+            ]
+
     when shouldUnpack $ do
-        let say msg = atomically $ writeTVar messageVar $ concat
-                [ toPathPiece (stackageSlug $ entityVal ent)
-                , ": "
-                , msg
-                ]
         say "Beginning of processing"
 
         -- As soon as the raw unpack is complete, start serving docs
@@ -119,6 +121,10 @@ unpackWorker dirs runDB store messageVar workChan = do
         atomically $ writeTVar resVar $ case eres of
             Left e -> USFailed $ tshow e
             Right () -> USReady
+
+    say "Running the compressor"
+    let shouldStop = fmap not $ atomically $ isEmptyTChan workChan
+    runCompressor shouldStop say dirs
 
 removeTreeIfExists :: FilePath -> IO ()
 removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
@@ -156,7 +162,7 @@ unpacker
     -> IO () -- ^ onRawComplete
     -> Entity Stackage
     -> IO ()
-unpacker dirs runDB store say onRawComplete (Entity sid stackage@Stackage {..}) = do
+unpacker dirs runDB store say onRawComplete (Entity sid Stackage {..}) = do
     say "Removing old directories, if they exist"
     removeTreeIfExists $ dirRawIdent dirs stackageIdent
     removeTreeIfExists $ dirGzIdent dirs stackageIdent
@@ -184,9 +190,6 @@ unpacker dirs runDB store say onRawComplete (Entity sid stackage@Stackage {..}) 
                 ]
                 [PackageHasHaddocks =. True]
             )
-
-    say "Running the compressor"
-    runCompressor say dirs
 
     say "Unpack complete"
     writeFile "completeUnpackFile dirs ent" ("Complete" :: ByteString)
@@ -279,11 +282,15 @@ makeHoogle store say urlRender stackage = do
             withAcquire (storeWrite' store hoogleKey) $ \sink ->
                 runResourceT $ sourceFile dstFP $$ gzip =$ sink
 
-runCompressor :: (Text -> IO ()) -> Dirs -> IO ()
-runCompressor say dirs =
-    runResourceT $ goDir $ dirRawRoot dirs
+runCompressor :: IO Bool -- ^ should stop early?
+              -> (Text -> IO ()) -> Dirs -> IO ()
+runCompressor shouldStop say dirs =
+    handle (\EarlyStop -> return ()) $ runResourceT $ goDir $ dirRawRoot dirs
   where
     goDir dir = do
+        liftIO $ whenM shouldStop $ do
+            say "Stopping compressor early"
+            throwIO EarlyStop
         liftIO $ say $ "Compressing directory: " ++ fpToText dir
         sourceDirectory dir $$ mapM_C goFP
         liftIO $ void $ tryIO $ removeDirectory dir
@@ -298,6 +305,10 @@ runCompressor say dirs =
             else goDir fp
       where
         Just suffix = F.stripPrefix (dirRawRoot dirs </> "") fp
+
+data EarlyStop = EarlyStop
+    deriving (Show, Typeable)
+instance Exception EarlyStop
 
 -- Procedure is to:
 --
