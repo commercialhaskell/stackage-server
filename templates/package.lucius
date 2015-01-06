@@ -52,6 +52,10 @@ h3 {
   margin-top: 0.5em;
   padding-top: 0.5em;
 }
+.docs-list {
+  padding-right: 2em;
+  display: inline-block;
+}
 .docs {
   margin-top: 0.5em;
   border-top: 1px solid #ddd;
