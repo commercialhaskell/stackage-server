@@ -54,3 +54,4 @@
 /older-releases OlderReleasesR GET
 
 /refresh-deprecated RefreshDeprecatedR GET
+/build-version BuildVersionR GET
