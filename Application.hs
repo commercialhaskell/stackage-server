@@ -237,6 +237,7 @@ makeFoundation useEcho conf = do
 
 
     let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
+        hoogleGen = lookup "STACKAGE_HOOGLE_GEN" env /= Just "0"
         forceUpdate = lookup "STACKAGE_FORCE_UPDATE" env == Just "1"
         loadCabalFiles' = appLoadCabalFiles updateDB forceUpdate foundation dbconf p
 
@@ -249,7 +250,7 @@ makeFoundation useEcho conf = do
 
         loadCabalFiles'
 
-        liftIO $ createHoogleDatabases blobStore' runDB' putStrLn urlRender'
+        when hoogleGen $ liftIO $ createHoogleDatabases blobStore' runDB' putStrLn urlRender'
 
         liftIO $ threadDelay $ 30 * 60 * 1000000
     return foundation
