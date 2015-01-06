@@ -61,6 +61,7 @@ h3 {
   border-top: 1px solid #ddd;
   padding-top: 0.5em;
   ul {
+    -webkit-overflow-scrolling: touch;
     max-height: 20ex;
     overflow: auto;
     list-style-type: none;
