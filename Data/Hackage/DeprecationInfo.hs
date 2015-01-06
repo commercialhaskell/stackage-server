@@ -23,8 +23,8 @@ instance FromJSON HackageDeprecationInfo where
     }
 
 data DeprecationRecord = DeprecationRecord {
-  deprecatedPackage :: PackageName,
-  deprecatedInFavourOf :: [PackageName]
+  _deprecatedPackage :: PackageName,
+  _deprecatedInFavourOf :: [PackageName]
 }
 
 instance FromJSON DeprecationRecord where

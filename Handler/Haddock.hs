@@ -9,32 +9,27 @@ module Handler.Haddock
     , dirRawIdent
     , dirGzIdent
     , dirHoogleIdent
+    , createCompressor
     ) where
 
-import Import
-import Data.BlobStore
-import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile, removeDirectory, listDirectory)
-import System.Directory (getTemporaryDirectory)
-import Control.Concurrent (forkIO)
-import System.IO.Temp (withSystemTempFile, withTempFile, createTempDirectory)
-import System.Process (createProcess, proc, cwd, waitForProcess)
-import System.Exit (ExitCode (ExitSuccess))
-import Network.Mime (defaultMimeLookup)
-import Crypto.Hash.Conduit (sinkHash)
-import System.IO (IOMode (ReadMode, WriteMode), withBinaryFile, openBinaryFile)
-import Data.Conduit.Zlib (gzip)
-import System.Posix.Files (createLink)
+import           Control.Concurrent (forkIO)
+import           Crypto.Hash (Digest, SHA1)
+import           Crypto.Hash.Conduit (sinkHash)
+import           Data.Aeson (withObject)
+import           Data.BlobStore
 import qualified Data.ByteString.Base16 as B16
-import Data.Byteable (toBytes)
-import Crypto.Hash (Digest, SHA1)
-import qualified Filesystem.Path.CurrentOS as F
-import Data.Slug (SnapSlug, unSlug)
+import           Data.Byteable (toBytes)
+import           Data.Conduit.Zlib (gzip)
+import           Data.Slug (SnapSlug, unSlug)
 import qualified Data.Text as T
 import qualified Data.Yaml as Y
-import Data.Aeson (withObject)
-import qualified Hoogle
-import Data.Char (isAlpha)
-import Control.Monad.Trans.Resource (allocate, resourceForkIO, release)
+import           Filesystem (isDirectory, createTree, isFile, rename, removeFile, removeDirectory)
+import qualified Filesystem.Path.CurrentOS as F
+import           Import
+import           Network.Mime (defaultMimeLookup)
+import           System.IO (IOMode (ReadMode), withBinaryFile)
+import           System.IO.Temp (withTempFile)
+import           System.Posix.Files (createLink)
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"

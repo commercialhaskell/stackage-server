@@ -1,10 +1,10 @@
 module Handler.PackageList where
 
 import qualified Data.HashMap.Strict as M
-import           Data.Time (NominalDiffTime, addUTCTime)
+import           Data.Time (NominalDiffTime)
 import qualified Database.Esqueleto as E
 import           Import
-import           Yesod.Core.Types (WidgetT (WidgetT), unWidgetT)
+
 
 -- FIXME maybe just redirect to the LTS or nightly package list
 getPackageListR :: Handler Html
