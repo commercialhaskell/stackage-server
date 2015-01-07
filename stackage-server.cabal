@@ -54,6 +54,7 @@ library
                      Handler.BannedTags
                      Handler.RefreshDeprecated
                      Handler.BuildVersion
+                     Handler.PackageCounts
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

@@ -55,3 +55,4 @@
 
 /refresh-deprecated RefreshDeprecatedR GET
 /build-version BuildVersionR GET
+/package-counts PackageCountsR GET
