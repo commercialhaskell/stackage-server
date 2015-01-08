@@ -5,6 +5,7 @@ import           Data.BlobStore
 import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug, SnapSlug)
 import           Data.WebsiteContent
 import qualified Database.Persist
+import           Database.Persist.Sql (PersistentSqlException (Couldn'tGetSQLConnection))
 import           Model
 import qualified Settings
 import           Settings (widgetFile, Extra (..), GoogleAuth (..))
@@ -95,7 +96,9 @@ instance Yesod App where
 
     defaultLayout widget = do
         mmsg <- getMessage
-        muser <- maybeAuth
+        muser <- catch maybeAuth $ \e -> case e of
+            Couldn'tGetSQLConnection -> return Nothing
+            _ -> throwM e
 
         -- We break up the default layout into two components:
         -- default-layout is the contents of the body tag, and
