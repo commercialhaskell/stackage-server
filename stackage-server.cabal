@@ -154,7 +154,7 @@ library
                  , formatting
                  , blaze-html
                  , haddock-library
-                 , yesod-gitrepo
+                 , yesod-gitrepo >= 0.1.1
                  , hoogle
                  , spoon
                  , deepseq

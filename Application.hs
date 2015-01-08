@@ -170,7 +170,6 @@ makeFoundation useEcho conf = do
     let haddockRootDir' = "/tmp/stackage-server-haddocks2"
     widgetCache' <- newIORef mempty
 
-#if MIN_VERSION_yesod_gitrepo(0,1,1)
     websiteContent' <- if development
         then do
             void $ rawSystem "git"
@@ -182,23 +181,6 @@ makeFoundation useEcho conf = do
             "https://github.com/fpco/stackage-content.git"
             "master"
             loadWebsiteContent
-#else
-    websiteContent' <- if development
-        then do
-            void $ rawSystem "git"
-                [ "clone"
-                , "https://github.com/fpco/stackage-content.git"
-                ]
-            tmp <- gitRepo "stackage-content" "master" loadWebsiteContent
-            return tmp
-                { grRefresh = return ()
-                , grContent = loadWebsiteContent "stackage-content"
-                }
-        else gitRepo
-            "https://github.com/fpco/stackage-content.git"
-            "master"
-            loadWebsiteContent
-#endif
 
     env <- getEnvironment
 
