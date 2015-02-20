@@ -20,6 +20,7 @@ import System.Directory (removeFile, getTemporaryDirectory)
 import System.Process (runProcess, waitForProcess)
 import System.Exit (ExitCode (ExitSuccess))
 import Data.Slug (mkSlug, SnapSlug (..), safeMakeSlug, unSlug)
+import Control.Debounce
 
 fileKey :: Text
 fileKey = "stackage"
@@ -78,12 +79,28 @@ putUploadStackageR = do
             when (isJust mstackage) $ invalidArgs ["Stackage already exists"]
 
             app <- getYesod
-            key <- atomicModifyIORef (nextProgressKey app) $ \i -> (i + 1, i + 1)
-            let updateHelper :: MonadBase IO m => Progress -> m ()
-                updateHelper p = atomicModifyIORef (progressMap app) $ \m -> (insertMap key p m, ())
+            let initProgress = UploadProgress "Upload starting" Nothing
+            key <- runDB $ insert initProgress
+
+            -- We don't want to be writing progress updates to the database too
+            -- frequently, so let's just do it once per second at most.
+            -- Debounce to the rescue!
+            statusRef <- newIORef initProgress
+            writeToDB <- liftIO $ mkDebounce defaultDebounceSettings
+                { debounceAction = do
+                    up <- readIORef statusRef
+                    runPool (persistConfig app) (replace key up) (connPool app)
+                }
+
+            let updateHelper :: MonadBase IO m => UploadProgress -> m ()
+                updateHelper p = do
+                    writeIORef statusRef p
+                    liftBase writeToDB
                 update :: MonadBase IO m => Text -> m ()
-                update msg = updateHelper (ProgressWorking msg)
-                done msg url = updateHelper (ProgressDone msg url)
+                update msg = updateHelper (UploadProgress msg Nothing)
+                done msg route = do
+                    render <- getUrlRender
+                    updateHelper (UploadProgress msg $ Just $ render route)
                 onExc e = done ("Exception occurred: " ++ tshow e) ProfileR
                 setAlias = do
                     forM_ (malias >>= mkSlug) $ \alias -> do
@@ -166,8 +183,7 @@ putUploadStackageR = do
                                     return slug
 
                                 done "Stackage created" $ SnapshotR slug StackageHomeR
-                            else do
-                                done "Error creating index file" ProfileR
+                            else done "Error creating index file" ProfileR
 
             addHeader "X-Stackage-Ident" $ toPathPiece ident
             redirect $ ProgressR key

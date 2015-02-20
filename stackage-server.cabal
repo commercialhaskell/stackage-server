@@ -159,6 +159,7 @@ library
                  , spoon
                  , deepseq
                  , deepseq-generics
+                 , auto-update
 
 executable         stackage-server
     if flag(library-only)

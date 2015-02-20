@@ -31,7 +31,7 @@
 /hackage-view/#HackageView/package/#PackageNameVersion HackageViewSdistR GET
 /aliases AliasesR PUT
 /alias/#Slug/#Slug/*Texts AliasR
-/progress/#Int ProgressR GET
+/progress/#UploadProgressId ProgressR GET
 /system SystemR GET
 /haddock/#SnapSlug/*Texts HaddockR GET
 /package/#PackageName PackageR GET

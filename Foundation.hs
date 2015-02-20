@@ -37,8 +37,6 @@ data App = App
     , appLogger :: Logger
     , genIO :: MWC.GenIO
     , blobStore :: BlobStore StoreKey
-    , progressMap :: IORef (IntMap Progress)
-    , nextProgressKey :: IORef Int
     , haddockRootDir :: FilePath
     , appDocUnpacker :: DocUnpacker
     -- ^ We have a dedicated thread so that (1) we don't try to unpack too many

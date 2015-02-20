@@ -162,8 +162,6 @@ makeFoundation useEcho conf = do
     _ <- forkIO updateLoop
 
     gen <- MWC.createSystemRandom
-    progressMap' <- newIORef mempty
-    nextProgressKey' <- newIORef 0
 
     blobStore' <- loadBlobStore manager conf
 
@@ -198,8 +196,6 @@ makeFoundation useEcho conf = do
             , appLogger = logger
             , genIO = gen
             , blobStore = blobStore'
-            , progressMap = progressMap'
-            , nextProgressKey = nextProgressKey'
             , haddockRootDir = haddockRootDir'
             , appDocUnpacker = docUnpacker
             , widgetCache = widgetCache'
@@ -285,8 +281,6 @@ cabalLoaderMain = do
             , appLogger = error "appLogger"
             , genIO = error "genIO"
             , blobStore = bs
-            , progressMap = error "progressMap"
-            , nextProgressKey = error "nextProgressKey"
             , haddockRootDir = error "haddockRootDir"
             , appDocUnpacker = error "appDocUnpacker"
             , widgetCache = error "widgetCache"
