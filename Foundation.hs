@@ -131,6 +131,7 @@ instance Yesod App where
     -- The page to be redirected to when authentication is required.
     authRoute _ = Just $ AuthR LoginR
 
+    {- Temporarily disable to allow for horizontal scaling
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
     -- expiration dates to be set far in the future without worry of
@@ -142,6 +143,7 @@ instance Yesod App where
         genFileName lbs
             | development = "autogen-" ++ base64md5 lbs
             | otherwise   = base64md5 lbs
+    -}
 
     -- Place Javascript at bottom of the body tag so the rest of the page loads first
     jsLoader _ = BottomOfBody
