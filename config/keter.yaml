@@ -7,4 +7,3 @@ stanzas:
     STACKAGE_CABAL_LOADER: "0"
     STACKAGE_HOOGLE_GEN: "0"
   host: www.stackage.org
-copy-to: fpuser@www.stackage.org:/var/opt/keter/incoming
