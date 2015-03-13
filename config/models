@@ -134,3 +134,7 @@ Suggested
     package PackageName
     insteadOf PackageName
     UniqueSuggested package insteadOf
+
+UploadProgress
+    message Text
+    dest Text Maybe

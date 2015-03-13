@@ -1,0 +1,12 @@
+th {
+    font-size: 1.2em;
+}
+
+td, th {
+    padding: 0.5em;
+}
+
+.name {
+    text-align: right;
+    font-weight: bold;
+}

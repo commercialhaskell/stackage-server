@@ -58,7 +58,13 @@ data StoreKey = HackageCabal !PackageName !Version
               | HackageViewIndex !HackageView
               | SnapshotBundle !PackageSetIdent
               | HaddockBundle !PackageSetIdent
+              | HoogleDB !PackageSetIdent !HoogleVersion
     deriving (Show, Eq, Ord, Typeable)
+
+newtype HoogleVersion = HoogleVersion Text
+    deriving (Show, Eq, Ord, Typeable, PathPiece)
+currentHoogleVersion :: HoogleVersion
+currentHoogleVersion = HoogleVersion VERSION_hoogle
 
 instance ToPath StoreKey where
     toPath (HackageCabal name version) = ["hackage", toPathPiece name, toPathPiece version ++ ".cabal"]
@@ -95,6 +101,11 @@ instance ToPath StoreKey where
         [ "haddock"
         , toPathPiece ident ++ ".tar.xz"
         ]
+    toPath (HoogleDB ident ver) =
+        [ "hoogle"
+        , toPathPiece ver
+        , toPathPiece ident ++ ".hoo.gz"
+        ]
 instance BackupToS3 StoreKey where
     shouldBackup HackageCabal{} = False
     shouldBackup HackageSdist{} = False
@@ -105,6 +116,7 @@ instance BackupToS3 StoreKey where
     shouldBackup HackageViewIndex{} = False
     shouldBackup SnapshotBundle{} = True
     shouldBackup HaddockBundle{} = True
+    shouldBackup HoogleDB{} = True
 
 newtype HackageRoot = HackageRoot { unHackageRoot :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)
@@ -113,3 +125,7 @@ class HasHackageRoot a where
     getHackageRoot :: a -> HackageRoot
 instance HasHackageRoot HackageRoot where
     getHackageRoot = id
+
+data UnpackStatus = USReady
+                  | USBusy
+                  | USFailed !Text

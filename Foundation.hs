@@ -5,6 +5,7 @@ import           Data.BlobStore
 import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug, SnapSlug)
 import           Data.WebsiteContent
 import qualified Database.Persist
+import           Database.Persist.Sql (PersistentSqlException (Couldn'tGetSQLConnection))
 import           Model
 import qualified Settings
 import           Settings (widgetFile, Extra (..), GoogleAuth (..))
@@ -36,18 +37,15 @@ data App = App
     , httpManager :: Manager
     , persistConfig :: Settings.PersistConf
     , appLogger :: Logger
-    , genIO :: !MWC.GenIO
-    , blobStore :: !(BlobStore StoreKey)
-    , progressMap :: !(IORef (IntMap Progress))
-    , nextProgressKey :: !(IORef Int)
-    , haddockRootDir :: !FilePath
-    , haddockUnpacker :: !(ForceUnpack -> PackageSetIdent -> IO ())
+    , genIO :: MWC.GenIO
+    , blobStore :: BlobStore StoreKey
+    , haddockRootDir :: FilePath
+    , appDocUnpacker :: DocUnpacker
     -- ^ We have a dedicated thread so that (1) we don't try to unpack too many
     -- things at once, (2) we never unpack the same thing twice at the same
     -- time, and (3) so that even if the client connection dies, we finish the
     -- unpack job.
-    , widgetCache :: !(IORef (HashMap Text (UTCTime, GWData (Route App))))
-    , compressorStatus :: !(IORef Text)
+    , widgetCache :: IORef (HashMap Text (UTCTime, GWData (Route App)))
     , websiteContent :: GitRepo WebsiteContent
     , snapshotInfoCache :: !(IORef (HashMap PackageSetIdent SnapshotInfo))
     }
@@ -58,7 +56,11 @@ data SnapshotInfo = SnapshotInfo
     , siDocMap :: !DocMap
     }
 
-type ForceUnpack = Bool
+data DocUnpacker = DocUnpacker
+    { duRequestDocs :: Entity Stackage -> IO UnpackStatus
+    , duGetStatus   :: IO Text
+    , duForceReload :: Entity Stackage -> IO ()
+    }
 
 data Progress = ProgressWorking !Text
               | ProgressDone !Text !(Route App)
@@ -101,7 +103,9 @@ instance Yesod App where
 
     defaultLayout widget = do
         mmsg <- getMessage
-        muser <- maybeAuth
+        muser <- catch maybeAuth $ \e -> case e of
+            Couldn'tGetSQLConnection -> return Nothing
+            _ -> throwM e
 
         -- We break up the default layout into two components:
         -- default-layout is the contents of the body tag, and
@@ -136,6 +140,7 @@ instance Yesod App where
     -- The page to be redirected to when authentication is required.
     authRoute _ = Just $ AuthR LoginR
 
+    {- Temporarily disable to allow for horizontal scaling
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
     -- expiration dates to be set far in the future without worry of
@@ -147,6 +152,7 @@ instance Yesod App where
         genFileName lbs
             | development = "autogen-" ++ base64md5 lbs
             | otherwise   = base64md5 lbs
+    -}
 
     -- Place Javascript at bottom of the body tag so the rest of the page loads first
     jsLoader _ = BottomOfBody

@@ -18,7 +18,7 @@ import GHC.Prim (RealWorld)
 import Text.Blaze (ToMarkup)
 
 newtype Slug = Slug { unSlug :: Text }
-    deriving (Show, Read, Eq, Typeable, PersistField, ToMarkup)
+    deriving (Show, Read, Eq, Typeable, PersistField, ToMarkup, Ord, Hashable)
 instance PersistFieldSql Slug where
     sqlType = sqlType . liftM unSlug
 
@@ -101,6 +101,6 @@ slugField =
 
 -- | Unique identifier for a snapshot.
 newtype SnapSlug = SnapSlug { unSnapSlug :: Slug }
-    deriving (Show, Read, Eq, Typeable, PersistField, ToMarkup, PathPiece)
+    deriving (Show, Read, Eq, Typeable, PersistField, ToMarkup, PathPiece, Ord, Hashable)
 instance PersistFieldSql SnapSlug where
     sqlType = sqlType . liftM unSnapSlug

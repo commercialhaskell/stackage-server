@@ -57,8 +57,6 @@ h3 {
   border-top: 1px solid #ddd;
   padding-top: 0.5em;
   ul {
-    max-height: 20ex;
-    overflow: auto;
     list-style-type: none;
     margin-left: 0;
     padding-left: 0;

@@ -1,0 +1,5 @@
+$(function() {
+  var input = $(".hoogle .search").get(0);
+  var len = input.value.length;
+  input.setSelectionRange(len, len);
+})

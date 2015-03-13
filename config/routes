@@ -25,12 +25,13 @@
     /package/#PackageNameVersion StackageSdistR GET
     /packages SnapshotPackagesR GET
     /docs DocsR GET
+    /hoogle HoogleR GET
 
 /hackage-view/#HackageView/00-index.tar.gz HackageViewIndexR GET
 /hackage-view/#HackageView/package/#PackageNameVersion HackageViewSdistR GET
 /aliases AliasesR PUT
 /alias/#Slug/#Slug/*Texts AliasR
-/progress/#Int ProgressR GET
+/progress/#UploadProgressId ProgressR GET
 /system SystemR GET
 /haddock/#SnapSlug/*Texts HaddockR GET
 /package/#PackageName PackageR GET
@@ -54,3 +55,5 @@
 
 /refresh-deprecated RefreshDeprecatedR GET
 /upload2 UploadV2R PUT
+/build-version BuildVersionR GET
+/package-counts PackageCountsR GET

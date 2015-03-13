@@ -13,6 +13,7 @@ import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Hackage
 import           Data.Hackage.Views
+import           Data.Unpacking (newDocUnpacker, createHoogleDatabases)
 import           Data.WebsiteContent
 import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
 import           Data.Time (diffUTCTime)
@@ -69,6 +70,9 @@ import           Handler.Tag
 import           Handler.BannedTags
 import           Handler.RefreshDeprecated
 import           Handler.UploadV2
+import           Handler.Hoogle
+import           Handler.BuildVersion
+import           Handler.PackageCounts
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -148,17 +152,12 @@ makeFoundation useEcho conf = do
     (getter, _) <- clockDateCacher
 
     gen <- MWC.createSystemRandom
-    progressMap' <- newIORef mempty
-    nextProgressKey' <- newIORef 0
 
     blobStore' <- loadBlobStore manager conf
 
     let haddockRootDir' = "/tmp/stackage-server-haddocks2"
-    (statusRef, unpacker) <- createHaddockUnpacker haddockRootDir' blobStore'
-        (flip (Database.Persist.runPool dbconf) p)
     widgetCache' <- newIORef mempty
 
-#if MIN_VERSION_yesod_gitrepo(0,1,1)
     websiteContent' <- if development
         then do
             void $ rawSystem "git"
@@ -170,23 +169,12 @@ makeFoundation useEcho conf = do
             "https://github.com/fpco/stackage-content.git"
             "master"
             loadWebsiteContent
-#else
-    websiteContent' <- if development
-        then do
-            void $ rawSystem "git"
-                [ "clone"
-                , "https://github.com/fpco/stackage-content.git"
-                ]
-            tmp <- gitRepo "stackage-content" "master" loadWebsiteContent
-            return tmp
-                { grRefresh = return ()
-                , grContent = loadWebsiteContent "stackage-content"
-                }
-        else gitRepo
-            "https://github.com/fpco/stackage-content.git"
-            "master"
-            loadWebsiteContent
-#endif
+
+    env <- getEnvironment
+
+    let runDB' :: (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a
+        runDB' = flip (Database.Persist.runPool dbconf) p
+    docUnpacker <- newDocUnpacker haddockRootDir' blobStore' runDB'
 
     snapshotInfoCache' <- newIORef mempty
 
@@ -200,17 +188,14 @@ makeFoundation useEcho conf = do
             , appLogger = logger
             , genIO = gen
             , blobStore = blobStore'
-            , progressMap = progressMap'
-            , nextProgressKey = nextProgressKey'
             , haddockRootDir = haddockRootDir'
-            , haddockUnpacker = unpacker
+            , appDocUnpacker = docUnpacker
             , widgetCache = widgetCache'
-            , compressorStatus = statusRef
             , websiteContent = websiteContent'
             , snapshotInfoCache = snapshotInfoCache'
             }
 
-    env <- getEnvironment
+    let urlRender' = yesodRender foundation (appRoot conf)
 
     -- Perform database migration using our application's logging settings.
     when (lookup "STACKAGE_SKIP_MIGRATION" env /= Just "1") $
@@ -224,6 +209,7 @@ makeFoundation useEcho conf = do
 
 
     let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
+        hoogleGen = lookup "STACKAGE_HOOGLE_GEN" env /= Just "0"
         forceUpdate = lookup "STACKAGE_FORCE_UPDATE" env == Just "1"
         loadCabalFiles' = appLoadCabalFiles updateDB forceUpdate foundation dbconf p
 
@@ -235,6 +221,8 @@ makeFoundation useEcho conf = do
         $logInfoS "CLEANUP" "Cleaning up complete"
 
         loadCabalFiles'
+
+        when hoogleGen $ liftIO $ createHoogleDatabases blobStore' runDB' putStrLn urlRender'
 
         liftIO $ threadDelay $ 30 * 60 * 1000000
     return foundation
@@ -276,6 +264,26 @@ cabalLoaderMain = do
             }
         dbconf
         pool
+
+    let foundation = App
+            { settings = conf
+            , getStatic = error "getStatic"
+            , connPool = pool
+            , httpManager = manager
+            , persistConfig = dbconf
+            , appLogger = error "appLogger"
+            , genIO = error "genIO"
+            , blobStore = bs
+            , haddockRootDir = error "haddockRootDir"
+            , appDocUnpacker = error "appDocUnpacker"
+            , widgetCache = error "widgetCache"
+            , websiteContent = error "websiteContent"
+            }
+    createHoogleDatabases
+        bs
+        (flip (Database.Persist.runPool dbconf) pool)
+        putStrLn
+        (yesodRender foundation (appRoot conf))
   where
     logFunc loc src level str
         | level > LevelDebug = S.hPutStr stdout $ fromLogStr $ defaultLogStr loc src level str

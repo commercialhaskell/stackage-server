@@ -1,26 +1,35 @@
-module Handler.Haddock where
+module Handler.Haddock
+    ( getUploadHaddockR
+    , putUploadHaddockR
+    , getHaddockR
+    , getUploadDocMapR
+    , putUploadDocMapR
+    -- Exported for use in Handler.Hoogle
+    , Dirs (..), getDirs, dirHoogleFp, mkDirs
+    , dirRawIdent
+    , dirGzIdent
+    , dirHoogleIdent
+    , createCompressor
+    ) where
 
-import Import
-import Data.BlobStore
-import Filesystem (removeTree, isDirectory, createTree, isFile, rename, removeFile, removeDirectory)
-import Control.Concurrent (forkIO)
-import System.IO.Temp (withSystemTempFile, withTempFile)
-import System.Process (createProcess, proc, cwd, waitForProcess)
-import System.Exit (ExitCode (ExitSuccess))
-import Network.Mime (defaultMimeLookup)
-import Crypto.Hash.Conduit (sinkHash)
-import System.IO (IOMode (ReadMode), withBinaryFile)
-import Data.Conduit.Zlib (gzip)
-import System.Posix.Files (createLink)
+import           Control.Concurrent (forkIO)
+import           Crypto.Hash (Digest, SHA1)
+import           Crypto.Hash.Conduit (sinkHash)
+import           Data.Aeson (withObject)
+import           Data.BlobStore
 import qualified Data.ByteString.Base16 as B16
-import Data.Byteable (toBytes)
-import Crypto.Hash (Digest, SHA1)
-import qualified Filesystem.Path.CurrentOS as F
-import Data.Slug (SnapSlug)
+import           Data.Byteable (toBytes)
+import           Data.Conduit.Zlib (gzip)
+import           Data.Slug (SnapSlug, unSlug)
 import qualified Data.Text as T
-import Data.Slug (unSlug)
 import qualified Data.Yaml as Y
-import Data.Aeson (withObject)
+import           Filesystem (isDirectory, createTree, isFile, rename, removeFile, removeDirectory)
+import qualified Filesystem.Path.CurrentOS as F
+import           Import
+import           Network.Mime (defaultMimeLookup)
+import           System.IO (IOMode (ReadMode), withBinaryFile)
+import           System.IO.Temp (withTempFile)
+import           System.Posix.Files (createLink)
 
 form :: Form FileInfo
 form = renderDivs $ areq fileField "tarball containing docs"
@@ -30,7 +39,7 @@ form = renderDivs $ areq fileField "tarball containing docs"
 getUploadHaddockR, putUploadHaddockR :: Text -> Handler Html
 getUploadHaddockR slug0 = do
     uid <- requireAuthIdOrToken
-    Entity sid Stackage {..} <- runDB $ do
+    stackageEnt@(Entity sid Stackage {..}) <- runDB $ do
         -- Provide fallback for old URLs
         ment <- getBy $ UniqueStackage $ PackageSetIdent slug0
         case ment of
@@ -47,7 +56,7 @@ getUploadHaddockR slug0 = do
             fileSource fileInfo $$ storeWrite (HaddockBundle ident)
             runDB $ update sid [StackageHasHaddocks =. True]
             master <- getYesod
-            void $ liftIO $ forkIO $ haddockUnpacker master True ident
+            liftIO $ duForceReload (appDocUnpacker master) stackageEnt
             setMessage "Haddocks uploaded"
             redirect $ SnapshotR slug StackageHomeR
         _ -> defaultLayout $ do
@@ -58,7 +67,7 @@ putUploadHaddockR = getUploadHaddockR
 
 getHaddockR :: SnapSlug -> [Text] -> Handler ()
 getHaddockR slug rest = do
-    ident <- runDB $ do
+    stackageEnt <- runDB $ do
         ment <- getBy $ UniqueSnapshot slug
         case ment of
             Just ent -> do
@@ -66,7 +75,7 @@ getHaddockR slug rest = do
                     [pkgver] -> tryContentsRedirect ent pkgver
                     [pkgver, "index.html"] -> tryContentsRedirect ent pkgver
                     _ -> return ()
-                return $ stackageIdent $ entityVal ent
+                return ent
             Nothing -> do
                 Entity _ stackage <- getBy404
                                   $ UniqueStackage
@@ -74,11 +83,11 @@ getHaddockR slug rest = do
                                   $ toPathPiece slug
                 redirectWith status301 $ HaddockR (stackageSlug stackage) rest
     mapM_ sanitize rest
-    dirs <- getDirs -- (gzdir, rawdir) <- getHaddockDir ident
-    master <- getYesod
-    liftIO $ haddockUnpacker master False ident
+    dirs <- getDirs
+    requireDocs stackageEnt
 
-    let rawfp = dirRawFp dirs ident rest
+    let ident = stackageIdent (entityVal stackageEnt)
+        rawfp = dirRawFp dirs ident rest
         gzfp  = dirGzFp dirs ident rest
         mime = defaultMimeLookup $ fpToText $ filename rawfp
 
@@ -123,19 +132,6 @@ tryContentsRedirect (Entity sid Stackage {..}) pkgver = do
 
 dropDash :: Text -> Text
 dropDash t = fromMaybe t $ stripSuffix "-" t
-
-getHaddockDir :: PackageSetIdent -> Handler (FilePath, FilePath)
-getHaddockDir ident = do
-    master <- getYesod
-    return $ mkDirPair (haddockRootDir master) ident
-
-mkDirPair :: FilePath -- ^ root
-          -> PackageSetIdent
-          -> (FilePath, FilePath) -- ^ compressed, uncompressed
-mkDirPair root ident =
-    ( root </> "idents-raw" </> fpFromText (toPathPiece ident)
-    , root </> "idents-gz"  </> fpFromText (toPathPiece ident)
-    )
 
 createCompressor
     :: Dirs
@@ -208,93 +204,6 @@ dirCacheFp dirs digest =
   where
     name = decodeUtf8 $ B16.encode $ toBytes digest
     (x, y) = splitAt 2 name
-
--- Should have two threads: one to unpack, one to convert. Never serve the
--- uncompressed files, only the compressed files. When serving, convert on
--- demand.
-createHaddockUnpacker :: FilePath -- ^ haddock root
-                      -> BlobStore StoreKey
-                      -> (forall a m. (MonadIO m, MonadBaseControl IO m)
-                            => SqlPersistT m a -> m a)
-                      -> IO (IORef Text, ForceUnpack -> PackageSetIdent -> IO ())
-createHaddockUnpacker root store runDB' = do
-    createTree $ dirCacheRoot dirs
-    createTree $ dirRawRoot dirs
-    createTree $ dirGzRoot dirs
-
-    chan <- newChan
-    (statusRef, compressor) <- createCompressor dirs
-
-    mask $ \restore -> void $ forkIO $ forever $ do
-        (forceUnpack, ident, res) <- readChan chan
-        try (restore $ go forceUnpack ident) >>= putMVar res
-        compressor
-    return (statusRef, \forceUnpack ident -> do
-        shouldAct <-
-            if forceUnpack
-                then return True
-                else not <$> doDirsExist ident
-        if shouldAct
-            then do
-                res <- newEmptyMVar
-                writeChan chan (forceUnpack, ident, res)
-                takeMVar res >>= either (throwM . asSomeException) return
-            else return ())
-  where
-    dirs = mkDirs root
-
-    removeTreeIfExists fp = whenM (isDirectory fp) (removeTree fp)
-
-    doDirsExist ident = do
-        e1 <- isDirectory $ dirGzIdent dirs ident
-        if e1
-            then return True
-            else isDirectory $ dirRawIdent dirs ident
-    go forceUnpack ident = do
-        toRun <-
-            if forceUnpack
-                then do
-                    removeTreeIfExists $ dirRawIdent dirs ident
-                    removeTreeIfExists $ dirGzIdent dirs ident
-                    return True
-                else not <$> doDirsExist ident
-        when toRun $ do
-            withSystemTempFile "haddock-bundle.tar.xz" $ \tempfp temph -> do
-                withAcquire (storeRead' store (HaddockBundle ident)) $ \msrc ->
-                    case msrc of
-                        Nothing -> error "No haddocks exist for that snapshot"
-                        Just src -> src $$ sinkHandle temph
-                hClose temph
-                createTree $ dirRawIdent dirs ident
-                let destdir = dirRawIdent dirs ident
-                (Nothing, Nothing, Nothing, ph) <- createProcess
-                    (proc "tar" ["xf", tempfp])
-                        { cwd = Just $ fpToString destdir
-                        }
-                ec <- waitForProcess ph
-                if ec == ExitSuccess then return () else throwM ec
-
-                -- Determine which packages have documentation and update the
-                -- database appropriately
-                runResourceT $ runDB' $ do
-                    ment <- getBy $ UniqueStackage ident
-                    forM_ ment $ \(Entity sid _) -> do
-                        updateWhere
-                            [PackageStackage ==. sid]
-                            [PackageHasHaddocks =. False]
-                        sourceDirectory destdir $$ mapM_C (\fp -> do
-                            let (name', version) =
-                                    T.breakOnEnd "-"
-                                  $ fpToText
-                                  $ filename fp
-                                mname = stripSuffix "-" name'
-                            forM_ mname $ \name -> updateWhere
-                                [ PackageStackage ==. sid
-                                , PackageName' ==. PackageName name
-                                , PackageVersion ==. Version version
-                                ]
-                                [PackageHasHaddocks =. True]
-                            )
 
 data DocInfo = DocInfo Version (Map Text [Text])
 instance FromJSON DocInfo where

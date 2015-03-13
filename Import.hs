@@ -86,11 +86,11 @@ getSnapshotInfoByIdent ident = withCache $ do
                 atomicModifyIORef' cacheRef $ \m ->
                     (insertMap ident x m, x)
 
-
 data Dirs = Dirs
     { dirRawRoot :: !FilePath
     , dirGzRoot :: !FilePath
     , dirCacheRoot :: !FilePath
+    , dirHoogleRoot :: !FilePath
     }
 
 getDirs :: Handler Dirs
@@ -101,12 +101,35 @@ mkDirs dir = Dirs
     { dirRawRoot = dir </> "idents-raw"
     , dirGzRoot = dir </> "idents-gz"
     , dirCacheRoot = dir </> "cachedir"
+    , dirHoogleRoot = dir </> "hoogle"
     }
 
-dirGzIdent, dirRawIdent :: Dirs -> PackageSetIdent -> FilePath
+dirGzIdent, dirRawIdent, dirHoogleIdent :: Dirs -> PackageSetIdent -> FilePath
 dirGzIdent dirs ident = dirGzRoot dirs </> fpFromText (toPathPiece ident)
 dirRawIdent dirs ident = dirRawRoot dirs </> fpFromText (toPathPiece ident)
+dirHoogleIdent dirs ident = dirHoogleRoot dirs </> fpFromText (toPathPiece ident)
 
-dirGzFp, dirRawFp :: Dirs -> PackageSetIdent -> [Text] -> FilePath
+dirGzFp, dirRawFp, dirHoogleFp :: Dirs -> PackageSetIdent -> [Text] -> FilePath
 dirGzFp dirs ident rest = dirGzIdent dirs ident </> mconcat (map fpFromText rest)
 dirRawFp dirs ident rest = dirRawIdent dirs ident </> mconcat (map fpFromText rest)
+dirHoogleFp dirs ident rest = dirHoogleIdent dirs ident </> mconcat (map fpFromText rest)
+
+requireDocs :: Entity Stackage -> Handler ()
+requireDocs stackageEnt = do
+    master <- getYesod
+    status <- liftIO $ duRequestDocs (appDocUnpacker master) stackageEnt
+    case status of
+        USReady -> return ()
+        USBusy -> (>>= sendResponse) $ defaultLayout $ do
+            setTitle "Docs unpacking, please wait"
+            addHeader "Refresh" "1"
+            msg <- liftIO $ duGetStatus $ appDocUnpacker master
+            [whamlet|
+                <div .container>
+                    <p>Docs are currently being unpacked, please wait.
+                    <p>This page will automatically reload every second.
+                    <p>Current status: #{msg}
+            |]
+        USFailed e -> invalidArgs
+            [ "Docs not available: " ++ e
+            ]

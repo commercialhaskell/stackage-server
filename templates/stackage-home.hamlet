@@ -37,8 +37,13 @@ $newline never
         <a href=@{SnapshotR slug StackageCabalConfigR}?global=true>
             the global configuration instructions
 
-    <h3>
-        Packages
+    <h3>Hoogle (experimental)
+    ^{hoogleForm}
+
+    <h3>Packages
+
+    <p>
+        <a href=@{SnapshotR slug DocsR}>View documentation by modules
 
 <div .container .content>
     <div .packages>

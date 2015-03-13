@@ -1,0 +1,20 @@
+<div .container>
+    <h1>Package counts
+
+    <p>
+        This page provides historical information on the number of packages included
+        in Stackage Nightly and LTS Haskell snapshots, purely for the sake of
+        curiosity.
+
+    <table>
+        <thead>
+            <tr>
+                <th .name>Title
+                <th .count>Count
+                <th .date>Date
+        <tbody>
+            $forall c <- counts
+                <tr>
+                    <td .name>#{name c}
+                    <td .count>#{packages c}
+                    <td .date>#{show $ date c}

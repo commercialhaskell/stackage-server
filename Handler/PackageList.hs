@@ -1,10 +1,10 @@
 module Handler.PackageList where
 
 import qualified Data.HashMap.Strict as M
-import           Data.Time (NominalDiffTime, addUTCTime)
+import           Data.Time (NominalDiffTime)
 import qualified Database.Esqueleto as E
 import           Import
-import           Yesod.Core.Types (WidgetT (WidgetT), unWidgetT)
+
 
 -- FIXME maybe just redirect to the LTS or nightly package list
 getPackageListR :: Handler Html
@@ -29,7 +29,10 @@ getPackageListR = defaultLayout $ do
 
 -- FIXME move somewhere else, maybe even yesod-core
 cachedWidget :: NominalDiffTime -> Text -> Widget -> Widget
-cachedWidget diff key widget = do
+cachedWidget _diff _key widget = do
+    -- Temporarily disabled, seems to be eating up too much memory
+    widget
+    {-
     ref <- widgetCache <$> getYesod
     now <- liftIO getCurrentTime
     mpair <- lookup key <$> readIORef ref
@@ -44,3 +47,4 @@ cachedWidget diff key widget = do
                 -- FIXME render the builders in gw for more efficiency
                 atomicModifyIORef' ref $ \m -> (insertMap key (addUTCTime diff now, gw) m, ())
                 return ((), gw)
+                -}

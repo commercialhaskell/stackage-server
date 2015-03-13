@@ -27,6 +27,7 @@ library
                      Data.Hackage.DeprecationInfo
                      Data.Hackage.Views
                      Data.WebsiteContent
+                     Data.Unpacking
                      Types
                      Handler.Home
                      Handler.Snapshots
@@ -44,6 +45,7 @@ library
                      Handler.Progress
                      Handler.System
                      Handler.Haddock
+                     Handler.Hoogle
                      Handler.Package
                      Handler.PackageList
                      Handler.CompressorStatus
@@ -51,6 +53,8 @@ library
                      Handler.BannedTags
                      Handler.RefreshDeprecated
                      Handler.UploadV2
+                     Handler.BuildVersion
+                     Handler.PackageCounts
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -83,6 +87,7 @@ library
                 ScopedTypeVariables
                 BangPatterns
                 TupleSections
+                DeriveGeneric
 
     build-depends:
                     base                          >= 4
@@ -150,9 +155,14 @@ library
                  , formatting
                  , blaze-html
                  , haddock-library
-                 , yesod-gitrepo
                  , async
                  , stackage >= 0.4
+                 , yesod-gitrepo >= 0.1.1
+                 , hoogle
+                 , spoon
+                 , deepseq
+                 , deepseq-generics
+                 , auto-update
 
 executable         stackage-server
     if flag(library-only)

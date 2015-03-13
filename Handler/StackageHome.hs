@@ -31,6 +31,12 @@ getStackageHomeR slug = do
                        else Nothing
         base = maybe 0 (const 1) minclusive :: Int
 
+        hoogleForm =
+            let queryText = "" :: Text
+                exact = False
+            in $(widgetFile "hoogle-form")
+    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+
     defaultLayout $ do
         setTitle $ toHtml $ stackageTitle stackage
         cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do

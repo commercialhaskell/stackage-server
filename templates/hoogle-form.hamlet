@@ -1,0 +1,6 @@
+<form .hoogle action=@{SnapshotR slug HoogleR}>
+    <input type=search autofocus name=q value=#{queryText} placeholder="Hoogle Search Phrase" .search>
+    <input .btn type="submit" value="Search">
+    <label .checkbox .exact-lookup for=exact title="Only find identifiers matching your search term precisely">
+        <input type=checkbox name=exact :exact:checked #exact>
+        Exact lookup
