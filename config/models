@@ -59,7 +59,7 @@ Like
 
 Download
     ident PackageSetIdent Maybe
-    view HackageView Maybe
+    view Text Maybe MigrationOnly
     timestamp UTCTime
     package PackageName
     version Version

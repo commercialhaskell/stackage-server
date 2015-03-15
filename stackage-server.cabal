@@ -26,7 +26,6 @@ library
                      Data.BlobStore
                      Data.Hackage
                      Data.Hackage.DeprecationInfo
-                     Data.Hackage.Views
                      Data.WebsiteContent
                      Data.Unpacking
                      Types
@@ -39,8 +38,6 @@ library
                      Handler.StackageHome
                      Handler.StackageIndex
                      Handler.StackageSdist
-                     Handler.HackageViewIndex
-                     Handler.HackageViewSdist
                      Handler.Aliases
                      Handler.Alias
                      Handler.Progress

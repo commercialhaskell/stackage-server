@@ -10,7 +10,7 @@ getStackageSdistR :: SnapSlug -> PackageNameVersion -> Handler TypedContent
 getStackageSdistR slug (PNVTarball name version) = do
     Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
     let ident = stackageIdent stackage
-    addDownload (Just ident) Nothing name version
+    addDownload (Just ident) name version
     msrc1 <- storeRead (CustomSdist ident name version)
     msrc <-
         case msrc1 of
@@ -56,11 +56,10 @@ getStackageSdistR slug (PNVNameVersion name version) = packagePage
     ) >>= sendResponse
 
 addDownload :: Maybe PackageSetIdent
-            -> Maybe HackageView
             -> PackageName
             -> Version
             -> Handler ()
-addDownload downloadIdent downloadView downloadPackage downloadVersion = do
+addDownload downloadIdent downloadPackage downloadVersion = do
     downloadUserAgent <- fmap decodeUtf8 <$> lookupHeader "user-agent"
     downloadTimestamp <- liftIO getCurrentTime
     runDB $ insert_ Download {..}

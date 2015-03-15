@@ -12,7 +12,6 @@ import           Control.Exception (catch)
 import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Hackage
-import           Data.Hackage.Views
 import           Data.Unpacking (newDocUnpacker, createHoogleDatabases)
 import           Data.WebsiteContent
 import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
@@ -56,8 +55,6 @@ import           Handler.UploadStackage
 import           Handler.StackageHome
 import           Handler.StackageIndex
 import           Handler.StackageSdist
-import           Handler.HackageViewIndex
-import           Handler.HackageViewSdist
 import           Handler.Aliases
 import           Handler.Alias
 import           Handler.Progress
@@ -334,18 +331,6 @@ appLoadCabalFiles updateDB forceUpdate env dbconf p = do
                 deleteWhere [DependencyUser ==. metadataName md]
                 insertMany_ $ flip map (metadataDeps md) $ \dep ->
                     Dependency (PackageName dep) (metadataName md)
-        let views =
-                [ ("pvp", viewPVP uploadHistory)
-                , ("no-bounds", viewNoBounds)
-                , ("unchanged", viewUnchanged)
-                ]
-        forM_ views $ \(name, func) -> do
-            $logInfo $ "Generating view: " ++ toPathPiece name
-            runResourceT $ createView
-                name
-                func
-                (sourceHistory uploadHistory)
-                (storeWrite $ HackageViewIndex name)
     case eres of
         Left e -> $logError $ tshow e
         Right () -> return ()
