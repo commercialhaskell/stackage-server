@@ -1,8 +1,6 @@
 module Data.Hackage
     ( loadCabalFiles
     , sourceHackageSdist
-    , createView
-    , sourceHackageViewSdist
     , sinkUploadHistory
     , UploadState (..)
     , UploadHistory
@@ -16,17 +14,13 @@ import Data.Conduit.Lazy (MonadActive (..), lazyConsume)
 import qualified Codec.Archive.Tar as Tar
 import Control.Monad.Logger (runNoLoggingT)
 import qualified Data.Text as T
-import Data.Conduit.Zlib (ungzip, gzip)
-import System.IO.Temp (withSystemTempFile, withSystemTempDirectory)
+import Data.Conduit.Zlib (ungzip)
+import System.IO.Temp (withSystemTempFile)
 import System.IO (IOMode (ReadMode), openBinaryFile)
 import Model (Uploaded (Uploaded), Metadata (..))
-import Filesystem (createTree)
 import Distribution.PackageDescription.Parse (parsePackageDescription, ParseResult (ParseOk))
-import Distribution.PackageDescription.PrettyPrint (showGenericPackageDescription)
-import Distribution.PackageDescription (GenericPackageDescription)
 import qualified Distribution.PackageDescription as PD
 import qualified Distribution.Package as PD
-import Control.Exception (throw)
 import Control.Monad.State.Strict (put, get, execStateT, MonadState)
 import Crypto.Hash.Conduit (sinkHash)
 import Crypto.Hash (Digest, SHA256)
@@ -433,116 +427,6 @@ sourceHackageSdist name version = do
                 then storeRead key
                 else return Nothing
 
-sourceHackageViewSdist :: ( MonadIO m
-                      , MonadThrow m
-                      , MonadBaseControl IO m
-                      , MonadResource m
-                      , MonadReader env m
-                      , HasHttpManager env
-                      , HasHackageRoot env
-                      , HasBlobStore env StoreKey
-                      , MonadLogger m
-                      , MonadActive m
-                      )
-                   => HackageView
-                   -> PackageName
-                   -> Version
-                   -> m (Maybe (Source m ByteString))
-sourceHackageViewSdist viewName name version = do
-    let key = HackageViewSdist viewName name version
-    msrc1 <- storeRead key
-    case msrc1 of
-        Just src -> return $ Just src
-        Nothing -> do
-            mcabalSrc <- storeRead $ HackageViewCabal viewName name version
-            case mcabalSrc of
-                Nothing -> return Nothing
-                Just cabalSrc -> do
-                    cabalLBS <- cabalSrc $$ sinkLazy
-                    msrc <- sourceHackageSdist name version
-                    case msrc of
-                        Nothing -> return Nothing
-                        Just src -> do
-                            lbs <- fromChunks <$> lazyConsume (src $= ungzip)
-                            let lbs' = Tar.write $ replaceCabal cabalLBS $ Tar.read lbs
-                            sourceLazy lbs' $$ gzip =$ storeWrite key
-                            storeRead key
-  where
-    cabalName = unpack $ concat
-        [ toPathPiece name
-        , "-"
-        , toPathPiece version
-        , "/"
-        , toPathPiece name
-        , ".cabal"
-        ]
-
-    replaceCabal _ Tar.Done = []
-    replaceCabal _ (Tar.Fail e) = throw e -- עבירה גוררת עבירה
-    replaceCabal lbs (Tar.Next e es) = replaceCabal' lbs e : replaceCabal lbs es
-
-    replaceCabal' lbs e
-        | Tar.entryPath e == cabalName = e { Tar.entryContent = Tar.NormalFile lbs (olength64 lbs) }
-        | otherwise = e
-
-createView :: ( MonadResource m
-              , MonadMask m
-              , MonadReader env m
-              , HasBlobStore env StoreKey
-              , MonadBaseControl IO m
-              , MonadLogger m
-              )
-           => HackageView
-           -> (PackageName -> Version -> UTCTime -> GenericPackageDescription -> m GenericPackageDescription)
-           -> Source m Uploaded
-           -> Sink ByteString m ()
-           -> m ()
-createView viewName modifyCabal src sink = withSystemTempDirectory "createview" $ \dir -> do
-    $logDebug $ "Creating view: " ++ tshow viewName
-    rels <- src $$ parMapMC 32 (uploadedConduit dir) =$ foldC
-    entries <- liftIO $ Tar.pack dir (map fpToString $ setToList rels)
-    sourceLazy (Tar.write entries) $$ gzip =$ sink
-  where
-    uploadedConduit dir (Uploaded name version time) = do
-        let relfp = fpFromText (toPathPiece name)
-                </> fpFromText (toPathPiece version)
-                </> fpFromText (concat
-                        [ toPathPiece name
-                        , "-"
-                        , toPathPiece version
-                        , ".cabal"
-                        ])
-            fp = fpFromString dir </> relfp
-            key = HackageViewCabal viewName name version
-        mprev <- storeRead key
-        case mprev of
-            Just src' -> do
-                liftIO $ createTree $ directory fp
-                src' $$ sinkFile fp
-                return $ asSet $ singletonSet relfp
-            Nothing -> do
-                msrc <- storeRead $ HackageCabal name version
-                case msrc of
-                    Nothing -> return mempty
-                    Just src' -> do
-                        orig <- src' $$ sinkLazy
-                        new <-
-                            case parsePackageDescription $ unpack $ decodeUtf8 orig of
-                                ParseOk _ gpd -> do
-                                    gpd' <- modifyCabal name version time gpd
-                                    let str = showGenericPackageDescription gpd'
-                                    -- sanity check
-                                    case parsePackageDescription str of
-                                        ParseOk _ _ -> return $ encodeUtf8 $ pack str
-                                        x -> do
-                                            $logError $ "Created cabal file that could not be parsed: " ++ tshow (x, str)
-                                            return orig
-                                _ -> return orig
-                        sourceLazy new $$ storeWrite key
-                        liftIO $ createTree $ directory fp
-                        writeFile fp new
-                        return $ asSet $ singletonSet relfp
-
 sourceHistory :: Monad m => UploadHistory -> Producer m Uploaded
 sourceHistory =
     mapM_ go . mapToList
@@ -558,51 +442,3 @@ parMapMC :: (MonadIO m, MonadBaseControl IO m)
          -> (i -> m o)
          -> Conduit i m o
 parMapMC _ = mapMC
-{- FIXME
-parMapMC :: (MonadIO m, MonadBaseControl IO m)
-         => Int
-         -> (i -> m o)
-         -> Conduit i m o
-parMapMC threads f = evalStateC 0 $ do
-    incoming <- liftIO $ newTBQueueIO $ threads * 8
-    outgoing <- liftIO newTChanIO
-    lift $ lift $ replicateM_ threads (addWorker incoming outgoing)
-    awaitForever $ \x -> do
-        cnt <- get
-        ys <- atomically $ do
-            writeTBQueue incoming (Just x)
-            readWholeTChan outgoing
-        put $ cnt + 1 - length ys
-        yieldMany ys
-    atomically $ writeTBQueue incoming Nothing
-    let loop = do
-            togo <- get
-            when (togo > 0) $ do
-                y <- atomically $ readTChan outgoing
-                put $ togo - 1
-                yield y
-    loop
-  where
-    addWorker incoming outgoing =
-        fork loop
-      where
-        loop = join $ atomically $ do
-            mx <- readTBQueue incoming
-            case mx of
-                Nothing -> do
-                    writeTBQueue incoming Nothing
-                    return $ return ()
-                Just x -> return $ do
-                    y <- f x
-                    atomically $ writeTChan outgoing y
-                    loop
-
-    readWholeTChan chan =
-        go id
-      where
-        go front = do
-            mx <- tryReadTChan chan
-            case mx of
-                Nothing -> return $ front []
-                Just x -> go $ front . (x:)
--}

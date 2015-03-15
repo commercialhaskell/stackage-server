@@ -18,10 +18,6 @@ newtype PackageSetIdent = PackageSetIdent { unPackageSetIdent :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField)
 instance PersistFieldSql PackageSetIdent where
     sqlType = sqlType . liftM unPackageSetIdent
-newtype HackageView = HackageView { unHackageView :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
-instance PersistFieldSql HackageView where
-    sqlType = sqlType . liftM unHackageView
 
 data PackageNameVersion = PNVTarball !PackageName !Version
                         | PNVNameVersion !PackageName !Version
@@ -53,9 +49,6 @@ data StoreKey = HackageCabal !PackageName !Version
               | HackageSdist !PackageName !Version
               | CabalIndex !PackageSetIdent
               | CustomSdist !PackageSetIdent !PackageName !Version
-              | HackageViewCabal !HackageView !PackageName !Version
-              | HackageViewSdist !HackageView !PackageName !Version
-              | HackageViewIndex !HackageView
               | SnapshotBundle !PackageSetIdent
               | HaddockBundle !PackageSetIdent
               | HoogleDB !PackageSetIdent !HoogleVersion
@@ -76,23 +69,6 @@ instance ToPath StoreKey where
         , toPathPiece name
         , toPathPiece version ++ ".tar.gz"
         ]
-    toPath (HackageViewCabal viewName name version) =
-        [ "hackage-view"
-        , toPathPiece viewName
-        , toPathPiece name
-        , toPathPiece version ++ ".cabal"
-        ]
-    toPath (HackageViewSdist viewName name version) =
-        [ "hackage-view"
-        , toPathPiece viewName
-        , toPathPiece name
-        , toPathPiece version ++ ".tar.gz"
-        ]
-    toPath (HackageViewIndex viewName) =
-        [ "hackage-view"
-        , toPathPiece viewName
-        , "00-index.tar.gz"
-        ]
     toPath (SnapshotBundle ident) =
         [ "bundle"
         , toPathPiece ident ++ ".tar.gz"
@@ -111,9 +87,6 @@ instance BackupToS3 StoreKey where
     shouldBackup HackageSdist{} = False
     shouldBackup CabalIndex{} = True
     shouldBackup CustomSdist{} = True
-    shouldBackup HackageViewCabal{} = False
-    shouldBackup HackageViewSdist{} = False
-    shouldBackup HackageViewIndex{} = False
     shouldBackup SnapshotBundle{} = True
     shouldBackup HaddockBundle{} = True
     shouldBackup HoogleDB{} = True
