@@ -1,6 +1,5 @@
 module Handler.StackageHome where
 
-import Data.BlobStore (storeExists)
 import Import
 import Data.Time (FormatTime)
 import Data.Slug (SnapSlug)
@@ -13,7 +12,6 @@ getStackageHomeR slug = do
         Entity _ stackage <- getBy404 $ UniqueSnapshot slug
         return stackage
 
-    hasBundle <- storeExists $ SnapshotBundle $ stackageIdent stackage
     let minclusive =
             if "inclusive" `isSuffixOf` stackageTitle stackage
                then Just True
