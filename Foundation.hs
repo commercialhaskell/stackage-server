@@ -49,12 +49,6 @@ data App = App
     , websiteContent :: GitRepo WebsiteContent
     }
 
-data SnapshotInfo = SnapshotInfo
-    { siType :: !SnapshotType
-    , siPlan :: !BuildPlan
-    , siDocMap :: !DocMap
-    }
-
 data DocUnpacker = DocUnpacker
     { duRequestDocs :: Entity Stackage -> IO UnpackStatus
     , duGetStatus   :: IO Text
