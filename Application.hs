@@ -10,7 +10,7 @@ import qualified Aws
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (catch)
 import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
-import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
+import           Data.BlobStore (fileStore, cachedS3Store)
 import           Data.Hackage
 import           Data.Unpacking (newDocUnpacker, createHoogleDatabases)
 import           Data.WebsiteContent
@@ -28,7 +28,7 @@ import           Network.Wai.Middleware.RequestLogger
     )
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
 import           Settings
-import           System.Log.FastLogger (newStdoutLoggerSet, newFileLoggerSet, defaultBufSize, flushLogStr, fromLogStr)
+import           System.Log.FastLogger (newStdoutLoggerSet, newFileLoggerSet, defaultBufSize, fromLogStr)
 import qualified System.Random.MWC as MWC
 import           Yesod.Core.Types (loggerSet, Logger (Logger))
 import           Yesod.Default.Config
