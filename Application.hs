@@ -66,6 +66,7 @@ import           Handler.CompressorStatus
 import           Handler.Tag
 import           Handler.BannedTags
 import           Handler.RefreshDeprecated
+import           Handler.UploadV2
 import           Handler.Hoogle
 import           Handler.BuildVersion
 import           Handler.PackageCounts
