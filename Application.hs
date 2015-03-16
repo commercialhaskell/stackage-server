@@ -300,7 +300,6 @@ appLoadCabalFiles updateDB forceUpdate env dbconf p = do
         let runDB' :: SqlPersistT (ResourceT (ReaderT env (LoggingT IO))) a
                    -> ReaderT env (LoggingT IO) a
             runDB' = runResourceT . flip (Database.Persist.runPool dbconf) p
-        uploadHistory0 <- runDB' $ selectSource [] [] $$ sinkUploadHistory
         let toMDPair (E.Value name, E.Value version, E.Value hash') =
                 (name, (version, hash'))
         metadata0 <- fmap (mapFromList . map toMDPair)
@@ -309,9 +308,7 @@ appLoadCabalFiles updateDB forceUpdate env dbconf p = do
             , m E.^. MetadataVersion
             , m E.^. MetadataHash
             )
-        UploadState uploadHistory newUploads _ newMD <- loadCabalFiles updateDB forceUpdate uploadHistory0 metadata0
-        $logInfo "Inserting to new uploads"
-        runDB' $ insertMany_ newUploads
+        UploadState _ newMD <- loadCabalFiles updateDB forceUpdate metadata0
         $logInfo $ "Updating metadatas: " ++ tshow (length newMD)
         runDB' $ do
             let newMD' = toList newMD

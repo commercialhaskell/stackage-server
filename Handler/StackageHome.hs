@@ -29,18 +29,17 @@ getStackageHomeR slug = do
         cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
             let maxPackages = 5000
             (packageListClipped, packages') <- handlerToWidget $ runDB $ do
-                packages' <- E.select $ E.from $ \(u,m,p) -> do
+                packages' <- E.select $ E.from $ \(m,p) -> do
                     E.where_ $
-                        (m E.^. MetadataName E.==. u E.^. UploadedName) E.&&.
                         (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
                         (p E.^. PackageStackage E.==. E.val sid)
-                    E.orderBy [E.asc $ u E.^. UploadedName]
-                    E.groupBy ( u E.^. UploadedName
+                    E.orderBy [E.asc $ m E.^. MetadataName]
+                    E.groupBy ( m E.^. MetadataName
                               , m E.^. MetadataSynopsis
                               )
                     E.limit maxPackages
                     return
-                        ( u E.^. UploadedName
+                        ( m E.^. MetadataName
                         , m E.^. MetadataSynopsis
                         , E.max_ (p E.^. PackageVersion)
                         , E.max_ $ E.case_
@@ -186,17 +185,16 @@ getSnapshotPackagesR slug = do
     defaultLayout $ do
         setTitle $ toHtml $ "Package list for " ++ toPathPiece slug
         cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
-            packages' <- handlerToWidget $ runDB $ E.select $ E.from $ \(u,m,p) -> do
+            packages' <- handlerToWidget $ runDB $ E.select $ E.from $ \(m,p) -> do
                 E.where_ $
-                    (m E.^. MetadataName E.==. u E.^. UploadedName) E.&&.
                     (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
                     (p E.^. PackageStackage E.==. E.val sid)
-                E.orderBy [E.asc $ u E.^. UploadedName]
-                E.groupBy ( u E.^. UploadedName
+                E.orderBy [E.asc $ m E.^. MetadataName]
+                E.groupBy ( m E.^. MetadataName
                           , m E.^. MetadataSynopsis
                           )
                 return
-                    ( u E.^. UploadedName
+                    ( m E.^. MetadataName
                     , m E.^. MetadataSynopsis
                     , E.max_ $ E.case_
                         [ ( p E.^. PackageHasHaddocks

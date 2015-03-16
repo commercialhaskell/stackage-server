@@ -17,10 +17,9 @@ getPackageListR = defaultLayout $ do
                 )
             addDocs (x, y) = (x, Nothing, y, Nothing)
         packages <- fmap (map addDocs . uniqueByKey . map clean) $ handlerToWidget $ runDB $
-            E.selectDistinct $ E.from $ \(u,m) -> do
-              E.where_ (m E.^. MetadataName E.==. u E.^. UploadedName)
-              E.orderBy [E.asc $ u E.^. UploadedName]
-              return $ (u E.^. UploadedName
+            E.selectDistinct $ E.from $ \m -> do
+              E.orderBy [E.asc $ m E.^. MetadataName]
+              return $ (m E.^. MetadataName
                        ,m E.^. MetadataSynopsis)
         $(widgetFile "package-list")
   where strip x = fromMaybe x (stripSuffix "." x)
