@@ -74,11 +74,3 @@ $newline never
                                 <a href=@{doc}>Docs
                         <td>
                             #{synopsis}
-
-
-<div .container>
-    <p .bottom-links>
-        $if hasBundle
-           <span>
-               <a href=@{SnapshotR slug StackageBundleR} title="This is useful for making modifications to an existing snapshot">
-                   \Bundle
