@@ -95,9 +95,9 @@ doUpload status uid ident bundleFP = do
 
     say $ "Unpacking bundle"
     master <- getYesod
-    liftIO $ haddockUnpacker master True ident
+    -- FIXME liftIO $ haddockUnpacker master True ident
 
-    SnapshotInfo {..} <- getSnapshotInfoByIdent ident
+    SnapshotInfo {..} <- error "FIXME getSnapshotInfoByIdent ident"
 
     now <- liftIO getCurrentTime
     let day = tshow $ utctDay now
@@ -183,7 +183,6 @@ doUpload status uid ident bundleFP = do
             , stackageTitle = title
             , stackageDesc = ""
             , stackageHasHaddocks = True
-            , stackageYaml = True
             }
         case siType of
             STNightly -> insert_ Nightly
