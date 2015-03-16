@@ -85,6 +85,9 @@ library
                 BangPatterns
                 TupleSections
                 DeriveGeneric
+                DeriveFunctor
+                DeriveFoldable
+                DeriveTraversable
 
     build-depends:
                     base                          >= 4

@@ -50,7 +50,7 @@ loadCabalFiles :: ( MonadActive m
                -> Bool -- ^ force updates regardless of hash value?
                -> HashMap PackageName (Version, ByteString)
                -> m (UploadState Metadata)
-loadCabalFiles dbUpdates forceUpdate metadata0 = (>>= runUploadState) $ flip execStateT (UploadState metadata1 mempty) $ do
+loadCabalFiles dbUpdates forceUpdate metadata0 = (>>= T.mapM liftIO) $ flip execStateT (UploadState metadata1 mempty) $ do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
@@ -114,9 +114,6 @@ readVersion v =
         (dv, _):_ -> Just $ pack $ Data.Version.versionBranch dv
         [] -> Nothing
 
-runUploadState :: MonadIO m => UploadState (IO a) -> m (UploadState a)
-runUploadState (UploadState y z) = liftIO $ UploadState y <$> T.sequence z
-
 tarSource :: (Exception e, MonadThrow m)
           => Tar.Entries e
           -> Producer m Tar.Entry
@@ -128,6 +125,7 @@ data UploadState md = UploadState
     { usMetadata :: !(HashMap PackageName MetaSig)
     , usMetaChanges :: (HashMap PackageName md)
     }
+    deriving (Functor, Foldable, Traversable)
 
 data MetaSig = MetaSig
     {-# UNPACK #-} !Version
