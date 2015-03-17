@@ -12,6 +12,7 @@ import           Control.Exception (catch)
 import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, storeWrite, cachedS3Store)
 import           Data.Hackage
+import           Data.Hackage.DeprecationInfo
 import           Data.Unpacking (newDocUnpacker, createHoogleDatabases)
 import           Data.WebsiteContent
 import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
@@ -299,6 +300,17 @@ appLoadCabalFiles updateDB forceUpdate env dbconf p = do
         let runDB' :: SqlPersistT (ResourceT (ReaderT env (LoggingT IO))) a
                    -> ReaderT env (LoggingT IO) a
             runDB' = runResourceT . flip (Database.Persist.runPool dbconf) p
+
+        $logInfo "Updating deprecation tags"
+        loadDeprecationInfo >>= \ei -> case ei of
+            Left e -> $logError (pack e)
+            Right info -> runDB' $ do
+                deleteWhere ([] :: [Filter Deprecated])
+                insertMany_ (deprecations info)
+                deleteWhere ([] :: [Filter Suggested])
+                insertMany_ (suggestions info)
+        $logInfo "Finished updating deprecation tags"
+
         uploadHistory0 <- runDB' $ selectSource [] [] $$ sinkUploadHistory
         let toMDPair (E.Value name, E.Value version, E.Value hash') =
                 (name, (version, hash'))
@@ -320,6 +332,7 @@ appLoadCabalFiles updateDB forceUpdate env dbconf p = do
                 deleteWhere [DependencyUser ==. metadataName md]
                 insertMany_ $ flip map (metadataDeps md) $ \dep ->
                     Dependency (PackageName dep) (metadataName md)
+
     case eres of
         Left e -> $logError $ tshow e
         Right () -> return ()

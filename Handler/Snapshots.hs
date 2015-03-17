@@ -24,19 +24,27 @@ getAllSnapshotsR = do
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int64
         currentPage = fromMaybe 1 (currentPageMay >>= readMay)
-    groups <- fmap (groupBy (on (==) (\(_,_,uploaded,_,_) -> uploaded)) . map (uncrapify now')) $
-        runDB $ E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
-          E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
-          E.orderBy [E.desc $ stackage E.^. StackageUploaded]
-          E.limit snapshotsPerPage
-          E.offset ((currentPage - 1) * snapshotsPerPage)
-          return
-              ( stackage E.^. StackageSlug
-              , stackage E.^. StackageTitle
-              , stackage E.^. StackageUploaded
-              , user E.^. UserDisplay
-              , user E.^. UserHandle
-              )
+    (totalCount :: Int64, groups) <- fmap (groupUp now') $ runDB $ do
+        c <- E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
+            E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
+            return E.countRows
+        rs <- E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
+            E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
+            E.orderBy [E.desc $ stackage E.^. StackageUploaded]
+            E.limit snapshotsPerPage
+            E.offset ((currentPage - 1) * snapshotsPerPage)
+            return
+                ( stackage E.^. StackageSlug
+                , stackage E.^. StackageTitle
+                , stackage E.^. StackageUploaded
+                , user E.^. UserDisplay
+                , user E.^. UserHandle
+                )
+        return (c, rs)
+
+    let isFirstPage = currentPage == 1
+        isLastPage = currentPage * snapshotsPerPage >= totalCount
+
     defaultLayout $ do
         setTitle "Stackage Server"
         let snapshotsNav = $(widgetFile "snapshots-nav")
@@ -44,3 +52,5 @@ getAllSnapshotsR = do
   where uncrapify now' c =
             let (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle') = c
             in (ident,title,format (diff True) (diffUTCTime uploaded now'),display,handle')
+        groupUp now' ([E.Value c], rs) = (c, (groupBy (on (==) (\(_,_,uploaded,_,_) -> uploaded)) . map (uncrapify now')) rs)
+        groupUp _ _ = error "Expected countRows to have exactly 1 result."

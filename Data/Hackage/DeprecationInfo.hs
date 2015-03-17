@@ -2,10 +2,11 @@
 -- into model data to be stored in the database.
 module Data.Hackage.DeprecationInfo
   ( HackageDeprecationInfo(..)
+  , loadDeprecationInfo
   ) where
 
-import Prelude
-import Data.Aeson
+import ClassyPrelude.Yesod
+import Data.Aeson as Aeson
 import Model
 import Types
 
@@ -28,13 +29,12 @@ data DeprecationRecord = DeprecationRecord {
 }
 
 instance FromJSON DeprecationRecord where
-  parseJSON j = do
-      obj <- parseJSON j
-      package <- (obj .: "deprecated-package") >>= parsePackageName
-      inFavourOf <- (obj .: "in-favour-of") >>= mapM parsePackageName
+  parseJSON = withObject "DeprecationRecord" $ \obj -> do
+      package <- PackageName <$> (obj .: "deprecated-package")
+      inFavourOf <- map PackageName <$> (obj .: "in-favour-of")
       return $ DeprecationRecord package inFavourOf
     where
-      parsePackageName name = return (PackageName name)
+      parsePackageName = fmap PackageName
 
 toDeprecated :: DeprecationRecord -> Deprecated
 toDeprecated (DeprecationRecord deprecated _) = Deprecated deprecated
@@ -47,3 +47,14 @@ toSuggestions (DeprecationRecord deprecated inFavourOf) =
       suggestedPackage = favoured,
       suggestedInsteadOf = deprecated
     }
+
+loadDeprecationInfo ::
+  ( HasHttpManager env
+  , MonadReader env m
+  , MonadThrow m
+  , MonadIO m)
+  => m (Either String HackageDeprecationInfo)
+loadDeprecationInfo = do
+    req <- parseUrl "http://hackage.haskell.org/packages/deprecated.json"
+    res <- httpLbs req
+    return $! Aeson.eitherDecode (responseBody res)
