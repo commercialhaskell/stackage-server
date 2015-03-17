@@ -83,6 +83,40 @@ deriving instance Show Progress
 
 type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
 
+defaultLayoutNoContainer :: Widget -> Handler Html
+defaultLayoutNoContainer = defaultLayoutWithContainer False
+
+defaultLayoutWithContainer :: Bool -> Widget -> Handler Html
+defaultLayoutWithContainer insideContainer widget = do
+    mmsg <- getMessage
+    muser <- catch maybeAuth $ \e -> case e of
+        Couldn'tGetSQLConnection -> return Nothing
+        _ -> throwM e
+
+    -- We break up the default layout into two components:
+    -- default-layout is the contents of the body tag, and
+    -- default-layout-wrapper is the entire page. Since the final
+    -- value passed to hamletToRepHtml cannot be a widget, this allows
+    -- you to use normal widget features in default-layout.
+
+    cur <- getCurrentRoute
+    pc <- widgetToPageContent $ do
+        $(combineStylesheets 'StaticR
+            [ css_normalize_css
+            , css_bootstrap_css
+            , css_bootstrap_responsive_css
+            ])
+        $((combineScripts 'StaticR
+                          [ js_jquery_js
+                          , js_bootstrap_js
+                          ]))
+        $(widgetFile "default-layout")
+
+    mcurr <- getCurrentRoute
+    let notHome = mcurr /= Just HomeR
+
+    withUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
+
 -- Please see the documentation for the Yesod typeclass. There are a number
 -- of settings which can be configured by overriding methods here.
 instance Yesod App where
@@ -94,35 +128,7 @@ instance Yesod App where
         (120 * 60) -- 120 minutes
         "config/client_session_key.aes"
 
-    defaultLayout widget = do
-        mmsg <- getMessage
-        muser <- catch maybeAuth $ \e -> case e of
-            Couldn'tGetSQLConnection -> return Nothing
-            _ -> throwM e
-
-        -- We break up the default layout into two components:
-        -- default-layout is the contents of the body tag, and
-        -- default-layout-wrapper is the entire page. Since the final
-        -- value passed to hamletToRepHtml cannot be a widget, this allows
-        -- you to use normal widget features in default-layout.
-
-        cur <- getCurrentRoute
-        pc <- widgetToPageContent $ do
-            $(combineStylesheets 'StaticR
-                [ css_normalize_css
-                , css_bootstrap_css
-                , css_bootstrap_responsive_css
-                ])
-            $((combineScripts 'StaticR
-                              [ js_jquery_js
-                              , js_bootstrap_js
-                              ]))
-            $(widgetFile "default-layout")
-
-        mcurr <- getCurrentRoute
-        let notHome = mcurr /= Just HomeR
-
-        withUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
+    defaultLayout = defaultLayoutWithContainer True
 
     -- This is done to provide an optimization for serving static files from
     -- a separate domain. Please see the staticRoot setting in Settings.hs

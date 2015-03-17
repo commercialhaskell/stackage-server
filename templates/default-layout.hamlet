@@ -41,6 +41,10 @@ $case cur
           <p>Please login with an authorization method below:
           ^{widget}
   $of _
+    $if insideContainer
+      <div .container>
+        ^{widget}
+    $else
       ^{widget}
 
 <div .footer>
