@@ -22,17 +22,15 @@ getAllSnapshotsR :: Handler Html
 getAllSnapshotsR = do
     now' <- liftIO getCurrentTime
     currentPageMay <- lookupGetParam "page"
-    let currentPage :: Int64
+    let currentPage :: Int
         currentPage = fromMaybe 1 (currentPageMay >>= readMay)
-    (totalCount :: Int64, groups) <- fmap (groupUp now') $ runDB $ do
-        c <- E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
-            E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
-            return E.countRows
+    (totalCount, groups) <- fmap (groupUp now') $ runDB $ do
+        c <- count ([] :: [Filter Stackage])
         rs <- E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
             E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
             E.orderBy [E.desc $ stackage E.^. StackageUploaded]
             E.limit snapshotsPerPage
-            E.offset ((currentPage - 1) * snapshotsPerPage)
+            E.offset ((fromIntegral currentPage - 1) * snapshotsPerPage)
             return
                 ( stackage E.^. StackageSlug
                 , stackage E.^. StackageTitle
@@ -52,5 +50,4 @@ getAllSnapshotsR = do
   where uncrapify now' c =
             let (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle') = c
             in (ident,title,format (diff True) (diffUTCTime uploaded now'),display,handle')
-        groupUp now' ([E.Value c], rs) = (c, (groupBy (on (==) (\(_,_,uploaded,_,_) -> uploaded)) . map (uncrapify now')) rs)
-        groupUp _ _ = error "Expected countRows to have exactly 1 result."
+        groupUp now' (c, rs) = (c, (groupBy (on (==) (\(_,_,uploaded,_,_) -> uploaded)) . map (uncrapify now')) rs)
