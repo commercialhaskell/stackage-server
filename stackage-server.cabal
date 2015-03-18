@@ -1,4 +1,3 @@
--- Stackage snapshot: http://www.stackage.org/stackage/aecbf72b568a63e86a971311fee5475f076043cc
 name:              stackage-server
 version:           0.0.0
 cabal-version:     >= 1.8
@@ -50,6 +49,7 @@ library
                      Handler.Tag
                      Handler.BannedTags
                      Handler.RefreshDeprecated
+                     Handler.UploadV2
                      Handler.BuildVersion
                      Handler.PackageCounts
 
@@ -83,7 +83,11 @@ library
                 RecordWildCards
                 ScopedTypeVariables
                 BangPatterns
+                TupleSections
                 DeriveGeneric
+                DeriveFunctor
+                DeriveFoldable
+                DeriveTraversable
 
     build-depends:
                     base                          >= 4
@@ -151,6 +155,8 @@ library
                  , formatting
                  , blaze-html
                  , haddock-library
+                 , async
+                 , stackage >= 0.4
                  , yesod-gitrepo >= 0.1.1
                  , hoogle
                  , spoon

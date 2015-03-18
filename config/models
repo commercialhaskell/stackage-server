@@ -26,12 +26,6 @@ Stackage
     UniqueStackage ident
     UniqueSnapshot slug
 
-Uploaded
-    name PackageName
-    version Version
-    uploaded UTCTime
-    UniqueUploaded name version
-
 Alias
     user UserId
     name Slug

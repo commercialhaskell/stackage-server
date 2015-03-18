@@ -1,10 +1,7 @@
 module Data.Hackage
     ( loadCabalFiles
     , sourceHackageSdist
-    , sinkUploadHistory
     , UploadState (..)
-    , UploadHistory
-    , sourceHistory
     ) where
 
 import ClassyPrelude.Yesod hiding (get)
@@ -17,7 +14,7 @@ import qualified Data.Text as T
 import Data.Conduit.Zlib (ungzip)
 import System.IO.Temp (withSystemTempFile)
 import System.IO (IOMode (ReadMode), openBinaryFile)
-import Model (Uploaded (Uploaded), Metadata (..))
+import Model (Metadata (..))
 import Distribution.PackageDescription.Parse (parsePackageDescription, ParseResult (ParseOk))
 import qualified Distribution.PackageDescription as PD
 import qualified Distribution.Package as PD
@@ -38,15 +35,6 @@ import qualified Documentation.Haddock.Parser as Haddock
 import Documentation.Haddock.Types (DocH (..), Hyperlink (..), Picture (..), Header (..), Example (..))
 import qualified Data.HashMap.Lazy as HM
 
-sinkUploadHistory :: Monad m => Consumer (Entity Uploaded) m UploadHistory
-sinkUploadHistory =
-    foldlC go mempty
-  where
-    go history (Entity _ (Uploaded name version time)) =
-        case lookup name history of
-            Nothing -> insertMap name (singletonMap version time) history
-            Just vhistory -> insertMap name (insertMap version time vhistory) history
-
 loadCabalFiles :: ( MonadActive m
                   , MonadBaseControl IO m
                   , MonadThrow m
@@ -60,10 +48,9 @@ loadCabalFiles :: ( MonadActive m
                   )
                => Bool -- ^ do the database updating
                -> Bool -- ^ force updates regardless of hash value?
-               -> UploadHistory -- ^ initial
                -> HashMap PackageName (Version, ByteString)
                -> m (UploadState Metadata)
-loadCabalFiles dbUpdates forceUpdate uploadHistory0 metadata0 = (>>= runUploadState) $ flip execStateT (UploadState uploadHistory0 [] metadata1 mempty) $ do
+loadCabalFiles dbUpdates forceUpdate metadata0 = (>>= T.mapM liftIO) $ flip execStateT (UploadState metadata1 mempty) $ do
     HackageRoot root <- liftM getHackageRoot ask
     $logDebug $ "Entering loadCabalFiles, root == " ++ root
     req <- parseUrl $ unpack $ root ++ "/00-index.tar.gz"
@@ -110,8 +97,6 @@ loadCabalFiles dbUpdates forceUpdate uploadHistory0 metadata0 = (>>= runUploadSt
                     when toStore $ withAcquire (storeWrite' store key) $ \sink ->
                         sourceLazy lbs $$ sink
                     when dbUpdates $ do
-                        setUploadDate name version
-
                         case readVersion version of
                             Nothing -> return ()
                             Just dataVersion -> setMetadata
@@ -129,9 +114,6 @@ readVersion v =
         (dv, _):_ -> Just $ pack $ Data.Version.versionBranch dv
         [] -> Nothing
 
-runUploadState :: MonadIO m => UploadState (IO a) -> m (UploadState a)
-runUploadState (UploadState w x y z) = liftIO $ UploadState w x y <$> T.sequence z
-
 tarSource :: (Exception e, MonadThrow m)
           => Tar.Entries e
           -> Producer m Tar.Entry
@@ -139,54 +121,16 @@ tarSource Tar.Done = return ()
 tarSource (Tar.Fail e) = throwM e
 tarSource (Tar.Next e es) = yield e >> tarSource es
 
-type UploadHistory = HashMap PackageName (HashMap Version UTCTime)
 data UploadState md = UploadState
-    { usHistory :: !UploadHistory
-    , usChanges :: ![Uploaded]
-    , usMetadata :: !(HashMap PackageName MetaSig)
+    { usMetadata :: !(HashMap PackageName MetaSig)
     , usMetaChanges :: (HashMap PackageName md)
     }
+    deriving (Functor, Foldable, Traversable)
 
 data MetaSig = MetaSig
     {-# UNPACK #-} !Version
     {-# UNPACK #-} !(UVector Int) -- versionBranch
     {-# UNPACK #-} !ByteString -- hash
-
-setUploadDate :: ( MonadBaseControl IO m
-                 , MonadThrow m
-                 , MonadIO m
-                 , MonadReader env m
-                 , MonadState (UploadState (IO Metadata)) m
-                 , HasHttpManager env
-                 , MonadLogger m
-                 )
-              => PackageName
-              -> Version
-              -> m ()
-setUploadDate name version = do
-    UploadState history changes us3 us4 <- get
-    case lookup name history >>= lookup version of
-        Just _ -> return ()
-        Nothing -> do
-            req <- parseUrl url
-            $logDebug $ "Requesting: " ++ tshow req
-            lbs <- withResponse req $ \res -> responseBody res $$ sinkLazy
-            let uploadDateT = decodeUtf8 $ toStrict lbs
-            case parseTime defaultTimeLocale "%c" $ unpack uploadDateT of
-                Nothing -> return ()
-                Just time -> do
-                    let vhistory = insertMap version time $ fromMaybe mempty $ lookup name history
-                        history' = insertMap name vhistory history
-                        changes' = Uploaded name version time : changes
-                    put $ UploadState history' changes' us3 us4
-  where
-    url = unpack $ concat
-        [ "http://hackage.haskell.org/package/"
-        , toPathPiece name
-        , "-"
-        , toPathPiece version
-        , "/upload-time"
-        ]
 
 setMetadata :: ( MonadBaseControl IO m
                , MonadThrow m
@@ -207,7 +151,7 @@ setMetadata :: ( MonadBaseControl IO m
             -> ParseResult PD.GenericPackageDescription
             -> m ()
 setMetadata forceUpdate name version dataVersion hash' gpdRes = do
-    UploadState us1 us2 mdMap mdChanges <- get
+    UploadState mdMap mdChanges <- get
     let toUpdate =
             case lookup name mdMap of
                 Just (MetaSig _currVersion currDataVersion currHash) ->
@@ -220,7 +164,7 @@ setMetadata forceUpdate name version dataVersion hash' gpdRes = do
         then case gpdRes of
                 ParseOk _ gpd -> do
                     !md <- getMetadata name version hash' gpd
-                    put $! UploadState us1 us2
+                    put $! UploadState
                                 (insertMap name (MetaSig version dataVersion hash') mdMap)
                                 (HM.insert name md mdChanges)
                 _ -> return ()
@@ -426,15 +370,6 @@ sourceHackageSdist name version = do
             if exists
                 then storeRead key
                 else return Nothing
-
-sourceHistory :: Monad m => UploadHistory -> Producer m Uploaded
-sourceHistory =
-    mapM_ go . mapToList
-  where
-    go (name, vhistory) =
-        mapM_ go' $ mapToList vhistory
-      where
-        go' (version, time) = yield $ Uploaded name version time
 
 -- FIXME put in conduit-combinators
 parMapMC :: (MonadIO m, MonadBaseControl IO m)

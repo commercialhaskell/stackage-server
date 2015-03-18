@@ -21,7 +21,6 @@
     /metadata StackageMetadataR GET
     /cabal.config StackageCabalConfigR GET
     /00-index.tar.gz StackageIndexR GET
-    /bundle StackageBundleR GET
     /package/#PackageNameVersion StackageSdistR GET
     /packages SnapshotPackagesR GET
     /docs DocsR GET
@@ -52,5 +51,6 @@
 /older-releases OlderReleasesR GET
 
 /refresh-deprecated RefreshDeprecatedR GET
+/upload2 UploadV2R PUT
 /build-version BuildVersionR GET
 /package-counts PackageCountsR GET

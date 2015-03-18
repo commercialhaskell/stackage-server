@@ -23,6 +23,7 @@ import Stackage.Prelude (display)
 import Filesystem (createTree)
 import Filesystem.Path (parent)
 import Data.Conduit.Process
+import Data.Yaml (decodeEither')
 
 putUploadV2R :: Handler TypedContent
 putUploadV2R = do
@@ -94,10 +95,26 @@ doUpload status uid ident bundleFP = do
     threadDelay 1000000 -- FIXME remove
 
     say $ "Unpacking bundle"
-    master <- getYesod
-    liftIO $ haddockUnpacker master True ident
 
-    SnapshotInfo {..} <- getSnapshotInfoByIdent ident
+    (siType, siPlan, siDocMap :: DocMap) <-
+      withSystemTempDirectory "uploadv2" $ \dir' -> do
+        let dir = fpFromString dir'
+        withCheckedProcess
+            (proc "tar" ["xf", fpToString bundleFP])
+                { cwd = Just dir'
+                } $ \ClosedStream ClosedStream ClosedStream -> return ()
+
+        let maxFileSize = 1024 * 1024 * 5
+            yaml :: FromJSON a => FilePath -> Handler a
+            yaml fp = do
+                say $ "Parsing " ++ fpToText fp
+                bs <- sourceFile (dir </> fp) $$ takeCE maxFileSize =$ foldC
+                either throwM return $ decodeEither' bs
+
+        (,,)
+            <$> yaml "build-type.yaml"
+            <*> yaml "build-plan.yaml"
+            <*> yaml "docs-map.yaml"
 
     now <- liftIO getCurrentTime
     let day = tshow $ utctDay now
@@ -127,9 +144,12 @@ doUpload status uid ident bundleFP = do
                     , tshow minor
                     , ", GHC "
                     , ghcVersion
-                    ] 
+                    ]
 
-    slug <- SnapSlug <$> mkSlug slug'
+    slug <- do
+        slug2 <- mkSlug slug'
+        when (slug' /= unSlug slug2) $ error $ "Slug not available: " ++ show slug'
+        return $ SnapSlug slug2
 
     say "Creating index tarball"
     withSystemTempDirectory "buildindex.v2" $ \(fpFromString -> dir) -> do
@@ -183,7 +203,6 @@ doUpload status uid ident bundleFP = do
             , stackageTitle = title
             , stackageDesc = ""
             , stackageHasHaddocks = True
-            , stackageYaml = True
             }
         case siType of
             STNightly -> insert_ Nightly
@@ -196,6 +215,30 @@ doUpload status uid ident bundleFP = do
                 , ltsMinor = minor
                 , ltsStackage = sid
                 }
+
+        let cores :: Set PackageName
+            cores = setFromList
+                  $ map (PackageName . display . fst)
+                  $ mapToList
+                  $ siCorePackages
+                  $ bpSystemInfo siPlan
+        forM_ (mapToList $ fmap ppVersion $ bpPackages siPlan) $ \(name', version') -> do
+            let nameT = display name'
+                mpair = (,)
+                    <$> fromPathPiece nameT
+                    <*> fromPathPiece (display version')
+            (name, version) <-
+                case mpair of
+                    Nothing -> error $ "Could not parse: " ++ show (name', version')
+                    Just pair -> return pair
+            insert_ Package
+                { packageStackage = sid
+                , packageName' = name
+                , packageVersion = version
+                , packageHasHaddocks = nameT `member` siDocMap
+                , packageOverwrite = False
+                , packageCore = Just $ name `member` cores
+                }
         return sid
 
     say $ concat
@@ -207,6 +250,19 @@ doUpload status uid ident bundleFP = do
         ]
 
     render <- getUrlRender
+
+    say "Updating docmap"
+    runDB $ forM_ (mapToList siDocMap) $ \(package, PackageDocs version ms) -> do
+        did <- insert Docs
+            { docsName = PackageName package
+            , docsVersion = Version version
+            , docsUploaded = now
+            , docsSnapshot = Just sid
+            }
+        forM_ (mapToList ms) $ \(name, pieces) -> do
+            let url = render $ HaddockR slug pieces
+            insert_ $ Module did name url
+
     return $ render $ SnapshotR slug StackageHomeR
   where
     say = atomically . writeTVar status

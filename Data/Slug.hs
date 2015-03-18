@@ -17,10 +17,13 @@ import qualified System.Random.MWC as MWC
 import GHC.Prim (RealWorld)
 import Text.Blaze (ToMarkup)
 
-newtype Slug = Slug { unSlug :: Text }
+newtype Slug = Slug Text
     deriving (Show, Read, Eq, Typeable, PersistField, ToMarkup, Ord, Hashable)
 instance PersistFieldSql Slug where
     sqlType = sqlType . liftM unSlug
+
+unSlug :: Slug -> Text
+unSlug (Slug t) = t
 
 mkSlug :: MonadThrow m => Text -> m Slug
 mkSlug t
