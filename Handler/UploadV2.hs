@@ -151,6 +151,34 @@ doUpload status uid ident bundleFP = do
         when (slug' /= unSlug slug2) $ error $ "Slug not available: " ++ show slug'
         return $ SnapSlug slug2
 
+    mexisting <- runDB $ getBy $ UniqueSnapshot slug
+    route <- case mexisting of
+        Just _ -> do
+            say "Snapshot already exists"
+            return $ SnapshotR slug StackageHomeR
+        Nothing -> finishUpload
+              title ident ghcVersion slug now siType siPlan siDocMap
+              uid say
+    render <- getUrlRender
+    return $ render route
+  where
+    say = atomically . writeTVar status
+
+finishUpload
+    :: Text
+    -> PackageSetIdent
+    -> Text
+    -> SnapSlug
+    -> UTCTime
+    -> SnapshotType
+    -> BuildPlan
+    -> Map Text PackageDocs
+    -> UserId
+    -> (Text -> Handler ())
+    -> Handler (Route App)
+finishUpload
+  title ident ghcVersion slug now siType siPlan siDocMap
+  uid say = do
     say "Creating index tarball"
     withSystemTempDirectory "buildindex.v2" $ \(fpFromString -> dir) -> do
         files <- forM (mapToList $ fmap ppVersion $ bpPackages siPlan) $ \(name', version') -> do
@@ -263,6 +291,4 @@ doUpload status uid ident bundleFP = do
             let url = render $ HaddockR slug pieces
             insert_ $ Module did name url
 
-    return $ render $ SnapshotR slug StackageHomeR
-  where
-    say = atomically . writeTVar status
+    return $ SnapshotR slug StackageHomeR
