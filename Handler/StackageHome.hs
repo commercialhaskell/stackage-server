@@ -130,21 +130,28 @@ getStackageCabalConfigR slug = do
 
     headerGlobal render = yield $ Chunk $
         toBuilder (asText "-- Stackage snapshot from: ") ++
-        toBuilder (render $ SnapshotR slug StackageHomeR) ++
+        toBuilder snapshotUrl ++
         toBuilder (asText "\n-- Please place these contents in your global cabal config file.\n-- To only use tested packages, uncomment the following line\n-- and comment out other remote-repo lines:\n-- remote-repo: stackage-") ++
         toBuilder (toPathPiece slug) ++
         toBuilder ':' ++
-        toBuilder (render $ SnapshotR slug StackageHomeR) ++
+        toBuilder snapshotUrl ++
         toBuilder '\n'
 
     headerLocal render = yield $ Chunk $
         toBuilder (asText "-- Stackage snapshot from: ") ++
-        toBuilder (render $ SnapshotR slug StackageHomeR) ++
+        toBuilder snapshotUrl ++
         toBuilder (asText "\n-- Please place this file next to your .cabal file as cabal.config\n-- To only use tested packages, uncomment the following line:\n-- remote-repo: stackage-") ++
         toBuilder (toPathPiece slug) ++
         toBuilder ':' ++
-        toBuilder (render $ SnapshotR slug StackageHomeR) ++
+        toBuilder snapshotUrl ++
         toBuilder '\n'
+
+    snapshotUrl = asHttp $ render $ SnapshotR slug StackageHomeR
+
+    asHttp (stripPrefix "http://" -> Just s) = "http://" <> s
+    asHttp (stripPrefix "https://" -> Just s) = "http://" <> s
+    asHttp (stripPrefix "//" -> Just s) = "http://" <> s
+    asHttp s = error $ "Unexpected url prefix: " <> unpack s
 
     constraint p
         | Just True <- packageCore p = toBuilder $ asText " installed"
