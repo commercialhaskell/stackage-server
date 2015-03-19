@@ -244,21 +244,17 @@ finishUpload
                 , ltsStackage = sid
                 }
 
-        let cores :: Set PackageName
-            cores = setFromList
-                  $ map (PackageName . display . fst)
-                  $ mapToList
+        let cores, nonCores :: Map PackageName Version
+            cores = mapKeysWith const (PackageName . display)
+                  $ fmap (Version . display)
                   $ siCorePackages
                   $ bpSystemInfo siPlan
-        forM_ (mapToList $ fmap ppVersion $ bpPackages siPlan) $ \(name', version') -> do
-            let nameT = display name'
-                mpair = (,)
-                    <$> fromPathPiece nameT
-                    <*> fromPathPiece (display version')
-            (name, version) <-
-                case mpair of
-                    Nothing -> error $ "Could not parse: " ++ show (name', version')
-                    Just pair -> return pair
+            nonCores
+                  = mapKeysWith const (PackageName . display)
+                  $ fmap (Version . display . ppVersion)
+                  $ bpPackages siPlan
+        forM_ (mapToList $ cores ++ nonCores) $ \(name, version) -> do
+            let PackageName nameT = name
             insert_ Package
                 { packageStackage = sid
                 , packageName' = name
