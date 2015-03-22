@@ -16,10 +16,7 @@ import qualified Data.ByteString.Base16 as B16
 import System.Timeout.Lifted (timeout)
 import Control.Concurrent.Async (async, cancel, waitCatchSTM)
 import Yesod.Core.Types (HandlerT (..))
-import Stackage.ServerBundle
-import Stackage.BuildPlan
-import Stackage.BuildConstraints
-import Stackage.Prelude (display)
+import Stackage.Types
 import Filesystem (createTree)
 import Filesystem.Path (parent)
 import Data.Conduit.Process

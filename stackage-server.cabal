@@ -156,13 +156,13 @@ library
                  , blaze-html
                  , haddock-library
                  , async
-                 , stackage >= 0.4
                  , yesod-gitrepo >= 0.1.1
                  , hoogle
                  , spoon
                  , deepseq
                  , deepseq-generics
                  , auto-update
+                 , stackage-types
 
 executable         stackage-server
     if flag(library-only)

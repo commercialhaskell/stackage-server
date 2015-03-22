@@ -23,8 +23,7 @@ import           Yesod.Core.Types (Logger, GWData)
 import           Yesod.Default.Config
 import           Yesod.Default.Util (addStaticContentExternal)
 import           Yesod.GitRepo
-import Stackage.ServerBundle (SnapshotType, DocMap)
-import Stackage.BuildPlan (BuildPlan)
+import Stackage.Types
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
