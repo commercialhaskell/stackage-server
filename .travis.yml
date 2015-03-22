@@ -1,6 +1,14 @@
-# NB: don't set `language: haskell` here
+deploy:
+  provider: s3
+  access_key_id: AKIAI5DCW74VHQYKQPAA
+  secret_access_key:
+    secure: OHa5APTj1t/1Z9oMckolt1uEdd4UlBV/GOs4iuy3egMZQv6W2Y5vshMJAjxF3cuaNBE5HSLDMjckXWUhIAbh67dTAv8dn1VvWkMf8S2qRQOY+Z0YEsBjZVitRpdNpNWus/0+utX5hRMrsYmbniubQyJgUFowZmMDa0BJ4Yb+0U0=
+  bucket: stackage-travis
+  acl: public_read
+  skip_cleanup: true
+  local_dir: to-travis
+  upload-dirs: stackage-server
 
-# The following enables several GHC versions to be tested; often it's enough to test only against the last release in a major GHC version. Feel free to omit lines listings versions you don't need/want testing for.
 env:
  - CABALVER=1.20 GHCVER=7.8.4
 
@@ -36,3 +44,7 @@ script:
       echo "expected '$SRC_TGZ' not found";
       exit 1;
    fi
+
+ - yesod keter
+ - mkdir -p to-travis
+ - cp stackage-server.keter to-travis
