@@ -7,7 +7,7 @@ deploy:
   acl: public_read
   skip_cleanup: true
   local_dir: to-travis
-  upload-dirs: stackage-server
+  upload-dir: stackage-server
 
 env:
  - CABALVER=1.20 GHCVER=7.8.4
