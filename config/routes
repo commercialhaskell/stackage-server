@@ -4,6 +4,7 @@
 
 /favicon.ico FaviconR GET
 /robots.txt RobotsR GET
+/sitemap.xml SitemapR GET
 
 / HomeR GET
 /snapshots AllSnapshotsR GET
