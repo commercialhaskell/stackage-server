@@ -2,10 +2,11 @@ module Handler.Sitemap (getSitemapR) where
 
 import Import
 import Yesod.Sitemap
-import Data.List (nub)
+import qualified Data.Conduit.List as CL
+import qualified Control.Monad.State as State
 
-type Sitemap = Source Handler (SitemapUrl (Route App))
-
+type SitemapFor a = forall m. Monad m => Conduit a m (SitemapUrl (Route App))
+type Sitemap = forall m. Monad m => Producer m (SitemapUrl (Route App))
 
 getSitemapR :: Handler TypedContent
 getSitemapR = sitemap $ do
@@ -24,54 +25,67 @@ getSitemapR = sitemap $ do
 
     url PackageCountsR
 
-    selectAll >>= ltsSitemaps
-    selectAll >>= mapM_ snapshotSitemap
-    selectAll >>= mapM_ packageMetadataSitemap
-    selectAll >>= mapM_ tagSitemap
+    runDBSource $ do
+        selectAll $= ltsSitemaps
+        selectAll $= snapshotSitemaps
+        selectAll $= packageMetadataSitemaps
+        selectAll $= tagSitemaps
 
 
 selectAll :: (PersistEntity val, PersistEntityBackend val ~ YesodPersistBackend App)
-  => ConduitM () (SitemapUrl (Route App)) Handler [val]
-selectAll = lift $ runDB $ fmap (map entityVal) $ selectList [] []
+  => Source (YesodDB App) val
+selectAll = selectSource [] [] $= CL.map entityVal
 
-ltsSitemaps :: [Lts] -> Sitemap
-ltsSitemaps ltss = do
-  ltsMajorSitemap ltss
-  mapM_ ltsSitemap ltss
+ltsSitemaps :: SitemapFor Lts
+ltsSitemaps = sequenceConduits [ltsMajorSitemap, ltsSitemap] >> return ()
 
-ltsMajorSitemap :: [Lts] -> Sitemap
-ltsMajorSitemap ltss = mapM_ go majorVersions
+clNub :: (Monad m, Eq a) => Conduit a m a
+clNub = evalStateC [] $ awaitForever $ \a -> do
+    seen <- State.get
+    unless (a `elem` seen) $ do
+        State.put (a:seen)
+        yield a
+
+ltsMajorSitemap :: SitemapFor Lts
+ltsMajorSitemap = CL.map ltsMajor =$= clNub =$= awaitForever go
   where
-    majorVersions = nub $ map ltsMajor ltss
     go ver = priority 0.55 $ LtsR [pack (show ver)]
 
-ltsSitemap :: Lts -> Sitemap
-ltsSitemap lts = url $ LtsR [slug]
+ltsSitemap :: SitemapFor Lts
+ltsSitemap = awaitForever go
   where
-    slug = show' (ltsMajor lts) <> "." <> show' (ltsMinor lts)
     show' = pack . show
+    go lts = url $ LtsR [slug]
+      where
+        slug = show' (ltsMajor lts) <> "." <> show' (ltsMinor lts)
 
-snapshotSitemap :: Stackage -> Sitemap
-snapshotSitemap s = do
-    url' StackageHomeR
-    url' StackageMetadataR
-    url' StackageCabalConfigR
-    url' StackageIndexR
-    url' SnapshotPackagesR
-    url' DocsR
-    url' HoogleR
+snapshotSitemaps :: SitemapFor Stackage
+snapshotSitemaps = awaitForever go
   where
-    url' = url . SnapshotR (stackageSlug s)
+    go s = do
+        url' StackageHomeR
+        url' StackageMetadataR
+        url' StackageCabalConfigR
+        url' StackageIndexR
+        url' SnapshotPackagesR
+        url' DocsR
+        url' HoogleR
+      where
+        url' = url . SnapshotR (stackageSlug s)
 
-packageMetadataSitemap :: Metadata -> Sitemap
-packageMetadataSitemap m = do
-    url' PackageR
-    url' PackageSnapshotsR
+packageMetadataSitemaps :: SitemapFor Metadata
+packageMetadataSitemaps = awaitForever go
   where
-    url' floc = url $ floc $ metadataName m
+    go m = do
+        url' PackageR
+        url' PackageSnapshotsR
+      where
+        url' floc = url $ floc $ metadataName m
 
-tagSitemap :: Tag -> Sitemap
-tagSitemap t = url $ TagR $ tagTag t
+tagSitemaps :: SitemapFor Tag
+tagSitemaps = awaitForever go
+  where
+    go t = url $ TagR $ tagTag t
 
 
 priority :: Double -> Route App -> Sitemap
