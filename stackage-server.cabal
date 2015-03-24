@@ -52,6 +52,7 @@ library
                      Handler.UploadV2
                      Handler.BuildVersion
                      Handler.PackageCounts
+                     Handler.Sitemap
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -163,6 +164,7 @@ library
                  , deepseq-generics
                  , auto-update
                  , stackage-types
+                 , yesod-sitemap
 
 executable         stackage-server
     if flag(library-only)
