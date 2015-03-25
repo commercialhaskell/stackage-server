@@ -7,6 +7,8 @@ module Data.Unpacking
     , createHoogleDatabases
     ) where
 
+import Control.Concurrent.Async
+import Data.Conduit.Process
 import Import hiding (runDB)
 import Data.BlobStore
 import Handler.Haddock
@@ -147,13 +149,22 @@ unpackRawDocsTo store ident say destdir =
 
         createTree destdir
         say "Unpacking tarball"
-        (Nothing, Nothing, Nothing, ph) <- createProcess
-            (proc "tar" ["xf", tempfp])
-                { cwd = Just $ fpToString destdir
-                }
-        ec <- waitForProcess ph
-        if ec == ExitSuccess then return () else throwM ec
+        (ClosedStream, out, err, cph) <- streamingProcess (proc "tar" ["xf", tempfp])
+            { cwd = Just $ fpToString destdir
+            }
+        (ec, out', err') <- liftIO $ runConcurrently $ (,,)
+            <$> Concurrently (waitForStreamingProcess cph)
+            <*> Concurrently (out $$ foldC)
+            <*> Concurrently (err $$ foldC)
+        unless (ec == ExitSuccess) $ throwM
+            $ HaddockBundleUnpackException ec out' err'
 
+data HaddockBundleUnpackException = HaddockBundleUnpackException
+    !ExitCode
+    !ByteString
+    !ByteString
+    deriving (Show, Typeable)
+instance Exception HaddockBundleUnpackException
 
 unpacker
     :: Dirs

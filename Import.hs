@@ -51,6 +51,11 @@ requireDocs stackageEnt = do
                     <p>This page will automatically reload every second.
                     <p>Current status: #{msg}
             |]
-        USFailed e -> invalidArgs
-            [ "Docs not available: " ++ e
-            ]
+        USFailed e -> do
+            $logWarn $ "Docs not available: " ++ tshow
+                ( stackageSlug $ entityVal stackageEnt
+                , e
+                )
+            invalidArgs
+                [ "Docs not available: " ++ e
+                ]
