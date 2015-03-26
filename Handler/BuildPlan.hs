@@ -44,7 +44,8 @@ ltsFP :: HttpM env m
       => Text
       -> m FilePath
 ltsFP ltsVer = do
-    dir <- liftIO $ F.getAppDataDirectory "stackage-bootstrap"
+    --dir <- liftIO $ F.getAppDataDirectory "stackage-bootstrap"
+    let dir = "/tmp/stackage-bootstrap" -- HOME not set on server
     let fp = dir </> fpFromText ("lts-" ++ ltsVer) <.> "yaml"
     exists <- liftIO $ F.isFile fp
     if exists
