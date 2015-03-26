@@ -138,8 +138,8 @@ instance Yesod App where
     -- problem is that sometimes CORS kicks in and breaks a static resource
     -- when loading from a non-secure page. So we have this ugly hack: whenever
     -- the destination is a static file, don't include the scheme or hostname.
-    urlRenderOverride y (StaticR s) =
-        Just $ uncurry (joinPath y "") $ renderRoute s
+    urlRenderOverride y route@StaticR{} =
+        Just $ uncurry (joinPath y "") $ renderRoute route
     urlRenderOverride _ _ = Nothing
 
     -- The page to be redirected to when authentication is required.
