@@ -23,7 +23,9 @@ getBuildPlanR slug = do
 
     fp <- fmap fpToString $ ltsFP $ concat [tshow major, ".", tshow minor]
     bp <- liftIO $ decodeFileEither fp >>= either throwIO return
-    packages <- lookupGetParams "package"
+    -- treat packages as a set to skip duplicates and make order of parameters
+    -- irrelevant
+    packages <- setFromList <$> lookupGetParams "package"
     when (null packages) $ invalidArgs ["Must provide at least one package"]
     fullDeps <- (== Just "true") <$> lookupGetParam "full-deps"
     let eres = runCatch $ execStateT (getDeps bp fullDeps packages) (mempty, id)
@@ -79,7 +81,7 @@ type DList a = [a] -> [a]
 getDeps :: (MonadThrow m, MonadState TheState m)
         => BuildPlan
         -> Bool
-        -> [Text]
+        -> Set Text
         -> m ()
 getDeps BuildPlan {..} fullDeps =
     mapM_ (goName . PackageName . unpack)
