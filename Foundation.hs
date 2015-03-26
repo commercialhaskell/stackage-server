@@ -129,12 +129,6 @@ instance Yesod App where
 
     defaultLayout = defaultLayoutWithContainer True
 
-    -- This is done to provide an optimization for serving static files from
-    -- a separate domain. Please see the staticRoot setting in Settings.hs
-    urlRenderOverride y (StaticR s) =
-        Just $ uncurry (joinPath y (Settings.staticRoot $ settings y)) $ renderRoute s
-    urlRenderOverride _ _ = Nothing
-
     -- Ideally we would just have an approot that always includes https, and
     -- redirect users from non-SSL to SSL connections. However, cabal-install
     -- is broken, and does not support TLS. Therefore, we *don't* force the
@@ -144,21 +138,9 @@ instance Yesod App where
     -- problem is that sometimes CORS kicks in and breaks a static resource
     -- when loading from a non-secure page. So we have this ugly hack: whenever
     -- the destination is a static file, don't include the scheme or hostname.
-    joinPath app fullAr pieces' qs' =
-        toBuilder ar ++ encodePath pieces qs
-      where
-        ar =
-            case pieces' of
-                "static":_ -> ""
-                _ -> fullAr
-
-        pieces = if null pieces' then [""] else map addDash pieces'
-        qs = map (encodeUtf8 *** go) qs'
-        go "" = Nothing
-        go x = Just $ encodeUtf8 x
-        addDash t
-            | all (== '-') t = cons '-' t
-            | otherwise = t
+    urlRenderOverride y (StaticR s) =
+        Just $ uncurry (joinPath y "") $ renderRoute s
+    urlRenderOverride _ _ = Nothing
 
     -- The page to be redirected to when authentication is required.
     authRoute _ = Just $ AuthR LoginR
