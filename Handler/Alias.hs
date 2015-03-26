@@ -10,6 +10,7 @@ import Handler.StackageHome (getStackageHomeR, getStackageMetadataR, getStackage
 import Handler.StackageIndex (getStackageIndexR)
 import Handler.StackageSdist (getStackageSdistR)
 import Handler.Hoogle (getHoogleR)
+import Handler.BuildPlan (getBuildPlanR)
 
 handleAliasR :: Slug -> Slug -> [Text] -> Handler ()
 handleAliasR user name pieces = do
@@ -78,4 +79,5 @@ goSid sid pieces = do
                 SnapshotPackagesR -> getSnapshotPackagesR slug >>= sendResponse
                 DocsR -> getDocsR slug >>= sendResponse
                 HoogleR -> getHoogleR slug >>= sendResponse
+                BuildPlanR -> getBuildPlanR slug >>= sendResponse
         _ -> notFound

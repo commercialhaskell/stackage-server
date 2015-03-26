@@ -53,6 +53,7 @@ library
                      Handler.BuildVersion
                      Handler.PackageCounts
                      Handler.Sitemap
+                     Handler.BuildPlan
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

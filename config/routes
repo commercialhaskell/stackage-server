@@ -26,6 +26,7 @@
     /packages SnapshotPackagesR GET
     /docs DocsR GET
     /hoogle HoogleR GET
+    /build-plan BuildPlanR GET
 
 /aliases AliasesR PUT
 /alias/#Slug/#Slug/*Texts AliasR
