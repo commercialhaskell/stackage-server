@@ -1,7 +1,7 @@
 {-# LANGUAGE ConstraintKinds #-}
 module Handler.BuildPlan where
 
-import Import hiding (get, PackageName (..), Version (..))
+import Import hiding (get, PackageName (..), Version (..), DList)
 import Data.Slug (SnapSlug)
 import qualified Filesystem as F
 import Data.Yaml (decodeFileEither)

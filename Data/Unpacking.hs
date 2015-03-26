@@ -24,7 +24,6 @@ import qualified Data.Yaml as Y
 import System.IO (IOMode (ReadMode), withBinaryFile, openBinaryFile)
 import System.IO.Temp (withSystemTempFile, withTempFile, withSystemTempDirectory)
 import System.Exit (ExitCode (ExitSuccess))
-import System.Process (createProcess, proc, cwd, waitForProcess)
 import qualified Filesystem.Path.CurrentOS as F
 import Data.Conduit.Zlib (gzip, ungzip)
 import qualified Data.ByteString.Base16 as B16

@@ -14,16 +14,13 @@ import           Settings.StaticFiles
 import qualified System.Random.MWC as MWC
 import           Text.Blaze
 import           Text.Hamlet (hamletFile)
-import           Text.Jasmine (minifym)
 import           Types
 import           Yesod.Auth
 import           Yesod.Auth.BrowserId
-import           Yesod.Auth.GoogleEmail2
+import           Yesod.Auth.GoogleEmail2 (authGoogleEmail)
 import           Yesod.Core.Types (Logger, GWData)
 import           Yesod.Default.Config
-import           Yesod.Default.Util (addStaticContentExternal)
 import           Yesod.GitRepo
-import Stackage.Types
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -215,7 +212,7 @@ instance YesodAuth App where
                             , userDisplay = credsIdent creds
                             , userToken = token
                             }
-                        void $ insert Email
+                        insert_ Email
                             { emailEmail = credsIdent creds
                             , emailUser = userid
                             }
@@ -224,7 +221,7 @@ instance YesodAuth App where
                 memail <- getBy $ UniqueEmail $ credsIdent creds
                 case memail of
                     Nothing -> do
-                        void $ insert Email
+                        insert_ Email
                             { emailEmail = credsIdent creds
                             , emailUser = uid
                             }

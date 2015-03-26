@@ -14,7 +14,6 @@ module Data.Slug
 import ClassyPrelude.Yesod
 import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified System.Random.MWC as MWC
-import GHC.Prim (RealWorld)
 import Text.Blaze (ToMarkup)
 
 newtype Slug = Slug Text

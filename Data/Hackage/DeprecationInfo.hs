@@ -33,8 +33,6 @@ instance FromJSON DeprecationRecord where
       package <- PackageName <$> (obj .: "deprecated-package")
       inFavourOf <- map PackageName <$> (obj .: "in-favour-of")
       return $ DeprecationRecord package inFavourOf
-    where
-      parsePackageName = fmap PackageName
 
 toDeprecated :: DeprecationRecord -> Deprecated
 toDeprecated (DeprecationRecord deprecated _) = Deprecated deprecated

@@ -7,7 +7,6 @@ import Test.Hspec.QuickCheck
 import Data.Slug
 import ClassyPrelude.Yesod
 import qualified System.Random.MWC as MWC
-import Control.Monad.Reader (runReaderT)
 
 spec :: Spec
 spec = describe "Data.Slug" $ do
