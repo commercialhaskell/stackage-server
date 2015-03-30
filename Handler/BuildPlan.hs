@@ -65,15 +65,9 @@ download :: HttpM env m
          -> m ()
 download ltsVer dest = do
     req <- parseUrl $ unpack $ concat
-    {-
         [ "https://raw.githubusercontent.com/fpco/lts-haskell/master/lts-"
         , ltsVer
         , ".yaml"
-        ]
-        -}
-        [ "https://cdn.rawgit.com/fpco/lts-haskell/master/lts-"
-        , ltsVer
-        , "1.14.yaml"
         ]
     withResponse req $ \res -> liftIO $ F.withFile dest F.WriteMode $ \h ->
         responseBody res $$ sinkHandle h
