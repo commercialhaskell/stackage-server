@@ -73,7 +73,7 @@ download ltsVer dest = do
         -}
         [ "https://cdn.rawgit.com/fpco/lts-haskell/master/lts-"
         , ltsVer
-        , ".yaml"
+        , "1.14.yaml"
         ]
     withResponse req $ \res -> liftIO $ F.withFile dest F.WriteMode $ \h ->
         responseBody res $$ sinkHandle h
