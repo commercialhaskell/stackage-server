@@ -170,6 +170,12 @@ makeFoundation useEcho conf = do
             "master"
             loadWebsiteContent
 
+    -- Temporary workaround to force content updates regularly, until
+    -- distribution of webhooks is handled via consul
+    void $ forkIO $ forever $ void $ tryAny $ do
+        threadDelay $ 1000 * 1000 * 60 * 20
+        grRefresh websiteContent'
+
     env <- getEnvironment
 
     let runDB' :: (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a
