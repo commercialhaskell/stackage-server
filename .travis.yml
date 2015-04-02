@@ -31,4 +31,8 @@ install:
 script:
  - yesod keter
  - mkdir -p to-travis
- - cp stackage-server.keter to-travis
+ - mv stackage-server.keter to-travis
+ - mv dist/build/cabal-loader-stackage/cabal-loader-stackage .
+ - strip cabal-loader-stackage
+ - bzip2 cabal-loader-stackage
+ - mv cabal-loader-stackage to-travis
