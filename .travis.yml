@@ -35,4 +35,4 @@ script:
  - mv dist/build/cabal-loader-stackage/cabal-loader-stackage .
  - strip cabal-loader-stackage
  - bzip2 cabal-loader-stackage
- - mv cabal-loader-stackage to-travis
+ - mv cabal-loader-stackage.bz2 to-travis
