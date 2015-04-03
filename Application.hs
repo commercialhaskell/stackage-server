@@ -16,6 +16,7 @@ import           Data.Hackage.DeprecationInfo
 import           Data.Unpacking (newDocUnpacker, createHoogleDatabases)
 import           Data.WebsiteContent
 import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
+import           Data.Streaming.Network (bindPortTCP)
 import           Data.Time (diffUTCTime)
 import qualified Database.Esqueleto as E
 import qualified Database.Persist
@@ -249,6 +250,10 @@ instance HasHttpManager CabalLoaderEnv where
 
 cabalLoaderMain :: IO ()
 cabalLoaderMain = do
+    -- Hacky approach instead of PID files
+    void $ catchIO (bindPortTCP 17834 "127.0.0.1") $ \_ ->
+        error $ "cabal loader process already running, exiting"
+
     conf <- fromArgs parseExtra
     dbconf <- getDbConf conf
     pool <- Database.Persist.createPoolConfig dbconf

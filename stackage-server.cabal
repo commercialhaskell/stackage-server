@@ -166,6 +166,7 @@ library
                  , auto-update
                  , stackage-types
                  , yesod-sitemap
+                 , streaming-commons
 
 executable         stackage-server
     if flag(library-only)
