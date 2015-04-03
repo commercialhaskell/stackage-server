@@ -32,14 +32,7 @@ getHoogleR slug = do
     mdatabasePath <- getHoogleDB dirs stackage
     heDatabase <- case mdatabasePath of
         Just x -> return $ liftIO $ Hoogle.loadDatabase $ fpToString x
-        Nothing -> (>>= sendResponse) $ defaultLayout $ do
-            setTitle "Hoogle database not available"
-            [whamlet|
-                <div .container>
-                    <p>The given Hoogle database is not available.
-                    <p>
-                        <a href=@{SnapshotR slug StackageHomeR}>Return to snapshot homepage
-            |]
+        Nothing -> hoogleDatabaseNotAvailableFor slug
 
     mresults <- case mquery of
         Just query -> runHoogleQuery heDatabase HoogleQueryInput
@@ -59,6 +52,25 @@ getHoogleR slug = do
     defaultLayout $ do
         setTitle "Hoogle Search"
         $(widgetFile "hoogle")
+
+getHoogleDatabaseR :: SnapSlug -> Handler Html
+getHoogleDatabaseR slug = do
+    dirs <- getDirs
+    Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+    mdatabasePath <- getHoogleDB dirs stackage
+    case mdatabasePath of
+        Nothing -> hoogleDatabaseNotAvailableFor slug
+        Just path -> sendFile "application/octet-stream" $ fpToString path
+
+hoogleDatabaseNotAvailableFor :: SnapSlug -> Handler a
+hoogleDatabaseNotAvailableFor slug = (>>= sendResponse) $ defaultLayout $ do
+    setTitle "Hoogle database not available"
+    [whamlet|
+        <div .container>
+            <p>The given Hoogle database is not available.
+            <p>
+                <a href=@{SnapshotR slug StackageHomeR}>Return to snapshot homepage
+    |]
 
 getPageCount :: Int -> Int
 getPageCount totalCount = 1 + div totalCount perPage

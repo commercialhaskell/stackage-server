@@ -39,6 +39,8 @@ $newline never
 
     <h3>Hoogle (experimental)
     ^{hoogleForm}
+    <a href=@{SnapshotR slug HoogleDatabaseR}>
+      Download this hoogle database
 
     <h3>Packages
 
