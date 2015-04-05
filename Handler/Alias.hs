@@ -9,7 +9,7 @@ import Data.Slug (Slug)
 import Handler.StackageHome (getStackageHomeR, getStackageMetadataR, getStackageCabalConfigR, getSnapshotPackagesR, getDocsR)
 import Handler.StackageIndex (getStackageIndexR)
 import Handler.StackageSdist (getStackageSdistR)
-import Handler.Hoogle (getHoogleR)
+import Handler.Hoogle (getHoogleR, getHoogleDatabaseR)
 import Handler.BuildPlan (getBuildPlanR)
 
 handleAliasR :: Slug -> Slug -> [Text] -> Handler ()
@@ -79,5 +79,6 @@ goSid sid pieces = do
                 SnapshotPackagesR -> getSnapshotPackagesR slug >>= sendResponse
                 DocsR -> getDocsR slug >>= sendResponse
                 HoogleR -> getHoogleR slug >>= sendResponse
+                HoogleDatabaseR -> getHoogleDatabaseR slug >>= sendResponse
                 BuildPlanR -> getBuildPlanR slug >>= sendResponse
         _ -> notFound
