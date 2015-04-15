@@ -57,3 +57,6 @@
 /upload2 UploadV2R PUT
 /build-version BuildVersionR GET
 /package-counts PackageCountsR GET
+
+/download DownloadR GET
+/download/#SupportedArch/#StackageExecutable DownloadStackageExecutableR GET

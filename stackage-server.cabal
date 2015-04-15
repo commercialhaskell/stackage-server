@@ -54,6 +54,7 @@ library
                      Handler.PackageCounts
                      Handler.Sitemap
                      Handler.BuildPlan
+                     Handler.Download
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

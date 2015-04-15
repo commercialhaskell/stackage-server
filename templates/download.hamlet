@@ -1,0 +1,5 @@
+$forall (arch, exe) <- downloadCandidates
+  <ul .downloads>
+    <li>
+      <a href=@{DownloadStackageExecutableR arch exe}>
+        #{toPathPiece arch}: #{toPathPiece exe}

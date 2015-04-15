@@ -102,3 +102,41 @@ instance HasHackageRoot HackageRoot where
 data UnpackStatus = USReady
                   | USBusy
                   | USFailed !Text
+
+data StackageExecutable
+    = StackageWindowsExecutable
+    | StackageUnixExecutable
+    deriving (Show, Read, Eq)
+
+instance PathPiece StackageExecutable where
+    toPathPiece StackageWindowsExecutable = "stackage.exe"
+    toPathPiece StackageUnixExecutable = "stackage"
+
+    fromPathPiece "stackage" = Just StackageUnixExecutable
+    fromPathPiece "stackage.exe" = Just StackageWindowsExecutable
+    fromPathPiece _ = Nothing
+
+data SupportedArch
+    = Win32
+    | Win64
+    | Linux32
+    | Linux64
+    | Mac32
+    | Mac64
+    deriving (Enum, Bounded, Show, Read, Eq)
+
+instance PathPiece SupportedArch where
+    toPathPiece Win32 = "win32"
+    toPathPiece Win64 = "win64"
+    toPathPiece Linux32 = "linux32"
+    toPathPiece Linux64 = "linux64"
+    toPathPiece Mac32 = "mac32"
+    toPathPiece Mac64 = "mac64"
+
+    fromPathPiece "win32" = Just Win32
+    fromPathPiece "win64" = Just Win64
+    fromPathPiece "linux32" = Just Linux32
+    fromPathPiece "linux64" = Just Linux64
+    fromPathPiece "mac32" = Just Mac32
+    fromPathPiece "mac64" = Just Mac64
+    fromPathPiece _ = Nothing
