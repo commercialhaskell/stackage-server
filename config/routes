@@ -28,6 +28,7 @@
     /hoogle HoogleR GET
     /db.hoo HoogleDatabaseR GET
     /build-plan BuildPlanR GET
+    /download/#SupportedArch/environment.json DownloadEnvironmentJsonR GET
 
 /aliases AliasesR PUT
 /alias/#Slug/#Slug/*Texts AliasR
@@ -60,3 +61,4 @@
 
 /download DownloadR GET
 /download/#SupportedArch/#StackageExecutable DownloadStackageExecutableR GET
+/download/lts-snapshots.json DownloadLtsSnapshotsJsonR GET

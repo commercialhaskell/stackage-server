@@ -91,6 +91,7 @@ library
                 DeriveFunctor
                 DeriveFoldable
                 DeriveTraversable
+                LambdaCase
 
     build-depends:
                     base                          >= 4
