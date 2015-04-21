@@ -11,7 +11,7 @@ import Handler.StackageIndex (getStackageIndexR)
 import Handler.StackageSdist (getStackageSdistR)
 import Handler.Hoogle (getHoogleR, getHoogleDatabaseR)
 import Handler.BuildPlan (getBuildPlanR)
-import Handler.Download (getDownloadEnvironmentJsonR)
+import Handler.Download (getGhcMajorVersionR)
 
 handleAliasR :: Slug -> Slug -> [Text] -> Handler ()
 handleAliasR user name pieces = do
@@ -82,5 +82,5 @@ goSid sid pieces = do
                 HoogleR -> getHoogleR slug >>= sendResponse
                 HoogleDatabaseR -> getHoogleDatabaseR slug >>= sendResponse
                 BuildPlanR -> getBuildPlanR slug >>= sendResponse
-                DownloadEnvironmentJsonR arch -> getDownloadEnvironmentJsonR slug arch >>= sendResponse
+                GhcMajorVersionR -> getGhcMajorVersionR slug >>= sendResponse
         _ -> notFound

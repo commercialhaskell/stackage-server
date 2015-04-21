@@ -109,11 +109,12 @@ data StackageExecutable
     deriving (Show, Read, Eq)
 
 instance PathPiece StackageExecutable where
-    toPathPiece StackageWindowsExecutable = "stackage.exe"
-    toPathPiece StackageUnixExecutable = "stackage"
+    -- TODO: distribute stackage, not just stackage-setup
+    toPathPiece StackageWindowsExecutable = "stackage-setup.exe"
+    toPathPiece StackageUnixExecutable = "stackage-setup"
 
-    fromPathPiece "stackage" = Just StackageUnixExecutable
-    fromPathPiece "stackage.exe" = Just StackageWindowsExecutable
+    fromPathPiece "stackage-setup" = Just StackageUnixExecutable
+    fromPathPiece "stackage-setup.exe" = Just StackageWindowsExecutable
     fromPathPiece _ = Nothing
 
 data SupportedArch

@@ -1,0 +1,26 @@
+-
+  name: ghc
+  version: 7.8.4
+  url: http://www.haskell.org/ghc/dist/7.8.4/ghc-7.8.4-x86_64-unknown-linux-deb7.tar.xz
+  sha1: 11aec12d4bb27f6fa59dcc8535a7a3b3be8cb787
+  instructions:
+    - tar xJf ghc-7.8.4-x86_64-unknown-linux-deb7.tar.xz
+    - cd ghc-7.8.4
+    - ./configure --prefix=`pwd`
+    - make install
+    - cd ..
+    - rm ghc-7.8.4-x86_64-unknown-linux-deb7.tar.xz
+-
+  name: cabal
+  version: 1.20.0.3
+  url: https://www.haskell.org/cabal/release/cabal-install-1.20.0.3/cabal-install-1.20.0.3.tar.gz
+  sha1: 444448b0f704420e329e8fc1989b6743c1c8546d
+  instructions:
+    - tar xzf cabal-install-1.20.0.3.tar.gz
+    - cd cabal-install-1.20.0.3
+    - ./bootstrap.sh
+    - cd ..
+    - rm -r cabal-install-1.20.0.3
+    - rm cabal-install-1.20.0.3.tar.gz
+    - mkdir cabal-1.20.0.3
+    - mv $HOME/.cabal/bin/cabal cabal-1.20.0.3/bin/cabal

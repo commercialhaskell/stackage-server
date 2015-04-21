@@ -28,7 +28,7 @@
     /hoogle HoogleR GET
     /db.hoo HoogleDatabaseR GET
     /build-plan BuildPlanR GET
-    /download/#SupportedArch/environment.json DownloadEnvironmentJsonR GET
+    /ghc-major-version GhcMajorVersionR GET
 
 /aliases AliasesR PUT
 /alias/#Slug/#Slug/*Texts AliasR
@@ -60,5 +60,4 @@
 /package-counts PackageCountsR GET
 
 /download DownloadR GET
-/download/#SupportedArch/#StackageExecutable DownloadStackageExecutableR GET
 /download/lts-snapshots.json DownloadLtsSnapshotsJsonR GET

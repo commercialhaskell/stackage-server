@@ -1,8 +1,7 @@
 module Handler.Download
   ( getDownloadR
-  , getDownloadStackageExecutableR
   , getDownloadLtsSnapshotsJsonR
-  , getDownloadEnvironmentJsonR
+  , getGhcMajorVersionR
   ) where
 
 import Import
@@ -13,6 +12,10 @@ executableFor Win32 = StackageWindowsExecutable
 executableFor Win64 = StackageWindowsExecutable
 executableFor _ = StackageUnixExecutable
 
+executableLink :: SupportedArch -> StackageExecutable -> Route App
+executableLink arch exe =
+    StaticR $ StaticRoute ["setup", toPathPiece arch, toPathPiece exe] []
+
 downloadCandidates :: [(SupportedArch, StackageExecutable)]
 downloadCandidates =
     map (\arch -> (arch, executableFor arch))
@@ -21,14 +24,6 @@ downloadCandidates =
 getDownloadR :: Handler Html
 getDownloadR = defaultLayout $ do
     $(widgetFile "download")
-
-getDownloadStackageExecutableR
-  :: SupportedArch -> StackageExecutable -> Handler Html
-getDownloadStackageExecutableR arch exe = do
-    -- TODO: send exeutable file instead
-    when (executableFor arch /= exe) notFound
-    defaultLayout $ do
-        $(widgetFile "downloadExe")
 
 ltsMajorVersions :: Handler [Lts]
 ltsMajorVersions = liftM (map entityVal) $ runDB $ do
@@ -53,21 +48,11 @@ getDownloadLtsSnapshotsJsonR = liftM reverse ltsMajorVersions >>= \case
     printLts (Lts major minor _) =
         "lts-" ++ show major ++ "." ++ show minor
 
-getDownloadEnvironmentJsonR :: SnapSlug -> SupportedArch -> Handler Value
-getDownloadEnvironmentJsonR _slug Linux64 = do
-    -- TODO: dynamic generation based on db entries
-    let ghc = object
-            [ "version" .= asText "7.8.4"
-            , "url" .= asText "http://www.haskell.org/ghc/dist/7.8.4/ghc-7.8.4-x86_64-unknown-linux-deb7.tar.xz"
-            , "sha1" .= asText "11aec12d4bb27f6fa59dcc8535a7a3b3be8cb787"
-            ]
-        cabal = object
-            [ "version" .= asText "1.20.0.3"
-            , "url" .= asText "http://www.haskell.org/cabal/release/cabal-install-1.20.0.3/cabal-1.20.0.3-i386-unknown-linux.tar.gz"
-            , "sha1" .= asText "647ae3e561343a709b09ed70fa6bc7b1ce39e25b"
-            ]
-    return $ object
-        [ "ghc" .= ghc
-        , "cabal" .= cabal
-        ]
-getDownloadEnvironmentJsonR _slug _arch = notFound
+-- TODO: add this to db
+ltsGhcMajorVersion :: Stackage -> Text
+ltsGhcMajorVersion _ = "7.8"
+
+getGhcMajorVersionR :: SnapSlug -> Handler Text
+getGhcMajorVersionR slug = do
+  snapshot <- runDB $ getBy404 $ UniqueSnapshot slug
+  return $ ltsGhcMajorVersion $ entityVal snapshot
