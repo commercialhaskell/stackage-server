@@ -11,7 +11,7 @@ import Stackage.Types
 import Distribution.Package (PackageName (..))
 import Data.Version (Version)
 
-getBuildPlanR :: SnapSlug -> Handler Text
+getBuildPlanR :: SnapSlug -> Handler TypedContent
 getBuildPlanR slug = do
     mlts <- runDB $ do
         Entity sid _ <- getBy404 $ UniqueSnapshot slug
@@ -31,8 +31,10 @@ getBuildPlanR slug = do
     let eres = runCatch $ execStateT (getDeps bp fullDeps packages) (mempty, id)
     case eres of
         Left e -> invalidArgs [tshow e]
-        Right (_, front) -> return $ unlines $ flip map (front [])
-            $ \(x, y) -> unwords [display x, display y]
+        Right (_, front) -> selectRep $ do
+            provideRep $ return $ unlines $ flip map (front [])
+                $ \(x, y, _) -> unwords [display x, display y]
+            provideRep $ return $ toJSON $ map tupleToValue $ front []
 
 type HttpM env m =
     ( MonadReader env m
@@ -72,9 +74,16 @@ download ltsVer dest = do
     withResponse req $ \res -> liftIO $ F.withFile dest F.WriteMode $ \h ->
         responseBody res $$ sinkHandle h
 
+tupleToValue :: (PackageName, Version, Map Text Bool) -> Value
+tupleToValue (name, version, flags) = object
+    [ "name" .= display name
+    , "version" .= display version
+    , "flags" .= flags
+    ]
+
 type TheState =
     ( Set PackageName
-    , DList (PackageName, Version)
+    , DList (PackageName, Version, Map Text Bool)
     )
 type DList a = [a] -> [a]
 
@@ -95,7 +104,7 @@ getDeps BuildPlan {..} fullDeps =
                     case lookup name $ siCorePackages bpSystemInfo of
                         Just version -> do
                             addToSet name
-                            addToList name version
+                            addToList name version mempty
                         Nothing -> throwM $ PackageNotFound name
 
     goPkg name PackagePlan {..} = do
@@ -103,13 +112,15 @@ getDeps BuildPlan {..} fullDeps =
         forM_ (mapToList $ sdPackages ppDesc) $ \(name', depInfo) ->
             when (includeDep depInfo) (goName name')
         addToList name ppVersion
+            (mapKeysWith const unFlagName
+             $ pcFlagOverrides ppConstraints)
 
     addToSet name = modify $ \(s, front) -> (insertSet name s, front)
 
-    addToList name version =
+    addToList name version flags =
         modify $ \(s, front) -> (s, front . (x:))
       where
-        x = (name, version)
+        x = (name, version, flags)
 
     includeDep DepInfo {..} =
         fullDeps ||
