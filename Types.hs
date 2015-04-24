@@ -2,6 +2,7 @@ module Types where
 
 import ClassyPrelude.Yesod
 import Data.BlobStore (ToPath (..), BackupToS3 (..))
+import Data.Hashable (hashUsing)
 import Text.Blaze (ToMarkup)
 import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified Data.Text as T
@@ -117,6 +118,8 @@ instance PathPiece StackageExecutable where
     fromPathPiece "stackage-setup.exe" = Just StackageWindowsExecutable
     fromPathPiece _ = Nothing
 
+type GhcMajorVersion = Text
+
 data SupportedArch
     = Win32
     | Win64
@@ -125,6 +128,9 @@ data SupportedArch
     | Mac32
     | Mac64
     deriving (Enum, Bounded, Show, Read, Eq)
+
+instance Hashable SupportedArch where
+    hashWithSalt = hashUsing fromEnum
 
 instance PathPiece SupportedArch where
     toPathPiece Win32 = "win32"

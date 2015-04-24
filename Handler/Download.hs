@@ -2,10 +2,13 @@ module Handler.Download
   ( getDownloadR
   , getDownloadLtsSnapshotsJsonR
   , getGhcMajorVersionR
+  , getDownloadGhcLinksR
   ) where
 
 import Import
 import Data.Slug (SnapSlug)
+import Data.GhcLinks
+import Yesod.GitRepo (grContent)
 
 executableFor :: SupportedArch -> StackageExecutable
 executableFor Win32 = StackageWindowsExecutable
@@ -13,9 +16,10 @@ executableFor Win64 = StackageWindowsExecutable
 executableFor _ = StackageUnixExecutable
 
 -- TODO: link to s3
-executableLink :: SupportedArch -> StackageExecutable -> Route App
+executableLink :: SupportedArch -> StackageExecutable -> Text
 executableLink arch exe =
-    StaticR $ StaticRoute ["setup", toPathPiece arch, toPathPiece exe] []
+    "https://s3.amazonaws.com/download.fpcomplete.com/stackage-cli/"
+    <> toPathPiece arch <> "/" <> toPathPiece exe
 
 downloadCandidates :: [(SupportedArch, StackageExecutable)]
 downloadCandidates =
@@ -61,3 +65,15 @@ getGhcMajorVersionR :: SnapSlug -> Handler Text
 getGhcMajorVersionR slug = do
   snapshot <- runDB $ getBy404 $ UniqueSnapshot slug
   return $ ltsGhcMajorVersion $ entityVal snapshot
+
+getDownloadGhcLinksR :: SupportedArch -> Text -> Handler TypedContent
+getDownloadGhcLinksR arch fileName = do
+  ver <- maybe notFound return
+       $ stripPrefix "ghc-" >=> stripSuffix "-links.yaml"
+       $ fileName
+  ghcLinks <- getYesod >>= fmap wcGhcLinks . liftIO . grContent . websiteContent
+  case lookup (arch, ver) (ghcLinksMap ghcLinks) of
+    Just text -> return $ TypedContent yamlMimeType $ toContent text
+    Nothing -> notFound
+  where
+    yamlMimeType = "text/yaml"

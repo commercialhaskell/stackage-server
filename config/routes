@@ -61,3 +61,4 @@
 
 /download DownloadR GET
 /download/lts-snapshots.json DownloadLtsSnapshotsJsonR GET
+/download/#SupportedArch/#Text DownloadGhcLinksR GET

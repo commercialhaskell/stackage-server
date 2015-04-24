@@ -9,13 +9,13 @@ $forall (arch, exe) <- downloadCandidates
     $if currentlySupported arch
       <li>
         #{toPathPiece arch}:
-        <a href=@{executableLink arch exe}>
+        <a href=#{executableLink arch exe}>
           #{toPathPiece exe}
 
 <h1>What is stackage-setup?
 
 <p>The stackage-setup executable is an easy way to download and set up the basic executables needed for developing Haskell.
-<p>You can find these executables in:
+<p>After running stackage-setup, You can find these executables in:
 <code>~/.stackage/environment/$group/$group-$version/bin/
 <p>For example, ghc, ghc-pkg, haddock, etc for ghc-7.8.4 are installed here:
 <code>~/.stackage/environment/ghc/ghc-7.8.4/bin/
