@@ -12,6 +12,7 @@ executableFor Win32 = StackageWindowsExecutable
 executableFor Win64 = StackageWindowsExecutable
 executableFor _ = StackageUnixExecutable
 
+-- TODO: link to s3
 executableLink :: SupportedArch -> StackageExecutable -> Route App
 executableLink arch exe =
     StaticR $ StaticRoute ["setup", toPathPiece arch, toPathPiece exe] []
@@ -20,6 +21,10 @@ downloadCandidates :: [(SupportedArch, StackageExecutable)]
 downloadCandidates =
     map (\arch -> (arch, executableFor arch))
         [minBound .. maxBound]
+
+currentlySupported :: SupportedArch -> Bool
+currentlySupported Linux64 = True
+currentlySupported _ = False
 
 getDownloadR :: Handler Html
 getDownloadR = defaultLayout $ do
