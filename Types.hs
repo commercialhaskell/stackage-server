@@ -2,6 +2,7 @@ module Types where
 
 import ClassyPrelude.Yesod
 import Data.BlobStore (ToPath (..), BackupToS3 (..))
+import Data.Hashable (hashUsing)
 import Text.Blaze (ToMarkup)
 import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified Data.Text as T
@@ -102,3 +103,47 @@ instance HasHackageRoot HackageRoot where
 data UnpackStatus = USReady
                   | USBusy
                   | USFailed !Text
+
+data StackageExecutable
+    = StackageWindowsExecutable
+    | StackageUnixExecutable
+    deriving (Show, Read, Eq)
+
+instance PathPiece StackageExecutable where
+    -- TODO: distribute stackage, not just stackage-setup
+    toPathPiece StackageWindowsExecutable = "stackage-setup.exe"
+    toPathPiece StackageUnixExecutable = "stackage-setup"
+
+    fromPathPiece "stackage-setup" = Just StackageUnixExecutable
+    fromPathPiece "stackage-setup.exe" = Just StackageWindowsExecutable
+    fromPathPiece _ = Nothing
+
+type GhcMajorVersion = Text
+
+data SupportedArch
+    = Win32
+    | Win64
+    | Linux32
+    | Linux64
+    | Mac32
+    | Mac64
+    deriving (Enum, Bounded, Show, Read, Eq)
+
+instance Hashable SupportedArch where
+    hashWithSalt = hashUsing fromEnum
+
+instance PathPiece SupportedArch where
+    toPathPiece Win32 = "win32"
+    toPathPiece Win64 = "win64"
+    toPathPiece Linux32 = "linux32"
+    toPathPiece Linux64 = "linux64"
+    toPathPiece Mac32 = "mac32"
+    toPathPiece Mac64 = "mac64"
+
+    fromPathPiece "win32" = Just Win32
+    fromPathPiece "win64" = Just Win64
+    fromPathPiece "linux32" = Just Linux32
+    fromPathPiece "linux64" = Just Linux64
+    fromPathPiece "mac32" = Just Mac32
+    fromPathPiece "mac64" = Just Mac64
+    fromPathPiece _ = Nothing

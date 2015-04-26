@@ -28,6 +28,7 @@
     /hoogle HoogleR GET
     /db.hoo HoogleDatabaseR GET
     /build-plan BuildPlanR GET
+    /ghc-major-version GhcMajorVersionR GET
 
 /aliases AliasesR PUT
 /alias/#Slug/#Slug/*Texts AliasR
@@ -57,3 +58,7 @@
 /upload2 UploadV2R PUT
 /build-version BuildVersionR GET
 /package-counts PackageCountsR GET
+
+/download DownloadR GET
+/download/lts-snapshots.json DownloadLtsSnapshotsJsonR GET
+/download/#SupportedArch/#Text DownloadGhcLinksR GET

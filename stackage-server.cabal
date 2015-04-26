@@ -23,6 +23,7 @@ library
                      Data.Slug
                      Data.Tag
                      Data.BlobStore
+                     Data.GhcLinks
                      Data.Hackage
                      Data.Hackage.DeprecationInfo
                      Data.WebsiteContent
@@ -54,6 +55,7 @@ library
                      Handler.PackageCounts
                      Handler.Sitemap
                      Handler.BuildPlan
+                     Handler.Download
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -90,6 +92,7 @@ library
                 DeriveFunctor
                 DeriveFoldable
                 DeriveTraversable
+                LambdaCase
 
     build-depends:
                     base                          >= 4
@@ -143,6 +146,7 @@ library
                   , yesod-static                  >= 1.2
                   , zlib
                   , unordered-containers
+                  , hashable
                  -- Avoid https://github.com/haskell/cabal/issues/1202
                  , Cabal >= 1.18
                  , lifted-base

@@ -1,0 +1,21 @@
+<h1>Warning: pre-release
+
+<p>The following executable is considered experimental.
+<p>More operating systems and architectures will be supported upon official release.
+
+<h1>Download
+$forall (arch, exe) <- downloadCandidates
+  <ul .downloads>
+    $if currentlySupported arch
+      <li>
+        #{toPathPiece arch}:
+        <a href=#{executableLink arch exe}>
+          #{toPathPiece exe}
+
+<h1>What is stackage-setup?
+
+<p>The stackage-setup executable is an easy way to download and set up the basic executables needed for developing Haskell.
+<p>After running stackage-setup, You can find these executables in:
+<code>~/.stackage/environment/$group/$group-$version/bin/
+<p>For example, ghc, ghc-pkg, haddock, etc for ghc-7.8.4 are installed here:
+<code>~/.stackage/environment/ghc/ghc-7.8.4/bin/
