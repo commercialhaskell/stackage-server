@@ -19,7 +19,7 @@ supportedArches :: [SupportedArch]
 supportedArches = [minBound .. maxBound]
 
 supportedGhcMajorVersions :: [GhcMajorVersion]
-supportedGhcMajorVersions = ["7.8"]
+supportedGhcMajorVersions = ["7.8", "7.10"]
 
 
 readGhcLinks :: FilePath -> IO GhcLinks
