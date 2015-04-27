@@ -6,6 +6,7 @@ module Data.GhcLinks
 import ClassyPrelude.Yesod
 import Control.Monad.State.Strict (modify, execStateT)
 import qualified Data.HashMap.Strict as HashMap
+import qualified Data.Yaml as Yaml
 import Filesystem (readTextFile, isFile)
 
 import Types
@@ -18,24 +19,24 @@ newtype GhcLinks = GhcLinks
 supportedArches :: [SupportedArch]
 supportedArches = [minBound .. maxBound]
 
-supportedGhcMajorVersions :: [GhcMajorVersion]
-supportedGhcMajorVersions = ["7.8", "7.10"]
-
-
 readGhcLinks :: FilePath -> IO GhcLinks
 readGhcLinks dir = do
-  let opts =
-        [ (arch, ver)
-        | arch <- supportedArches
-        , ver <- supportedGhcMajorVersions
-        ]
-  hashMap <- flip execStateT HashMap.empty
-           $ forM_ opts $ \(arch, ver) -> do
-    let fileName = "ghc-" <> ver <> "-links.yaml"
-    let path = dir
-          </> fpFromText (toPathPiece arch)
-          </> fpFromText fileName
-    whenM (liftIO $ isFile path) $ do
-      text <- liftIO $ readTextFile path
-      modify (HashMap.insert (arch, ver) text)
-  return $ GhcLinks hashMap
+  let ghcMajorVersionsPath = dir </> "supported-ghc-major-versions.yaml"
+  Yaml.decodeFile (fpToString ghcMajorVersionsPath) >>= \case
+    Nothing -> return $ GhcLinks HashMap.empty
+    Just (ghcMajorVersions :: [GhcMajorVersion]) -> do
+      let opts =
+            [ (arch, ver)
+            | arch <- supportedArches
+            , ver <- ghcMajorVersions
+            ]
+      hashMap <- flip execStateT HashMap.empty
+               $ forM_ opts $ \(arch, ver) -> do
+        let fileName = "ghc-" <> ver <> "-links.yaml"
+        let path = dir
+              </> fpFromText (toPathPiece arch)
+              </> fpFromText fileName
+        whenM (liftIO $ isFile path) $ do
+          text <- liftIO $ readTextFile path
+          modify (HashMap.insert (arch, ver) text)
+      return $ GhcLinks hashMap
