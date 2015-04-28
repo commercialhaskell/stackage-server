@@ -33,8 +33,43 @@ getBuildPlanR slug = do
         Left e -> invalidArgs [tshow e]
         Right (_, front) -> selectRep $ do
             provideRep $ return $ unlines $ flip map (front [])
-                $ \(x, y, _) -> unwords [display x, display y]
+                $ \(x, y, _, _) -> unwords [display x, display y]
             provideRep $ return $ toJSON $ map tupleToValue $ front []
+            provideRepType "application/x-sh" $ return $ toShellScript $ front []
+
+toShellScript :: [(PackageName, Version, Map Text Bool, Bool)]
+              -> Source (ResourceT IO) Text
+toShellScript packages = do
+    yield "#!/usr/bin/env bash\nset -eux\n"
+    forM_ packages $ \(pkg, ver, flagOverrides, isCore) -> unless isCore $ do
+        let prefix = concat [display pkg, "-", display ver]
+            tarball = prefix ++ ".tar.gz"
+        yield $ unlines
+            [ ""
+            , concat
+                [ "rm -rf "
+                , prefix
+                , " "
+                , tarball
+                ]
+            , "wget https://s3.amazonaws.com/hackage.fpcomplete.com/package/" ++ tarball
+            , "tar xf " ++ tarball
+            , "cd " ++ prefix
+            , concat
+                [ "runghc Setup configure --user --flags='"
+                , showFlags flagOverrides
+                , "'"
+                ]
+            , "runghc Setup build"
+            , "runghc Setup copy"
+            , "runghc Setup register"
+            , "cd .."
+            ]
+  where
+    showFlags =
+        unwords . map go . mapToList
+      where
+        go (name, isOn) = (if isOn then id else (cons '-')) name
 
 type HttpM env m =
     ( MonadReader env m
@@ -74,16 +109,18 @@ download ltsVer dest = do
     withResponse req $ \res -> liftIO $ F.withFile dest F.WriteMode $ \h ->
         responseBody res $$ sinkHandle h
 
-tupleToValue :: (PackageName, Version, Map Text Bool) -> Value
-tupleToValue (name, version, flags) = object
+tupleToValue :: (PackageName, Version, Map Text Bool, Bool) -> Value
+tupleToValue (name, version, flags, isCore) = object
     [ "name" .= display name
     , "version" .= display version
     , "flags" .= flags
+    , "is-core" .= isCore
     ]
 
+type IsCore = Bool
 type TheState =
     ( Set PackageName
-    , DList (PackageName, Version, Map Text Bool)
+    , DList (PackageName, Version, Map Text Bool, IsCore)
     )
 type DList a = [a] -> [a]
 
@@ -104,7 +141,7 @@ getDeps BuildPlan {..} fullDeps =
                     case lookup name $ siCorePackages bpSystemInfo of
                         Just version -> do
                             addToSet name
-                            addToList name version mempty
+                            addToList name version mempty True
                         Nothing -> throwM $ PackageNotFound name
 
     goPkg name PackagePlan {..} = do
@@ -114,13 +151,14 @@ getDeps BuildPlan {..} fullDeps =
         addToList name ppVersion
             (mapKeysWith const unFlagName
              $ pcFlagOverrides ppConstraints)
+            False
 
     addToSet name = modify $ \(s, front) -> (insertSet name s, front)
 
-    addToList name version flags =
+    addToList name version flags isCore =
         modify $ \(s, front) -> (s, front . (x:))
       where
-        x = (name, version, flags)
+        x = (name, version, flags, isCore)
 
     includeDep DepInfo {..} =
         fullDeps ||
