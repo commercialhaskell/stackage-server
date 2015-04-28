@@ -1,0 +1,15 @@
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
+    <ShortName>Stackage hoogle</ShortName>
+    <LongName>Hoogle Stackage.org</LongName>
+    <Description>Search modules on Stackage.org using hoogle</Description>
+    <Developer>FP Complete CORP.</Developer>
+    <Attribution>Copyright FP Complete CORP.</Attribution>
+    <AdultContent>false</AdultContent>
+    <Language>en-us</Language>
+    <InputEncoding>UTF-8</InputEncoding>
+    <OutputEncoding>UTF-8</OutputEncoding>
+    <Image width="222" height="222" type="image/x-icon">http://www.stackage.org/static/img/stackage.png</Image>
+    <Url type="text/html" method="GET" template="http://www.stackage.org/lts/hoogle?q={searchTerms}"/>
+    <Query role="example" searchTerms="E.g. map, a -> a"/>
+    <moz:SearchForm>http://www.stackage.org</moz:SearchForm>
+</OpenSearchDescription>
