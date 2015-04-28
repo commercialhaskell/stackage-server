@@ -4,8 +4,8 @@
 <p>More operating systems and architectures will be supported upon official release.
 
 <h1>Download
-$forall (arch, exe) <- downloadCandidates
-  <ul .downloads>
+<ul .downloads>
+  $forall (arch, exe) <- downloadCandidates
     $if currentlySupported arch
       <li>
         #{toPathPiece arch}:
@@ -19,3 +19,7 @@ $forall (arch, exe) <- downloadCandidates
 <code>~/.stackage/environment/$group/$group-$version/bin/
 <p>For example, ghc, ghc-pkg, haddock, etc for ghc-7.8.4 are installed here:
 <code>~/.stackage/environment/ghc/ghc-7.8.4/bin/
+
+<h1>More information on github
+<a href="https://github.com/fpco/stackage-cli">
+  https://github.com/fpco/stackage-cli

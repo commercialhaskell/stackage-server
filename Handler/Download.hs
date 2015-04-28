@@ -32,6 +32,7 @@ currentlySupported _ = False
 
 getDownloadR :: Handler Html
 getDownloadR = defaultLayout $ do
+    setTitle "Download"
     $(widgetFile "download")
 
 ltsMajorVersions :: Handler [Lts]
