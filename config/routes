@@ -60,5 +60,6 @@
 /package-counts PackageCountsR GET
 
 /download DownloadR GET
+/download/snapshots.json DownloadSnapshotsJsonR GET
 /download/lts-snapshots.json DownloadLtsSnapshotsJsonR GET
 /download/#SupportedArch/#Text DownloadGhcLinksR GET

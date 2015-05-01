@@ -1,5 +1,6 @@
 module Handler.Download
   ( getDownloadR
+  , getDownloadSnapshotsJsonR
   , getDownloadLtsSnapshotsJsonR
   , getGhcMajorVersionR
   , getDownloadGhcLinksR
@@ -46,6 +47,9 @@ dropOldMinors (l@(Lts x _ _):rest) =
     l : dropOldMinors (dropWhile sameMinor rest)
   where
     sameMinor (Lts y _ _) = x == y
+
+getDownloadSnapshotsJsonR :: Handler Value
+getDownloadSnapshotsJsonR = getDownloadLtsSnapshotsJsonR
 
 getDownloadLtsSnapshotsJsonR :: Handler Value
 getDownloadLtsSnapshotsJsonR = do
