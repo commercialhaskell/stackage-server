@@ -40,3 +40,5 @@ In a terminal:
 
 * Set the `STACKAGE_AUTH_TOKEN` environment variable to your auth token
 * run `stackage-curator upload2 your-snapshot.bundle --server-url http://your-stackage-server`
+
+Sample bundle for trying this out: [stackage-nightly-2015-03-26.bundle](https://s3.amazonaws.com/download.fpcomplete.com/michael/stackage-nightly-2015-03-26.bundle)
