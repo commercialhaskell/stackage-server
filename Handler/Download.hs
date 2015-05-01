@@ -35,28 +35,41 @@ getDownloadR = defaultLayout $ do
     setTitle "Download"
     $(widgetFile "download")
 
-ltsMajorVersions :: Handler [Lts]
-ltsMajorVersions = liftM (map entityVal) $ runDB $ do
-  mapWhileIsJustM [0..] $ \x -> do
-    selectFirst [LtsMajor ==. x] [Desc LtsMinor]
+ltsMajorVersions :: YesodDB App [Lts]
+ltsMajorVersions =
+        (dropOldMinors . map entityVal)
+    <$> selectList [] [Desc LtsMajor, Desc LtsMinor]
 
-mapWhileIsJustM :: Monad m => [a] -> (a -> m (Maybe b)) -> m [b]
-mapWhileIsJustM [] _f = return []
-mapWhileIsJustM (x:xs) f = f x >>= \case
-    Nothing -> return []
-    Just y -> (y:) `liftM` mapWhileIsJustM xs f
+dropOldMinors :: [Lts] -> [Lts]
+dropOldMinors [] = []
+dropOldMinors (l@(Lts x _ _):rest) =
+    l : dropOldMinors (dropWhile sameMinor rest)
+  where
+    sameMinor (Lts y _ _) = x == y
 
 getDownloadLtsSnapshotsJsonR :: Handler Value
-getDownloadLtsSnapshotsJsonR = liftM reverse ltsMajorVersions >>= \case
-    [] -> return $ object []
-    majorVersions@(latest:_) -> return $ object
-         $ ["lts" .= printLts latest]
-        ++ map toObj majorVersions
+getDownloadLtsSnapshotsJsonR = do
+    (mlatestNightly, ltses) <- runDB $ (,)
+        <$> getLatestNightly
+        <*> ltsMajorVersions
+    let lts = case ltses of
+            [] -> []
+            majorVersions@(latest:_) ->
+                   ("lts" .= printLts latest)
+                 : map toObj majorVersions
+        nightly = case mlatestNightly of
+            Nothing -> id
+            Just n -> (("nightly" .= printNightly n):)
+    return $ object $ nightly lts
   where
     toObj lts@(Lts major _ _) =
         pack ("lts-" ++ show major) .= printLts lts
     printLts (Lts major minor _) =
         "lts-" ++ show major ++ "." ++ show minor
+
+    printNightly (Entity _ (Nightly day _ _)) =
+        "nightly-" ++ tshow day
+    getLatestNightly = selectFirst [] [Desc NightlyDay]
 
 -- TODO: add this to db
 ltsGhcMajorVersion :: Stackage -> Text
