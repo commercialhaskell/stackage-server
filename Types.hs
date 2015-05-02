@@ -1,6 +1,7 @@
 module Types where
 
 import ClassyPrelude.Yesod
+import Data.Aeson
 import Data.BlobStore (ToPath (..), BackupToS3 (..))
 import Data.Hashable (hashUsing)
 import Text.Blaze (ToMarkup)
@@ -117,6 +118,40 @@ instance PathPiece StackageExecutable where
     fromPathPiece "stackage-setup" = Just StackageUnixExecutable
     fromPathPiece "stackage-setup.exe" = Just StackageWindowsExecutable
     fromPathPiece _ = Nothing
+
+data GhcMajorVersion = GhcMajorVersion Int Int
+  deriving (Eq)
+
+ghcMajorVersionToText :: GhcMajorVersion -> Text
+ghcMajorVersionToText (GhcMajorVersion a b)
+  = pack (show a) <> "." <> pack (show b)
+
+ghcMajorVersionFromText :: Text -> Maybe GhcMajorVersion
+ghcMajorVersionFromText t = case T.splitOn "." t of
+  [readMay -> Just a, readMay -> Just b] ->
+    Just $ GhcMajorVersion a b
+  _ -> Nothing
+
+instance PersistFieldSql GhcMajorVersion where
+    sqlType = sqlType . liftM ghcMajorVersionToText
+
+instance PersistField GhcMajorVersion where
+    toPersistValue = toPersistValue . ghcMajorVersionToText
+    fromPersistValue v = do
+        t <- fromPersistValueText v
+        case ghcMajorVersionFromText t of
+            Just ver -> return ver
+            Nothing -> Left $ "Cannot convert to GhcMajorVersion: " <> t
+
+instance Hashable GhcMajorVersion where
+  hashWithSalt = hashUsing ghcMajorVersionToText
+
+instance FromJSON GhcMajorVersion where
+  parseJSON = withText "GhcMajorVersion" $
+    maybe mzero return . ghcMajorVersionFromText
+
+instance ToJSON GhcMajorVersion where
+  toJSON = toJSON . ghcMajorVersionToText
 
 
 data SupportedArch

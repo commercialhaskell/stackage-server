@@ -132,8 +132,3 @@ Suggested
 UploadProgress
     message Text
     dest Text Maybe
-
-GhcMajorVersion
-    major Int
-    minor Int
-    UniqueGhcMajorVersion major minor
