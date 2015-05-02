@@ -139,6 +139,7 @@ putUploadStackageR = do
                         , stackageDesc = "No description provided"
                         , stackageHasHaddocks = False
                         , stackageSlug = baseSlug
+                        , stackageGhcMajorVersion = Nothing -- Assumption: this file is deprecated
                         }
 
                 -- Evil lazy I/O thanks to tar package

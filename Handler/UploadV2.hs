@@ -21,6 +21,7 @@ import Filesystem (createTree)
 import Filesystem.Path (parent)
 import Data.Conduit.Process
 import Data.Yaml (decodeEither')
+import Distribution.Version (versionBranch)
 
 putUploadV2R :: Handler TypedContent
 putUploadV2R = do
@@ -116,7 +117,11 @@ doUpload status uid ident bundleFP = do
     now <- liftIO getCurrentTime
     let day = tshow $ utctDay now
 
-    let ghcVersion = display $ siGhcVersion $ bpSystemInfo siPlan
+    let theSiGhcVersion = siGhcVersion $ bpSystemInfo siPlan
+        ghcVersion = display theSiGhcVersion
+        ghcMajorVersionMay = case versionBranch theSiGhcVersion of
+            (a:b:_) -> Just (GhcMajorVersion a b)
+            _ -> Nothing
         slug' =
             case siType of
                 STNightly -> "nightly-" ++ day
@@ -154,7 +159,7 @@ doUpload status uid ident bundleFP = do
             say "Snapshot already exists"
             return $ SnapshotR slug StackageHomeR
         Nothing -> finishUpload
-              title ident ghcVersion slug now siType siPlan siDocMap
+              title ident ghcVersion ghcMajorVersionMay slug now siType siPlan siDocMap
               uid say
     render <- getUrlRender
     return $ render route
@@ -165,6 +170,7 @@ finishUpload
     :: Text
     -> PackageSetIdent
     -> Text
+    -> Maybe GhcMajorVersion
     -> SnapSlug
     -> UTCTime
     -> SnapshotType
@@ -174,7 +180,7 @@ finishUpload
     -> (Text -> Handler ())
     -> Handler (Route App)
 finishUpload
-  title ident ghcVersion slug now siType siPlan siDocMap
+  title ident ghcVersion ghcMajorVersionMay slug now siType siPlan siDocMap
   uid say = do
     say "Creating index tarball"
     withSystemTempDirectory "buildindex.v2" $ \(fpFromString -> dir) -> do
@@ -228,6 +234,7 @@ finishUpload
             , stackageTitle = title
             , stackageDesc = ""
             , stackageHasHaddocks = True
+            , stackageGhcMajorVersion = ghcMajorVersionMay
             }
         case siType of
             STNightly -> insert_ Nightly

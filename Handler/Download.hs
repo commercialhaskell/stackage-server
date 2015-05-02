@@ -75,19 +75,25 @@ getDownloadLtsSnapshotsJsonR = do
         "nightly-" ++ tshow day
     getLatestNightly = selectFirst [] [Desc NightlyDay]
 
--- TODO: add this to db
-ltsGhcMajorVersion :: Stackage -> Text
-ltsGhcMajorVersion _ = "7.8"
+-- Print the ghc major version for the given snapshot.
+-- Assumes 7.8 if unspecified
+ghcMajorVersionText :: Stackage -> Text
+ghcMajorVersionText snapshot
+  = ghcMajorVersionToText
+  $ fromMaybe (GhcMajorVersion 7 8)
+  $ stackageGhcMajorVersion snapshot
 
 getGhcMajorVersionR :: SnapSlug -> Handler Text
 getGhcMajorVersionR slug = do
   snapshot <- runDB $ getBy404 $ UniqueSnapshot slug
-  return $ ltsGhcMajorVersion $ entityVal snapshot
+  return $ ghcMajorVersionText $ entityVal snapshot
 
 getDownloadGhcLinksR :: SupportedArch -> Text -> Handler TypedContent
 getDownloadGhcLinksR arch fileName = do
   ver <- maybe notFound return
-       $ stripPrefix "ghc-" >=> stripSuffix "-links.yaml"
+       $ stripPrefix "ghc-"
+         >=> stripSuffix "-links.yaml"
+         >=> ghcMajorVersionFromText
        $ fileName
   ghcLinks <- getYesod >>= fmap wcGhcLinks . liftIO . grContent . websiteContent
   case lookup (arch, ver) (ghcLinksMap ghcLinks) of

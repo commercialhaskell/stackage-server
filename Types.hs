@@ -118,7 +118,6 @@ instance PathPiece StackageExecutable where
     fromPathPiece "stackage-setup.exe" = Just StackageWindowsExecutable
     fromPathPiece _ = Nothing
 
-type GhcMajorVersion = Text
 
 data SupportedArch
     = Win32
