@@ -7,6 +7,10 @@ import Data.Hashable (hashUsing)
 import Text.Blaze (ToMarkup)
 import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Builder.Int as Builder
+import qualified Data.Text.Lazy.Builder as Builder
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Read as Reader
 
 newtype PackageName = PackageName { unPackageName :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
@@ -119,18 +123,21 @@ instance PathPiece StackageExecutable where
     fromPathPiece "stackage-setup.exe" = Just StackageWindowsExecutable
     fromPathPiece _ = Nothing
 
-data GhcMajorVersion = GhcMajorVersion Int Int
+data GhcMajorVersion = GhcMajorVersion !Int !Int
   deriving (Eq)
 
 ghcMajorVersionToText :: GhcMajorVersion -> Text
 ghcMajorVersionToText (GhcMajorVersion a b)
-  = pack (show a) <> "." <> pack (show b)
+  = LText.toStrict
+  $ Builder.toLazyText
+  $ Builder.decimal a <> "." <> Builder.decimal b
 
-ghcMajorVersionFromText :: Text -> Maybe GhcMajorVersion
-ghcMajorVersionFromText t = case T.splitOn "." t of
-  [readMay -> Just a, readMay -> Just b] ->
-    Just $ GhcMajorVersion a b
-  _ -> Nothing
+ghcMajorVersionFromText :: MonadPlus m => Text -> m GhcMajorVersion
+ghcMajorVersionFromText t = case Reader.decimal t of
+  Right (a, T.uncons -> Just ('.', t')) -> case Reader.decimal t' of
+    Right (b, t'') | T.null t'' -> return $ GhcMajorVersion a b
+    _ -> mzero
+  _ -> mzero
 
 instance PersistFieldSql GhcMajorVersion where
     sqlType = sqlType . liftM ghcMajorVersionToText
@@ -147,8 +154,7 @@ instance Hashable GhcMajorVersion where
   hashWithSalt = hashUsing ghcMajorVersionToText
 
 instance FromJSON GhcMajorVersion where
-  parseJSON = withText "GhcMajorVersion" $
-    maybe mzero return . ghcMajorVersionFromText
+  parseJSON = withText "GhcMajorVersion" ghcMajorVersionFromText
 
 instance ToJSON GhcMajorVersion where
   toJSON = toJSON . ghcMajorVersionToText
