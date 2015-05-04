@@ -10,6 +10,7 @@ import qualified Data.Yaml as Yaml
 import Filesystem (readTextFile, isFile)
 
 import Types
+import Model
 
 
 newtype GhcLinks = GhcLinks
@@ -32,8 +33,9 @@ readGhcLinks dir = do
             ]
       hashMap <- flip execStateT HashMap.empty
                $ forM_ opts $ \(arch, ver) -> do
-        let fileName = "ghc-" <> ver <> "-links.yaml"
-        let path = dir
+        let verText = ghcMajorVersionToText ver
+            fileName = "ghc-" <> verText <> "-links.yaml"
+            path = dir
               </> fpFromText (toPathPiece arch)
               </> fpFromText fileName
         whenM (liftIO $ isFile path) $ do

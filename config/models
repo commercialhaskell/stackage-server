@@ -23,6 +23,7 @@ Stackage
     title Text
     desc Text
     hasHaddocks Bool default=false
+    ghcMajorVersion GhcMajorVersion Maybe
     UniqueStackage ident
     UniqueSnapshot slug
 

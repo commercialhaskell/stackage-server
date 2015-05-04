@@ -1,11 +1,16 @@
 module Types where
 
 import ClassyPrelude.Yesod
+import Data.Aeson
 import Data.BlobStore (ToPath (..), BackupToS3 (..))
 import Data.Hashable (hashUsing)
 import Text.Blaze (ToMarkup)
 import Database.Persist.Sql (PersistFieldSql (sqlType))
 import qualified Data.Text as T
+import qualified Data.Text.Lazy.Builder.Int as Builder
+import qualified Data.Text.Lazy.Builder as Builder
+import qualified Data.Text.Lazy as LText
+import qualified Data.Text.Read as Reader
 
 newtype PackageName = PackageName { unPackageName :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
@@ -118,7 +123,42 @@ instance PathPiece StackageExecutable where
     fromPathPiece "stackage-setup.exe" = Just StackageWindowsExecutable
     fromPathPiece _ = Nothing
 
-type GhcMajorVersion = Text
+data GhcMajorVersion = GhcMajorVersion !Int !Int
+  deriving (Eq)
+
+ghcMajorVersionToText :: GhcMajorVersion -> Text
+ghcMajorVersionToText (GhcMajorVersion a b)
+  = LText.toStrict
+  $ Builder.toLazyText
+  $ Builder.decimal a <> "." <> Builder.decimal b
+
+ghcMajorVersionFromText :: MonadPlus m => Text -> m GhcMajorVersion
+ghcMajorVersionFromText t = case Reader.decimal t of
+  Right (a, T.uncons -> Just ('.', t')) -> case Reader.decimal t' of
+    Right (b, t'') | T.null t'' -> return $ GhcMajorVersion a b
+    _ -> mzero
+  _ -> mzero
+
+instance PersistFieldSql GhcMajorVersion where
+    sqlType = sqlType . liftM ghcMajorVersionToText
+
+instance PersistField GhcMajorVersion where
+    toPersistValue = toPersistValue . ghcMajorVersionToText
+    fromPersistValue v = do
+        t <- fromPersistValueText v
+        case ghcMajorVersionFromText t of
+            Just ver -> return ver
+            Nothing -> Left $ "Cannot convert to GhcMajorVersion: " <> t
+
+instance Hashable GhcMajorVersion where
+  hashWithSalt = hashUsing ghcMajorVersionToText
+
+instance FromJSON GhcMajorVersion where
+  parseJSON = withText "GhcMajorVersion" ghcMajorVersionFromText
+
+instance ToJSON GhcMajorVersion where
+  toJSON = toJSON . ghcMajorVersionToText
+
 
 data SupportedArch
     = Win32
