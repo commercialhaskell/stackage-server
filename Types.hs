@@ -126,18 +126,24 @@ instance PathPiece StackageExecutable where
 data GhcMajorVersion = GhcMajorVersion !Int !Int
   deriving (Eq)
 
+data GhcMajorVersionFailedParse = GhcMajorVersionFailedParse Text
+  deriving (Show, Typeable)
+instance Exception GhcMajorVersionFailedParse
+
 ghcMajorVersionToText :: GhcMajorVersion -> Text
 ghcMajorVersionToText (GhcMajorVersion a b)
   = LText.toStrict
   $ Builder.toLazyText
   $ Builder.decimal a <> "." <> Builder.decimal b
 
-ghcMajorVersionFromText :: MonadPlus m => Text -> m GhcMajorVersion
+ghcMajorVersionFromText :: MonadThrow m => Text -> m GhcMajorVersion
 ghcMajorVersionFromText t = case Reader.decimal t of
   Right (a, T.uncons -> Just ('.', t')) -> case Reader.decimal t' of
     Right (b, t'') | T.null t'' -> return $ GhcMajorVersion a b
-    _ -> mzero
-  _ -> mzero
+    _ -> failedParse
+  _ -> failedParse
+  where
+    failedParse = throwM $ GhcMajorVersionFailedParse t
 
 instance PersistFieldSql GhcMajorVersion where
     sqlType = sqlType . liftM ghcMajorVersionToText
@@ -154,7 +160,8 @@ instance Hashable GhcMajorVersion where
   hashWithSalt = hashUsing ghcMajorVersionToText
 
 instance FromJSON GhcMajorVersion where
-  parseJSON = withText "GhcMajorVersion" ghcMajorVersionFromText
+  parseJSON = withText "GhcMajorVersion" $
+    either (fail . show) return . ghcMajorVersionFromText
 
 instance ToJSON GhcMajorVersion where
   toJSON = toJSON . ghcMajorVersionToText
