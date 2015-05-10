@@ -169,6 +169,7 @@ library
                  , deepseq-generics
                  , auto-update
                  , stackage-types
+                 , stackage-build-plan >= 0.1.1
                  , yesod-sitemap
                  , streaming-commons
 
