@@ -15,36 +15,6 @@ Verkey
     email Text
     verkey Text
 
-DocsOnS3
-    slug SnapSlug
-    UniqueDocsOnS3 slug
-
-Stackage
-    user UserId
-    ident PackageSetIdent
-    slug SnapSlug default="md5((random())::text)"
-    uploaded UTCTime
-    title Text
-    desc Text
-    hasHaddocks Bool default=false
-    ghcMajorVersion GhcMajorVersion Maybe
-    UniqueStackage ident
-    UniqueSnapshot slug
-
-Alias
-    user UserId
-    name Slug
-    target PackageSetIdent
-    UniqueAlias user name
-
-Package
-    stackage StackageId
-    name' PackageName sql=name
-    version Version
-    hasHaddocks Bool default=true
-    overwrite Bool
-    core Bool Maybe -- use Maybe to speed up migration
-
 Tag
     package PackageName
     tag Slug
@@ -56,54 +26,6 @@ Like
     voter UserId
     UniqueLikePackageVoter package voter
 
-Download
-    ident PackageSetIdent Maybe
-    view Text Maybe MigrationOnly
-    timestamp UTCTime
-    package PackageName
-    version Version
-    userAgent Text Maybe
-
-Metadata
-    name PackageName
-    version Version
-    hash ByteString
-    deps [Text]
-    author Text
-    maintainer Text
-    licenseName Text
-    homepage Text
-    bugReports Text
-    synopsis Text
-    sourceRepo [Text]
-    category Text
-    library Bool
-    exes Int
-    testSuites Int
-    benchmarks Int
-
-    readme Html
-    changelog Html Maybe
-    licenseContent Html Maybe
-
-    UniqueMetadata name
-
-Docs
-    name PackageName
-    version Version
-    uploaded UTCTime
-    snapshot StackageId Maybe
-Module
-    docs DocsId
-    name Text
-    url Text
-    UniqueModule docs name
-
-Dependency
-    dep PackageName
-    user PackageName
-    UniqueDependency dep user
-
 BannedTag
     tag Slug
     UniqueBannedTag tag
@@ -111,28 +33,3 @@ BannedTag
 Migration
     num Int
     UniqueMigration num
-
-Nightly
-    day Day
-    ghcVersion Text
-    stackage StackageId
-    UniqueNightly day
-
-Lts
-    major Int
-    minor Int
-    stackage StackageId
-    UniqueLts major minor
-
-Deprecated
-    package PackageName
-    UniqueDeprecated package
-
-Suggested
-    package PackageName
-    insteadOf PackageName
-    UniqueSuggested package insteadOf
-
-UploadProgress
-    message Text
-    dest Text Maybe

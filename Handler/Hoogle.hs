@@ -6,14 +6,14 @@ import           Control.Spoon (spoon)
 import           Data.Data (Data (..))
 import           Data.Slug (SnapSlug)
 import           Data.Text.Read (decimal)
-import           Data.Unpacking (getHoogleDB)
-import           Handler.Haddock (getDirs)
 import qualified Hoogle
 import           Import
 import           Text.Blaze.Html (preEscapedToHtml)
 
 getHoogleR :: SnapSlug -> Handler Html
 getHoogleR slug = do
+    error "getHoogleR"
+    {- FIXME
     dirs <- getDirs
     mquery <- lookupGetParam "q"
     mpage <- lookupGetParam "page"
@@ -52,9 +52,12 @@ getHoogleR slug = do
     defaultLayout $ do
         setTitle "Hoogle Search"
         $(widgetFile "hoogle")
+    -}
 
 getHoogleDatabaseR :: SnapSlug -> Handler Html
 getHoogleDatabaseR slug = do
+    error "getHoogleDatabaseR"
+    {-
     dirs <- getDirs
     Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
     mdatabasePath <- getHoogleDB dirs stackage
@@ -167,3 +170,4 @@ runHoogleQuery heDatabase HoogleQueryInput {..} =
             modu' = ModuleLink moduname modu
         return $ asMap $ singletonMap pkg' [modu']
     getPkgModPair _ = Nothing
+    -}

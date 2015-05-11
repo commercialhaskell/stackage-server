@@ -20,6 +20,8 @@ getTagListR = do
 
 getTagR :: Slug -> Handler Html
 getTagR tagSlug = do
+    error "getTagR"
+    {-
     -- FIXME arguably: check if this tag is banned. Leaving it as displayed for
     -- now, since someone needs to go out of their way to find it.
     packages <- fmap (map (\(E.Value t,E.Value s) -> (t,strip s))) $ runDB $
@@ -33,3 +35,4 @@ getTagR tagSlug = do
           setTitle $ "Stackage tag"
           $(widgetFile "tag")
   where strip x = fromMaybe x (stripSuffix "." x)
+  -}

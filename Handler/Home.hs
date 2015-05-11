@@ -1,5 +1,10 @@
 {-# LANGUAGE TupleSections, OverloadedStrings #-}
-module Handler.Home where
+module Handler.Home
+    ( getHomeR
+    , getAuthorsR
+    , getInstallR
+    , getOlderReleasesR
+    ) where
 
 import Data.Slug
 import Database.Esqueleto as E hiding (isNothing)
@@ -31,51 +36,3 @@ contentHelper title accessor = do
     defaultLayout $ do
         setTitle title
         toWidget homepage
-
--- FIXME remove this and switch to above getHomeR' when new homepage is ready
-getHomeR' :: Handler Html
-getHomeR' = do
-    windowsLatest <- linkFor "unstable-ghc78hp-inclusive"
-    restLatest    <- linkFor "unstable-ghc78-inclusive"
-    defaultLayout $ do
-        setTitle "Stackage Server"
-        $(combineStylesheets 'StaticR
-            [ css_bootstrap_modified_css
-            , css_bootstrap_responsive_modified_css
-            ])
-        $(widgetFile "homepage")
-  where
-      linkFor name =
-          do slug <- mkSlug name
-             fpcomplete <- mkSlug "fpcomplete"
-             selecting (\(alias, user, stackage) ->
-                            do where_ $
-                                  alias ^. AliasName ==. val slug &&.
-                                  alias ^. AliasUser ==. user ^. UserId &&.
-                                  user ^. UserHandle ==. val fpcomplete &&.
-                                  alias ^. AliasTarget ==. stackage ^. StackageIdent
-                               return (stackage ^. StackageSlug))
-        where selecting =
-                  fmap (fmap unValue . listToMaybe) .
-                  runDB .
-                  select .
-                  from
-
-      addSnapshot title short = do
-          mex <- handlerToWidget $ linkFor $ name "exclusive"
-          min' <- handlerToWidget $ linkFor $ name "inclusive"
-          when (isJust mex || isJust min')
-              [whamlet|
-                  <tr>
-                     <td>
-                         #{asHtml title}
-                     <td>
-                         $maybe ex <- mex
-                           <a href=@{SnapshotR ex StackageHomeR}>exclusive
-                         $if isJust mex && isJust min'
-                     <td>
-                         $maybe in <- min'
-                           <a href=@{SnapshotR in StackageHomeR}>inclusive
-              |]
-        where
-          name suffix = concat ["unstable-", short, "-", suffix]

@@ -21,19 +21,10 @@ getProfileR = do
             setMessage "Profile updated"
             redirect ProfileR
         _ -> return ()
-    (emails, aliases) <- runDB $ (,)
-        <$> selectList [EmailUser ==. uid] [Asc EmailEmail]
-        <*> selectList [AliasUser ==. uid] [Asc AliasName]
+    emails <- runDB $ selectList [EmailUser ==. uid] [Asc EmailEmail]
     defaultLayout $ do
         setTitle "Your Profile"
         $(widgetFile "profile")
-
-aliasToText :: Entity Alias -> Text
-aliasToText (Entity _ (Alias _ name target)) = concat
-    [ toPathPiece name
-    , ": "
-    , toPathPiece target
-    ]
 
 putProfileR :: Handler Html
 putProfileR = getProfileR

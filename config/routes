@@ -11,15 +11,9 @@
 /profile ProfileR GET PUT
 /email/#EmailId EmailR DELETE
 /reset-token ResetTokenR POST
-/upload UploadStackageR GET PUT
-/upload-haddock/#Text UploadHaddockR GET PUT
-/upload-doc-map UploadDocMapR GET PUT
-
-/stackage/#PackageSetIdent/*Texts OldStackageR GET
 
 /snapshot/#SnapSlug SnapshotR:
     / StackageHomeR GET
-    /metadata StackageMetadataR GET
     /cabal.config StackageCabalConfigR GET
     /00-index.tar.gz StackageIndexR GET
     /package/#PackageNameVersion StackageSdistR GET
@@ -30,15 +24,11 @@
     /build-plan BuildPlanR GET
     /ghc-major-version GhcMajorVersionR GET
 
-/aliases AliasesR PUT
-/alias/#Slug/#Slug/*Texts AliasR
-/progress/#UploadProgressId ProgressR GET
 /system SystemR GET
 /haddock/#SnapSlug/*Texts HaddockR GET
 /package/#PackageName PackageR GET
 /package/#PackageName/snapshots PackageSnapshotsR GET
 /package PackageListR GET
-/compressor-status CompressorStatusR GET
 /package/#PackageName/like PackageLikeR POST
 /package/#PackageName/unlike PackageUnlikeR POST
 /package/#PackageName/tag PackageTagR POST
@@ -54,10 +44,7 @@
 /install InstallR GET
 /older-releases OlderReleasesR GET
 
-/refresh-deprecated RefreshDeprecatedR GET
-/upload2 UploadV2R PUT
 /build-version BuildVersionR GET
-/package-counts PackageCountsR GET
 
 /download DownloadR GET
 /download/snapshots.json DownloadSnapshotsJsonR GET

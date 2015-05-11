@@ -9,6 +9,8 @@ import           Import
 -- FIXME maybe just redirect to the LTS or nightly package list
 getPackageListR :: Handler Html
 getPackageListR = defaultLayout $ do
+    error "getPackageListR"
+    {-
     setTitle "Package list"
     cachedWidget (20 * 60) "package-list" $ do
         let clean (x, y) =
@@ -46,4 +48,5 @@ cachedWidget _diff _key widget = do
                 -- FIXME render the builders in gw for more efficiency
                 atomicModifyIORef' ref $ \m -> (insertMap key (addUTCTime diff now, gw) m, ())
                 return ((), gw)
+                -}
                 -}

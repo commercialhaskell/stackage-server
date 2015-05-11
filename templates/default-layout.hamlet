@@ -9,7 +9,7 @@
         <img src="/static/img/stackage.png" title="FP Complete">
       <div class="nav-collapse collapse">
         <ul class="nav">
-          $forall route <- [AllSnapshotsR,UploadStackageR]
+          $forall route <- [AllSnapshotsR]
             $maybe current <- cur
               $if route == current
                 <li .active>

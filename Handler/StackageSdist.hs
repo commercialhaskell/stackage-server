@@ -1,16 +1,17 @@
-module Handler.StackageSdist where
+module Handler.StackageSdist
+    ( getStackageSdistR
+    ) where
 
 import Import
 import Data.BlobStore
-import Data.Hackage
 import Data.Slug (SnapSlug)
-import Handler.Package (packagePage)
 
 getStackageSdistR :: SnapSlug -> PackageNameVersion -> Handler TypedContent
 getStackageSdistR slug (PNVTarball name version) = do
+    error "getStackageSdistR"
+    {-
     Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
     let ident = stackageIdent stackage
-    addDownload (Just ident) name version
     msrc1 <- storeRead (CustomSdist ident name version)
     msrc <-
         case msrc1 of
@@ -38,6 +39,7 @@ getStackageSdistR slug (PNVName name) = runDB $ do
             redirect $ SnapshotR slug
                      $ StackageSdistR
                      $ PNVNameVersion name packageVersion
+{- FIXME
 getStackageSdistR slug (PNVNameVersion name version) = packagePage
   name (Just version)
   (do
@@ -54,12 +56,5 @@ getStackageSdistR slug (PNVNameVersion name version) = packagePage
         , [DocsName ==. name]
         ]
     ) >>= sendResponse
-
-addDownload :: Maybe PackageSetIdent
-            -> PackageName
-            -> Version
-            -> Handler ()
-addDownload downloadIdent downloadPackage downloadVersion = do
-    downloadUserAgent <- fmap decodeUtf8 <$> lookupHeader "user-agent"
-    downloadTimestamp <- liftIO getCurrentTime
-    runDB $ insert_ Download {..}
+-}
+-}

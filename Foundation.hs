@@ -18,7 +18,7 @@ import           Types
 import           Yesod.Auth
 import           Yesod.Auth.BrowserId
 import           Yesod.Auth.GoogleEmail2 (authGoogleEmail)
-import           Yesod.Core.Types (Logger, GWData)
+import           Yesod.Core.Types (Logger)
 import           Yesod.Default.Config
 import           Yesod.GitRepo
 
@@ -35,24 +35,8 @@ data App = App
     , appLogger :: Logger
     , genIO :: MWC.GenIO
     , blobStore :: BlobStore StoreKey
-    , haddockRootDir :: FilePath
-    , appDocUnpacker :: DocUnpacker
-    -- ^ We have a dedicated thread so that (1) we don't try to unpack too many
-    -- things at once, (2) we never unpack the same thing twice at the same
-    -- time, and (3) so that even if the client connection dies, we finish the
-    -- unpack job.
-    , widgetCache :: IORef (HashMap Text (UTCTime, GWData (Route App)))
     , websiteContent :: GitRepo WebsiteContent
     }
-
-data DocUnpacker = DocUnpacker
-    { duRequestDocs :: Entity Stackage -> IO UnpackStatus
-    , duGetStatus   :: IO Text
-    , duForceReload :: Entity Stackage -> IO ()
-    }
-
-data Progress = ProgressWorking !Text
-              | ProgressDone !Text !(Route App)
 
 instance HasBlobStore App StoreKey where
     getBlobStore = blobStore
@@ -74,8 +58,6 @@ instance HasHackageRoot App where
 -- generates the rest of the code. Please see the linked documentation for an
 -- explanation for this split.
 mkYesodData "App" $(parseRoutesFile "config/routes")
-
-deriving instance Show Progress
 
 type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
 
@@ -167,16 +149,12 @@ instance Yesod App where
 
     makeLogger = return . appLogger
 
-    maximumContentLength _ (Just UploadStackageR) = Just 50000000
-    maximumContentLength _ (Just UploadHaddockR{}) = Just 100000000
-    maximumContentLength _ (Just UploadV2R) = Just 100000000
     maximumContentLength _ _ = Just 2000000
 
 instance ToMarkup (Route App) where
     toMarkup c =
         case c of
           AllSnapshotsR{} -> "Snapshots"
-          UploadStackageR{} -> "Upload"
           AuthR (LoginR{}) -> "Login"
           _ -> ""
 

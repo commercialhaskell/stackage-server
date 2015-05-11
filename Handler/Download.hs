@@ -36,6 +36,7 @@ getDownloadR = defaultLayout $ do
     setTitle "Download"
     $(widgetFile "download")
 
+{- FIXME
 ltsMajorVersions :: YesodDB App [Lts]
 ltsMajorVersions =
         (dropOldMinors . map entityVal)
@@ -47,12 +48,15 @@ dropOldMinors (l@(Lts x _ _):rest) =
     l : dropOldMinors (dropWhile sameMinor rest)
   where
     sameMinor (Lts y _ _) = x == y
+-}
 
 getDownloadSnapshotsJsonR :: Handler Value
 getDownloadSnapshotsJsonR = getDownloadLtsSnapshotsJsonR
 
 getDownloadLtsSnapshotsJsonR :: Handler Value
 getDownloadLtsSnapshotsJsonR = do
+    error "getDownloadLtsSnapshotsJsonR"
+    {-
     (mlatestNightly, ltses) <- runDB $ (,)
         <$> getLatestNightly
         <*> ltsMajorVersions
@@ -82,11 +86,15 @@ ghcMajorVersionText snapshot
   = ghcMajorVersionToText
   $ fromMaybe (GhcMajorVersion 7 8)
   $ stackageGhcMajorVersion snapshot
+    -}
 
 getGhcMajorVersionR :: SnapSlug -> Handler Text
-getGhcMajorVersionR slug = do
+getGhcMajorVersionR _slug = do
+  error "getGhcMajorVersionR"
+  {-
   snapshot <- runDB $ getBy404 $ UniqueSnapshot slug
   return $ ghcMajorVersionText $ entityVal snapshot
+  -}
 
 getDownloadGhcLinksR :: SupportedArch -> Text -> Handler TypedContent
 getDownloadGhcLinksR arch fileName = do

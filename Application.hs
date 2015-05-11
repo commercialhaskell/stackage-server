@@ -11,9 +11,6 @@ import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (catch)
 import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, cachedS3Store)
-import           Data.Hackage
-import           Data.Hackage.DeprecationInfo
-import           Data.Unpacking (newDocUnpacker, createHoogleDatabases)
 import           Data.WebsiteContent
 import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
 import           Data.Streaming.Network (bindPortTCP)
@@ -53,28 +50,21 @@ import           Handler.Snapshots
 import           Handler.Profile
 import           Handler.Email
 import           Handler.ResetToken
-import           Handler.UploadStackage
 import           Handler.StackageHome
 import           Handler.StackageIndex
 import           Handler.StackageSdist
-import           Handler.Aliases
-import           Handler.Alias
-import           Handler.Progress
 import           Handler.System
 import           Handler.Haddock
 import           Handler.Package
 import           Handler.PackageList
-import           Handler.CompressorStatus
 import           Handler.Tag
 import           Handler.BannedTags
-import           Handler.RefreshDeprecated
-import           Handler.UploadV2
 import           Handler.Hoogle
 import           Handler.BuildVersion
-import           Handler.PackageCounts
 import           Handler.Sitemap
 import           Handler.BuildPlan
 import           Handler.Download
+import           Handler.OldLinks
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -157,9 +147,6 @@ makeFoundation useEcho conf = do
 
     blobStore' <- loadBlobStore manager conf
 
-    let haddockRootDir' = "/tmp/stackage-server-haddocks2"
-    widgetCache' <- newIORef mempty
-
     websiteContent' <- if development
         then do
             void $ rawSystem "git"
@@ -182,7 +169,6 @@ makeFoundation useEcho conf = do
 
     let runDB' :: (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a
         runDB' = flip (Database.Persist.runPool dbconf) p
-    docUnpacker <- newDocUnpacker haddockRootDir' blobStore' runDB'
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
@@ -194,9 +180,6 @@ makeFoundation useEcho conf = do
             , appLogger = logger
             , genIO = gen
             , blobStore = blobStore'
-            , haddockRootDir = haddockRootDir'
-            , appDocUnpacker = docUnpacker
-            , widgetCache = widgetCache'
             , websiteContent = websiteContent'
             }
 
@@ -209,27 +192,16 @@ makeFoundation useEcho conf = do
         flip runLoggingT (messageLoggerSource foundation logger) $
         flip (Database.Persist.runPool dbconf) p $ do
             runMigration migrateAll
+            {-
             checkMigration 1 fixSnapSlugs
             checkMigration 2 setCorePackages
+            -}
 
 
     let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
         hoogleGen = lookup "STACKAGE_HOOGLE_GEN" env /= Just "0"
         forceUpdate = lookup "STACKAGE_FORCE_UPDATE" env == Just "1"
-        loadCabalFiles' = appLoadCabalFiles updateDB forceUpdate foundation dbconf p
 
-    -- Start the cabal file loader
-    ifRunCabalLoader $ forkIO $ forever $ flip runLoggingT (messageLoggerSource foundation logger) $ do
-        $logInfoS "CLEANUP" "Cleaning up /tmp"
-        now <- liftIO getCurrentTime
-        runResourceT $ sourceDirectory "/tmp" $$ mapM_C (cleanupTemp now)
-        $logInfoS "CLEANUP" "Cleaning up complete"
-
-        loadCabalFiles'
-
-        when hoogleGen $ liftIO $ createHoogleDatabases blobStore' runDB' putStrLn urlRender'
-
-        liftIO $ threadDelay $ 30 * 60 * 1000000
     return foundation
   where ifRunCabalLoader m =
             if cabalFileLoader
@@ -255,6 +227,8 @@ cabalLoaderMain = do
     void $ catchIO (bindPortTCP 17834 "127.0.0.1") $ \_ ->
         error $ "cabal loader process already running, exiting"
 
+    error "cabalLoaderMain"
+    {- FIXME
     conf <- fromArgs parseExtra
     dbconf <- getDbConf conf
     pool <- Database.Persist.createPoolConfig dbconf
@@ -297,77 +271,7 @@ cabalLoaderMain = do
     logFunc loc src level str
         | level > LevelDebug = S.hPutStr stdout $ fromLogStr $ defaultLogStr loc src level str
         | otherwise = return ()
-
-appLoadCabalFiles :: ( PersistConfig c
-                     , PersistConfigBackend c ~ SqlPersistT
-                     , HasHackageRoot env
-                     , HasBlobStore env StoreKey
-                     , HasHttpManager env
-                     )
-                  => Bool -- ^ update database?
-                  -> Bool -- ^ force update?
-                  -> env
-                  -> c
-                  -> PersistConfigPool c
-                  -> LoggingT IO ()
-appLoadCabalFiles updateDB forceUpdate env dbconf p = do
-    eres <- tryAny $ flip runReaderT env $ do
-        let runDB' :: SqlPersistT (ResourceT (ReaderT env (LoggingT IO))) a
-                   -> ReaderT env (LoggingT IO) a
-            runDB' = runResourceT . flip (Database.Persist.runPool dbconf) p
-
-        $logInfo "Updating deprecation tags"
-        loadDeprecationInfo >>= \ei -> case ei of
-            Left e -> $logError (pack e)
-            Right info -> runDB' $ do
-                deleteWhere ([] :: [Filter Deprecated])
-                insertMany_ (deprecations info)
-                deleteWhere ([] :: [Filter Suggested])
-                insertMany_ (suggestions info)
-        $logInfo "Finished updating deprecation tags"
-
-        let toMDPair (E.Value name, E.Value version, E.Value hash') =
-                (name, (version, hash'))
-        metadata0 <- fmap (mapFromList . map toMDPair)
-                   $ runDB' $ E.select $ E.from $ \m -> return
-            ( m E.^. MetadataName
-            , m E.^. MetadataVersion
-            , m E.^. MetadataHash
-            )
-        UploadState _ newMD <- loadCabalFiles updateDB forceUpdate metadata0
-        $logInfo $ "Updating metadatas: " ++ tshow (length newMD)
-        runDB' $ do
-            let newMD' = toList newMD
-            deleteWhere [MetadataName <-. map metadataName newMD']
-            insertMany_ newMD'
-            forM_ newMD' $ \md -> do
-                deleteWhere [DependencyUser ==. metadataName md]
-                insertMany_ $ flip map (metadataDeps md) $ \dep ->
-                    Dependency (PackageName dep) (metadataName md)
-
-    case eres of
-        Left e -> $logError $ tshow e
-        Right () -> return ()
-
-cleanupTemp :: UTCTime -> FilePath -> ResourceT (LoggingT IO) ()
-cleanupTemp now fp
-    | any (`isPrefixOf` name) prefixes = handleAny ($logError . tshow) $ do
-        modified <- liftIO $ getModified fp
-        if (diffUTCTime now modified > 60 * 60)
-          then do
-            $logInfoS "CLEANUP" $ "Removing temp directory: " ++ fpToText fp
-            liftIO $ removeTree fp
-            $logInfoS "CLEANUP" $ "Temp directory deleted: " ++ fpToText fp
-          else $logInfoS "CLEANUP" $ "Ignoring recent entry: " ++ fpToText fp
-    | otherwise = $logInfoS "CLEANUP" $ "Ignoring unmatched path: " ++ fpToText fp
-  where
-    name = fpToText $ filename fp
-    prefixes = asVector $ pack
-        [ "hackage-index"
-        , "createview"
-        , "build00index."
-        , "newindex"
-        ]
+        -}
 
 -- for yesod devel
 getApplicationDev :: Bool -> IO (Int, Application)
@@ -387,38 +291,3 @@ checkMigration num f = do
     case eres of
         Left _ -> return ()
         Right _ -> f
-
-fixSnapSlugs :: (MonadResource m, HasGenIO env, MonadReader env m)
-             => ReaderT SqlBackend m ()
-fixSnapSlugs =
-    selectSource [] [Asc StackageUploaded] $$ mapM_C go
-  where
-    go (Entity sid Stackage {..}) =
-        loop (1 :: Int)
-      where
-        base = T.replace "haskell platform" "hp"
-             $ T.replace "stackage build for " ""
-             $ toLower stackageTitle
-        loop 50 = error "fixSnapSlugs can't find a good slug"
-        loop i = do
-            slug' <- lift $ safeMakeSlug base $ if i == 1 then False else True
-            let slug = SnapSlug slug'
-            ms <- getBy $ UniqueSnapshot slug
-            case ms of
-                Nothing -> update sid [StackageSlug =. slug]
-                Just _ -> loop (i + 1)
-
-setCorePackages :: MonadIO m => ReaderT SqlBackend m ()
-setCorePackages =
-    updateWhere
-        [ PackageName' <-. defaultCorePackages
-        , PackageCore ==. Nothing
-        ]
-        [PackageCore =. Just True]
-  where
-    defaultCorePackages = map PackageName $ words =<<
-        [ "ghc hoopl bytestring unix haskeline Cabal base time xhtml"
-        , "haskell98 hpc filepath process array integer-gmp bin-package-db"
-        , "containers haskell2010 binary ghc-prim old-time old-locale rts"
-        , "terminfo transformers deepseq pretty template-haskell directory"
-        ]

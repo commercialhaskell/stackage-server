@@ -1,23 +1,24 @@
-module Handler.StackageHome where
+module Handler.StackageHome
+    ( getStackageHomeR
+    , getStackageCabalConfigR
+    , getDocsR
+    , getSnapshotPackagesR
+    ) where
 
 import Import
 import Data.Time (FormatTime)
 import Data.Slug (SnapSlug)
 import qualified Database.Esqueleto as E
-import Handler.PackageList (cachedWidget)
 
 getStackageHomeR :: SnapSlug -> Handler Html
 getStackageHomeR slug = do
+    error "getStackageHomeR"
+    {-
     stackage <- runDB $ do
         Entity _ stackage <- getBy404 $ UniqueSnapshot slug
         return stackage
 
-    let minclusive =
-            if "inclusive" `isSuffixOf` stackageTitle stackage
-               then Just True
-               else if "exclusive" `isSuffixOf` stackageTitle stackage
-                       then Just False
-                       else Nothing
+    let minclusive = Just False
         base = maybe 0 (const 1) minclusive :: Int
         hoogleForm =
             let queryText = "" :: Text
@@ -26,78 +27,53 @@ getStackageHomeR slug = do
     Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
     defaultLayout $ do
         setTitle $ toHtml $ stackageTitle stackage
-        cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
-            let maxPackages = 5000
-            (packageListClipped, packages') <- handlerToWidget $ runDB $ do
-                packages' <- E.select $ E.from $ \(m,p) -> do
-                    E.where_ $
-                        (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
-                        (p E.^. PackageStackage E.==. E.val sid)
-                    E.orderBy [E.asc $ m E.^. MetadataName]
-                    E.groupBy ( m E.^. MetadataName
-                              , m E.^. MetadataSynopsis
-                              )
-                    E.limit maxPackages
-                    return
-                        ( m E.^. MetadataName
-                        , m E.^. MetadataSynopsis
-                        , E.max_ (p E.^. PackageVersion)
-                        , E.max_ $ E.case_
-                            [ ( p E.^. PackageHasHaddocks
-                              , p E.^. PackageVersion
-                              )
-                            ]
-                            (E.val (Version ""))
-                        )
-                packageCount <- count [PackageStackage ==. sid]
-                let packageListClipped = packageCount > maxPackages
-                return (packageListClipped, packages')
-            let packages = flip map packages' $ \(name, syn, latestVersion, forceNotNull -> mversion) ->
-                    ( E.unValue name
-                    , fmap unVersion $ E.unValue latestVersion
-                    , strip $ E.unValue syn
-                    , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
-                        [ toPathPiece $ E.unValue name
-                        , "-"
-                        , version
+        let maxPackages = 5000
+        (packageListClipped, packages') <- handlerToWidget $ runDB $ do
+            packages' <- E.select $ E.from $ \(m,p) -> do
+                E.where_ $
+                    (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
+                    (p E.^. PackageStackage E.==. E.val sid)
+                E.orderBy [E.asc $ m E.^. MetadataName]
+                E.groupBy ( m E.^. MetadataName
+                          , m E.^. MetadataSynopsis
+                          )
+                E.limit maxPackages
+                return
+                    ( m E.^. MetadataName
+                    , m E.^. MetadataSynopsis
+                    , E.max_ (p E.^. PackageVersion)
+                    , E.max_ $ E.case_
+                        [ ( p E.^. PackageHasHaddocks
+                          , p E.^. PackageVersion
+                          )
                         ]
+                        (E.val (Version ""))
                     )
-                forceNotNull (E.Value Nothing) = Nothing
-                forceNotNull (E.Value (Just (Version v)))
-                    | null v = Nothing
-                    | otherwise = Just v
-            $(widgetFile "stackage-home")
+            packageCount <- count [PackageStackage ==. sid]
+            let packageListClipped = packageCount > maxPackages
+            return (packageListClipped, packages')
+        let packages = flip map packages' $ \(name, syn, latestVersion, forceNotNull -> mversion) ->
+                ( E.unValue name
+                , fmap unVersion $ E.unValue latestVersion
+                , strip $ E.unValue syn
+                , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
+                    [ toPathPiece $ E.unValue name
+                    , "-"
+                    , version
+                    ]
+                )
+            forceNotNull (E.Value Nothing) = Nothing
+            forceNotNull (E.Value (Just (Version v)))
+                | null v = Nothing
+                | otherwise = Just v
+        $(widgetFile "stackage-home")
   where strip x = fromMaybe x (stripSuffix "." x)
-
-getStackageMetadataR :: SnapSlug -> Handler TypedContent
-getStackageMetadataR slug = do
-    Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
-    respondSourceDB typePlain $ do
-        sendChunkBS "Override packages\n"
-        sendChunkBS "=================\n"
-        stream sid True
-        sendChunkBS "\nPackages from Hackage\n"
-        sendChunkBS   "=====================\n"
-        stream sid False
-  where
-    stream sid isOverwrite =
-        selectSource
-            [ PackageStackage ==. sid
-            , PackageOverwrite ==. isOverwrite
-            ]
-            [ Asc PackageName'
-            , Asc PackageVersion
-            ] $= mapC (Chunk . toBuilder . showPackage)
-
-    showPackage (Entity _ p) = concat
-        [ toPathPiece $ packageName' p
-        , "-"
-        , toPathPiece $ packageVersion p
-        , "\n"
-        ]
+    -}
 
 getStackageCabalConfigR :: SnapSlug -> Handler TypedContent
 getStackageCabalConfigR slug = do
+    error "getStackageCabalConfigR"
+    {-
     Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
     render <- getUrlRender
 
@@ -175,19 +151,15 @@ getStackageCabalConfigR slug = do
         toBuilder (asText ",\n             ") ++
         toBuilder (toPathPiece $ packageName' p) ++
         constraint p
+    -}
 
 yearMonthDay :: FormatTime t => t -> String
 yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
 
-getOldStackageR :: PackageSetIdent -> [Text] -> Handler ()
-getOldStackageR ident pieces = do
-    Entity _ stackage <- runDB $ getBy404 $ UniqueStackage ident
-    case parseRoute ("snapshot" : toPathPiece (stackageSlug stackage) : pieces, []) of
-        Nothing -> notFound
-        Just route -> redirect (route :: Route App)
-
 getSnapshotPackagesR :: SnapSlug -> Handler Html
 getSnapshotPackagesR slug = do
+    error "getSnapshotPackagesR"
+    {-
     Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
     defaultLayout $ do
         setTitle $ toHtml $ "Package list for " ++ toPathPiece slug
@@ -227,9 +199,12 @@ getSnapshotPackagesR slug = do
             $(widgetFile "package-list")
   where strip x = fromMaybe x (stripSuffix "." x)
         mback = Just (SnapshotR slug StackageHomeR, "Return to snapshot")
+    -}
 
 getDocsR :: SnapSlug -> Handler Html
 getDocsR slug = do
+    error "getDocsR"
+    {-
     Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
     defaultLayout $ do
         setTitle $ toHtml $ "Module list for " ++ toPathPiece slug
@@ -254,3 +229,4 @@ getDocsR slug = do
                     , E.unValue version
                     )
             $(widgetFile "doc-list")
+            -}

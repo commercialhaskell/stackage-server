@@ -10,6 +10,8 @@ type Sitemap = forall m. Monad m => Producer m (SitemapUrl (Route App))
 
 getSitemapR :: Handler TypedContent
 getSitemapR = sitemap $ do
+    error "getSitemapR"
+    {- FIXME
     priority 1.0 $ HomeR
 
     priority 0.9 $ LtsR []
@@ -105,3 +107,4 @@ url loc = yield $ SitemapUrl
     , sitemapChangeFreq = Nothing
     , sitemapPriority = Nothing
     }
+    -}

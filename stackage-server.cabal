@@ -24,38 +24,28 @@ library
                      Data.Tag
                      Data.BlobStore
                      Data.GhcLinks
-                     Data.Hackage
-                     Data.Hackage.DeprecationInfo
                      Data.WebsiteContent
-                     Data.Unpacking
                      Types
                      Handler.Home
                      Handler.Snapshots
                      Handler.Profile
                      Handler.Email
                      Handler.ResetToken
-                     Handler.UploadStackage
                      Handler.StackageHome
                      Handler.StackageIndex
                      Handler.StackageSdist
-                     Handler.Aliases
-                     Handler.Alias
-                     Handler.Progress
                      Handler.System
                      Handler.Haddock
                      Handler.Hoogle
                      Handler.Package
                      Handler.PackageList
-                     Handler.CompressorStatus
                      Handler.Tag
                      Handler.BannedTags
-                     Handler.RefreshDeprecated
-                     Handler.UploadV2
                      Handler.BuildVersion
-                     Handler.PackageCounts
                      Handler.Sitemap
                      Handler.BuildPlan
                      Handler.Download
+                     Handler.OldLinks
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

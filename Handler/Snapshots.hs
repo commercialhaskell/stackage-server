@@ -20,6 +20,8 @@ snapshotsPerPage = 50
 -- inclined, or create a single monolithic file.
 getAllSnapshotsR :: Handler Html
 getAllSnapshotsR = do
+    error "getAllSnapshotsR"
+    {-
     now' <- liftIO getCurrentTime
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int
@@ -51,3 +53,4 @@ getAllSnapshotsR = do
             let (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle') = c
             in (ident,title,format (diff True) (diffUTCTime uploaded now'),display,handle')
         groupUp now' (c, rs) = (c, (groupBy (on (==) (\(_,_,uploaded,_,_) -> uploaded)) . map (uncrapify now')) rs)
+        -}

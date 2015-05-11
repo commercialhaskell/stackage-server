@@ -2,7 +2,14 @@
 
 -- | Lists the package page similar to Hackage.
 
-module Handler.Package where
+module Handler.Package
+    ( getPackageR
+    , getPackageSnapshotsR
+    , postPackageLikeR
+    , postPackageUnlikeR
+    , postPackageTagR
+    , postPackageUntagR
+    ) where
 
 import           Data.Char
 import           Data.Slug
@@ -22,6 +29,8 @@ import           Text.Email.Validate
 -- | Page metadata package.
 getPackageR :: PackageName -> Handler Html
 getPackageR pn =
+    error "getPackageR"
+    {-
     packagePage pn Nothing (selectFirst [DocsName ==. pn] [Desc DocsUploaded])
 
 packagePage :: PackageName
@@ -266,6 +275,7 @@ renderEmail = T.decodeUtf8 . toByteString
 -- | Format a number with commas nicely.
 formatNum :: Int -> Text
 formatNum = sformat commas
+-}
 
 postPackageLikeR :: PackageName -> Handler ()
 postPackageLikeR packageName = maybeAuthId >>= \muid -> case muid of
@@ -309,7 +319,8 @@ postPackageUntagR packageName =
              Nothing -> error "Need a slug"
 
 getPackageSnapshotsR :: PackageName -> Handler Html
-getPackageSnapshotsR pn =
+getPackageSnapshotsR pn = error "getPackageSnapshotsR"
+{-
   do let haddocksLink ident version =
              HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
      snapshots <- (runDB .
@@ -335,3 +346,4 @@ getPackageSnapshotsR pn =
           ,fromMaybe title (stripPrefix "Stackage build for " title)
           ,ident
           ,hasHaddocks)
+          -}
