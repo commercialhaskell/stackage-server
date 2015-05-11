@@ -115,38 +115,39 @@ doUpload status uid ident bundleFP = do
             <*> yaml "docs-map.yaml"
 
     now <- liftIO getCurrentTime
-    let day = tshow $ utctDay now
 
     let theSiGhcVersion = siGhcVersion $ bpSystemInfo siPlan
         ghcVersion = display theSiGhcVersion
         ghcMajorVersionMay = case versionBranch theSiGhcVersion of
             (a:b:_) -> Just (GhcMajorVersion a b)
             _ -> Nothing
-        slug' =
-            case siType of
-                STNightly -> "nightly-" ++ day
-                STLTS major minor -> concat
-                    [ "lts-"
-                    , tshow major
-                    , "."
-                    , tshow minor
-                    ]
-        title =
-            case siType of
-                STNightly -> concat
-                    [ "Stackage Nightly "
-                    , day
-                    , ", GHC "
-                    , ghcVersion
-                    ]
-                STLTS major minor -> concat
-                    [ "LTS Haskell "
-                    , tshow major
-                    , "."
-                    , tshow minor
-                    , ", GHC "
-                    , ghcVersion
-                    ]
+    slug' <-
+        case siType of
+            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2"]
+            STNightly2 day -> return $ "nightly-" ++ tshow day
+            STLTS major minor -> return $ concat
+                [ "lts-"
+                , tshow major
+                , "."
+                , tshow minor
+                ]
+    title <-
+        case siType of
+            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2"]
+            STNightly2 day -> return $ concat
+                [ "Stackage Nightly "
+                , tshow day
+                , ", GHC "
+                , ghcVersion
+                ]
+            STLTS major minor -> return $ concat
+                [ "LTS Haskell "
+                , tshow major
+                , "."
+                , tshow minor
+                , ", GHC "
+                , ghcVersion
+                ]
 
     slug <- do
         slug2 <- mkSlug slug'
