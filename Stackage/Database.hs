@@ -22,7 +22,7 @@ instance PathPiece SnapName where
     fromPathPiece t0 =
         nightly <|> lts
       where
-        nightly = stripPrefix "nightly-" t0 >>= readMay
+        nightly = fmap SNNightly $ stripPrefix "nightly-" t0 >>= readMay
         lts = do
             t1 <- stripPrefix "lts-" t0
             Right (x, t2) <- Just $ decimal t1
