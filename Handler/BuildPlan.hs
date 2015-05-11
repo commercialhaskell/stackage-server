@@ -2,11 +2,11 @@
 module Handler.BuildPlan where
 
 import Import hiding (get, PackageName (..), Version (..), DList)
-import Data.Slug (SnapSlug)
 import Stackage.Types
 import Stackage.BuildPlan
+import Stackage.Database
 
-getBuildPlanR :: SnapSlug -> Handler TypedContent
+getBuildPlanR :: SnapName -> Handler TypedContent
 getBuildPlanR slug = do
     fullDeps <- (== Just "true") <$> lookupGetParam "full-deps"
     spec <- parseSnapshotSpec $ toPathPiece slug

@@ -4,9 +4,9 @@ module Handler.StackageSdist
 
 import Import
 import Data.BlobStore
-import Data.Slug (SnapSlug)
+import Stackage.Database
 
-getStackageSdistR :: SnapSlug -> PackageNameVersion -> Handler TypedContent
+getStackageSdistR :: SnapName -> PackageNameVersion -> Handler TypedContent
 getStackageSdistR slug (PNVTarball name version) = do
     error "getStackageSdistR"
     {-

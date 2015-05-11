@@ -7,9 +7,9 @@ module Handler.Download
   ) where
 
 import Import
-import Data.Slug (SnapSlug)
 import Data.GhcLinks
 import Yesod.GitRepo (grContent)
+import Stackage.Database
 
 executableFor :: SupportedArch -> StackageExecutable
 executableFor Win32 = StackageWindowsExecutable
@@ -88,7 +88,7 @@ ghcMajorVersionText snapshot
   $ stackageGhcMajorVersion snapshot
     -}
 
-getGhcMajorVersionR :: SnapSlug -> Handler Text
+getGhcMajorVersionR :: SnapName -> Handler Text
 getGhcMajorVersionR _slug = do
   error "getGhcMajorVersionR"
   {-

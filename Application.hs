@@ -12,7 +12,6 @@ import           Control.Exception (catch)
 import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
 import           Data.BlobStore (fileStore, cachedS3Store)
 import           Data.WebsiteContent
-import           Data.Slug (SnapSlug (..), safeMakeSlug, HasGenIO)
 import           Data.Streaming.Network (bindPortTCP)
 import           Data.Time (diffUTCTime)
 import qualified Database.Esqueleto as E
@@ -40,6 +39,7 @@ import           System.IO (hSetBuffering, BufferMode (LineBuffering))
 import qualified Data.ByteString as S
 import qualified Data.Text as T
 import           System.Process (rawSystem)
+import           Stackage.Database (loadStackageDatabase)
 
 import qualified Echo
 
@@ -165,6 +165,8 @@ makeFoundation useEcho conf = do
         threadDelay $ 1000 * 1000 * 60 * 20
         grRefresh websiteContent'
 
+    stackageDatabase' <- liftIO $ loadStackageDatabase >>= newIORef
+
     env <- getEnvironment
 
     let runDB' :: (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a
@@ -181,6 +183,7 @@ makeFoundation useEcho conf = do
             , genIO = gen
             , blobStore = blobStore'
             , websiteContent = websiteContent'
+            , stackageDatabase = stackageDatabase'
             }
 
     let urlRender' = yesodRender foundation (appRoot conf)

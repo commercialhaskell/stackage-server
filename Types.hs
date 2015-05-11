@@ -12,6 +12,15 @@ import qualified Data.Text.Lazy.Builder as Builder
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Read as Reader
 
+newtype LtsMajor = LtsMajor Int
+    deriving (Eq, Read, Show)
+instance PathPiece LtsMajor where
+    toPathPiece (LtsMajor x) = "lts-" ++ tshow x
+    fromPathPiece t0 = do
+        t1 <- stripPrefix "lts-" t0
+        Right (x, "") <- Just $ Reader.decimal t1
+        Just $ LtsMajor x
+
 newtype PackageName = PackageName { unPackageName :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
 instance PersistFieldSql PackageName where

@@ -8,7 +8,6 @@ module Data.Slug
     , HasGenIO (..)
     , randomSlug
     , slugField
-    , SnapSlug (..)
     ) where
 
 import ClassyPrelude.Yesod

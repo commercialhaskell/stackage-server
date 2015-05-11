@@ -2,9 +2,9 @@ module Handler.StackageIndex where
 
 import Import
 import Data.BlobStore
-import Data.Slug (SnapSlug)
+import Stackage.Database
 
-getStackageIndexR :: SnapSlug -> Handler TypedContent
+getStackageIndexR :: SnapName -> Handler TypedContent
 getStackageIndexR slug = do
     error "getStackageIndexR"
     {-

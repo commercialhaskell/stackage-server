@@ -1,3 +1,5 @@
+!/#LtsMajor/*Texts OldLtsMajorR GET
+
 /static StaticR Static getStatic
 /auth   AuthR   Auth   getAuth
 /reload WebsiteContentR GitRepo-WebsiteContent websiteContent
@@ -12,7 +14,9 @@
 /email/#EmailId EmailR DELETE
 /reset-token ResetTokenR POST
 
-/snapshot/#SnapSlug SnapshotR:
+/snapshot/#Text/*Texts OldSnapshotR GET
+
+!/#SnapName SnapshotR:
     / StackageHomeR GET
     /cabal.config StackageCabalConfigR GET
     /00-index.tar.gz StackageIndexR GET
@@ -25,7 +29,7 @@
     /ghc-major-version GhcMajorVersionR GET
 
 /system SystemR GET
-/haddock/#SnapSlug/*Texts HaddockR GET
+/haddock/#SnapName/*Texts HaddockR GET
 /package/#PackageName PackageR GET
 /package/#PackageName/snapshots PackageSnapshotsR GET
 /package PackageListR GET
@@ -37,8 +41,8 @@
 /tag/#Slug TagR GET
 /banned-tags BannedTagsR GET PUT
 
-/lts/*Texts LtsR GET
-/nightly/*Texts NightlyR GET
+/lts/*Texts OldLtsR GET
+/nightly/*Texts OldNightlyR GET
 
 /authors AuthorsR GET
 /install InstallR GET

@@ -4,13 +4,13 @@ import           Control.DeepSeq (NFData(..))
 import           Control.DeepSeq.Generics (genericRnf)
 import           Control.Spoon (spoon)
 import           Data.Data (Data (..))
-import           Data.Slug (SnapSlug)
 import           Data.Text.Read (decimal)
 import qualified Hoogle
 import           Import
 import           Text.Blaze.Html (preEscapedToHtml)
+import Stackage.Database
 
-getHoogleR :: SnapSlug -> Handler Html
+getHoogleR :: SnapName -> Handler Html
 getHoogleR slug = do
     error "getHoogleR"
     {- FIXME
@@ -54,7 +54,7 @@ getHoogleR slug = do
         $(widgetFile "hoogle")
     -}
 
-getHoogleDatabaseR :: SnapSlug -> Handler Html
+getHoogleDatabaseR :: SnapName -> Handler Html
 getHoogleDatabaseR slug = do
     error "getHoogleDatabaseR"
     {-

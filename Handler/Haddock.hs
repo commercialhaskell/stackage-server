@@ -10,7 +10,6 @@ import           Data.BlobStore
 import qualified Data.ByteString.Base16 as B16
 import           Data.Byteable (toBytes)
 import           Data.Conduit.Zlib (gzip)
-import           Data.Slug (SnapSlug, unSlug)
 import qualified Data.Text as T
 import qualified Data.Yaml as Y
 import           Filesystem (isDirectory, createTree, isFile, rename, removeFile, removeDirectory)
@@ -20,8 +19,9 @@ import           Network.Mime (defaultMimeLookup)
 import           System.IO (IOMode (ReadMode), withBinaryFile)
 import           System.IO.Temp (withTempFile)
 import           System.Posix.Files (createLink)
+import Stackage.Database
 
-getHaddockR :: SnapSlug -> [Text] -> Handler ()
+getHaddockR :: SnapName -> [Text] -> Handler ()
 getHaddockR slug rest = redirect $ concat
     $ "http://haddock.stackage.org/"
     : toPathPiece slug

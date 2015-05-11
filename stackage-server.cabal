@@ -26,6 +26,7 @@ library
                      Data.GhcLinks
                      Data.WebsiteContent
                      Types
+                     Stackage.Database
                      Handler.Home
                      Handler.Snapshots
                      Handler.Profile
@@ -162,6 +163,8 @@ library
                  , stackage-build-plan >= 0.1.1
                  , yesod-sitemap
                  , streaming-commons
+                 , classy-prelude-conduit
+                 , path-pieces
 
 executable         stackage-server
     if flag(library-only)

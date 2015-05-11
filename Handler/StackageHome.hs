@@ -7,10 +7,10 @@ module Handler.StackageHome
 
 import Import
 import Data.Time (FormatTime)
-import Data.Slug (SnapSlug)
 import qualified Database.Esqueleto as E
+import Stackage.Database
 
-getStackageHomeR :: SnapSlug -> Handler Html
+getStackageHomeR :: SnapName -> Handler Html
 getStackageHomeR slug = do
     error "getStackageHomeR"
     {-
@@ -70,7 +70,7 @@ getStackageHomeR slug = do
   where strip x = fromMaybe x (stripSuffix "." x)
     -}
 
-getStackageCabalConfigR :: SnapSlug -> Handler TypedContent
+getStackageCabalConfigR :: SnapName -> Handler TypedContent
 getStackageCabalConfigR slug = do
     error "getStackageCabalConfigR"
     {-
@@ -156,7 +156,7 @@ getStackageCabalConfigR slug = do
 yearMonthDay :: FormatTime t => t -> String
 yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
 
-getSnapshotPackagesR :: SnapSlug -> Handler Html
+getSnapshotPackagesR :: SnapName -> Handler Html
 getSnapshotPackagesR slug = do
     error "getSnapshotPackagesR"
     {-
@@ -201,7 +201,7 @@ getSnapshotPackagesR slug = do
         mback = Just (SnapshotR slug StackageHomeR, "Return to snapshot")
     -}
 
-getDocsR :: SnapSlug -> Handler Html
+getDocsR :: SnapName -> Handler Html
 getDocsR slug = do
     error "getDocsR"
     {-

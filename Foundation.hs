@@ -2,7 +2,7 @@ module Foundation where
 
 import           ClassyPrelude.Yesod
 import           Data.BlobStore
-import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug, SnapSlug)
+import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
 import           Data.WebsiteContent
 import qualified Database.Persist
 import           Database.Persist.Sql (PersistentSqlException (Couldn'tGetSQLConnection))
@@ -21,6 +21,7 @@ import           Yesod.Auth.GoogleEmail2 (authGoogleEmail)
 import           Yesod.Core.Types (Logger)
 import           Yesod.Default.Config
 import           Yesod.GitRepo
+import Stackage.Database
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -36,6 +37,7 @@ data App = App
     , genIO :: MWC.GenIO
     , blobStore :: BlobStore StoreKey
     , websiteContent :: GitRepo WebsiteContent
+    , stackageDatabase :: IORef StackageDatabase
     }
 
 instance HasBlobStore App StoreKey where
@@ -272,3 +274,6 @@ getExtra = fmap (appExtra . settings) getYesod
 -- wiki:
 --
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
+
+getStackageDatabase :: Handler StackageDatabase
+getStackageDatabase = getYesod >>= readIORef . stackageDatabase

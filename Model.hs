@@ -2,7 +2,7 @@ module Model where
 
 import ClassyPrelude.Yesod
 import Database.Persist.Quasi
-import Data.Slug (Slug, SnapSlug)
+import Data.Slug (Slug)
 import Types
 
 -- You can define all of your database entities in the entities file.
