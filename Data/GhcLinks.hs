@@ -10,7 +10,6 @@ import qualified Data.Yaml as Yaml
 import Filesystem (readTextFile, isFile)
 
 import Types
-import Model
 
 
 newtype GhcLinks = GhcLinks

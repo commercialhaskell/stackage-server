@@ -3,13 +3,7 @@ module Handler.BuildPlan where
 
 import Import hiding (get, PackageName (..), Version (..), DList)
 import Data.Slug (SnapSlug)
-import qualified Filesystem as F
-import Data.Yaml (decodeFileEither)
-import Control.Monad.State.Strict (get, modify, execStateT, MonadState)
-import Control.Monad.Catch.Pure (runCatch)
 import Stackage.Types
-import Distribution.Package (PackageName (..))
-import Data.Version (Version)
 import Stackage.BuildPlan
 
 getBuildPlanR :: SnapSlug -> Handler TypedContent
