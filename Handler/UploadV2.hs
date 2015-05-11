@@ -238,8 +238,9 @@ finishUpload
             , stackageGhcMajorVersion = ghcMajorVersionMay
             }
         case siType of
-            STNightly -> insert_ Nightly
-                { nightlyDay = utctDay now
+            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2"]
+            STNightly2 day -> insert_ Nightly
+                { nightlyDay = day
                 , nightlyGhcVersion = ghcVersion
                 , nightlyStackage = sid
                 }
