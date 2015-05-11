@@ -68,6 +68,11 @@ putUploadHaddockR = getUploadHaddockR
 getHaddockR :: SnapSlug -> [Text] -> Handler ()
 getHaddockR slug rest = do
     stackageEnt <- runDB $ do
+        onS3 <- fmap isJust $ getBy $ UniqueDocsOnS3 slug
+        when onS3 $ redirect $ concat
+            $ "http://haddock.stackage.org/"
+            : toPathPiece slug
+            : map (cons '/') rest
         ment <- getBy $ UniqueSnapshot slug
         case ment of
             Just ent -> do

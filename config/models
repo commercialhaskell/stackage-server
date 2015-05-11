@@ -15,6 +15,10 @@ Verkey
     email Text
     verkey Text
 
+DocsOnS3
+    slug SnapSlug
+    UniqueDocsOnS3 slug
+
 Stackage
     user UserId
     ident PackageSetIdent
