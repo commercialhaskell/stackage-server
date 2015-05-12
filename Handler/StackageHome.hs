@@ -12,8 +12,7 @@ import Stackage.Database
 
 getStackageHomeR :: SnapName -> Handler Html
 getStackageHomeR name = do
-    db <- getStackageDatabase
-    Entity sid snapshot <- lookupSnapshot db name >>= maybe notFound return
+    Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
 
     let hoogleForm =
             let queryText = "" :: Text
@@ -21,7 +20,7 @@ getStackageHomeR name = do
             in $(widgetFile "hoogle-form")
     defaultLayout $ do
         setTitle $ toHtml $ snapshotTitle snapshot
-        packages <- getPackages db sid
+        packages <- getPackages sid
         $(widgetFile "stackage-home")
   where strip x = fromMaybe x (stripSuffix "." x)
 

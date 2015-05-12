@@ -24,35 +24,32 @@ parseLtsSuffix t0 = do
 
 getOldLtsR :: [Text] -> Handler ()
 getOldLtsR pieces = do
-    db <- getStackageDatabase
     (x, y, pieces') <- case pieces of
         t:ts | Just suffix <- parseLtsSuffix t -> do
             (x, y) <- case suffix of
                 LSMajor x -> do
-                    y <- newestLTSMajor db x >>= maybe notFound return
+                    y <- newestLTSMajor x >>= maybe notFound return
                     return (x, y)
                 LSMinor x y -> return (x, y)
             return (x, y, ts)
         _ -> do
-            (x, y) <- newestLTS db >>= maybe notFound return
+            (x, y) <- newestLTS >>= maybe notFound return
             return (x, y, pieces)
     let name = concat ["lts-", tshow x, ".", tshow y]
     redirect $ concatMap (cons '/') $ name : pieces'
 
 getOldLtsMajorR :: LtsMajor -> [Text] -> Handler ()
 getOldLtsMajorR (LtsMajor x) pieces = do
-    db <- getStackageDatabase
-    y <- newestLTSMajor db x >>= maybe notFound return
+    y <- newestLTSMajor x >>= maybe notFound return
     let name = concat ["lts-", tshow x, ".", tshow y]
     redirect $ concatMap (cons '/') $ name : pieces
 
 getOldNightlyR :: [Text] -> Handler ()
 getOldNightlyR pieces = do
-    db <- getStackageDatabase
     (day, pieces') <- case pieces of
         t:ts | Just day <- fromPathPiece t -> return (day, ts)
         _ -> do
-            day <- newestNightly db >>= maybe notFound return
+            day <- newestNightly >>= maybe notFound return
             return (day, pieces)
     let name = "nightly-" ++ tshow day
     redirect $ concatMap (cons '/') $ name : pieces'

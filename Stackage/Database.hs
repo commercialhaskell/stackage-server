@@ -1,5 +1,6 @@
 module Stackage.Database
     ( StackageDatabase
+    , GetStackageDatabase (..)
     , SnapName (..)
     , Snapshot (..)
     , loadStackageDatabase
@@ -59,6 +60,9 @@ SnapshotPackage
 |]
 
 newtype StackageDatabase = StackageDatabase ConnectionPool
+
+class MonadIO m => GetStackageDatabase m where
+    getStackageDatabase :: m StackageDatabase
 
 sourceBuildPlans :: MonadResource m => Producer m (SnapName, BuildPlan)
 sourceBuildPlans = do
@@ -147,25 +151,28 @@ addPlan (name, bp) = do
         $ fmap (, True) (siCorePackages $ bpSystemInfo bp)
        ++ fmap ((, False) . ppVersion) (bpPackages bp)
 
-run :: MonadIO m => StackageDatabase -> SqlPersistT IO a -> m a
-run (StackageDatabase pool) inner = liftIO $ runSqlPool inner pool
 
-newestLTS :: MonadIO m => StackageDatabase -> m (Maybe (Int, Int))
-newestLTS db =
-    run db $ liftM (fmap go) $ selectFirst [] [Desc LtsMajor, Desc LtsMinor]
+run :: GetStackageDatabase m => SqlPersistT IO a -> m a
+run inner = do
+    StackageDatabase pool <- getStackageDatabase
+    liftIO $ runSqlPool inner pool
+
+newestLTS :: GetStackageDatabase m => m (Maybe (Int, Int))
+newestLTS =
+    run $ liftM (fmap go) $ selectFirst [] [Desc LtsMajor, Desc LtsMinor]
   where
     go (Entity _ lts) = (ltsMajor lts, ltsMinor lts)
 
-newestLTSMajor :: MonadIO m => StackageDatabase -> Int -> m (Maybe Int)
-newestLTSMajor db x =
-    run db $ liftM (fmap $ ltsMinor . entityVal) $ selectFirst [LtsMajor ==. x] [Desc LtsMinor]
+newestLTSMajor :: GetStackageDatabase m => Int -> m (Maybe Int)
+newestLTSMajor x =
+    run $ liftM (fmap $ ltsMinor . entityVal) $ selectFirst [LtsMajor ==. x] [Desc LtsMinor]
 
-newestNightly :: MonadIO m => StackageDatabase -> m (Maybe Day)
-newestNightly db =
-    run db $ liftM (fmap $ nightlyDay . entityVal) $ selectFirst [] [Desc NightlyDay]
+newestNightly :: GetStackageDatabase m => m (Maybe Day)
+newestNightly =
+    run $ liftM (fmap $ nightlyDay . entityVal) $ selectFirst [] [Desc NightlyDay]
 
-lookupSnapshot :: MonadIO m => StackageDatabase -> SnapName -> m (Maybe (Entity Snapshot))
-lookupSnapshot db name = run db $ getBy $ UniqueSnapshot name
+lookupSnapshot :: GetStackageDatabase m => SnapName -> m (Maybe (Entity Snapshot))
+lookupSnapshot name = run $ getBy $ UniqueSnapshot name
 
 snapshotTitle :: Snapshot -> Text
 snapshotTitle s =
@@ -182,8 +189,8 @@ data PackageListingInfo = PackageListingInfo
     , pliSynopsis :: !Text
     }
 
-getPackages :: MonadIO m => StackageDatabase -> SnapshotId -> m [PackageListingInfo]
-getPackages db sid = liftM (map toPLI) $ run db $ do
+getPackages :: GetStackageDatabase m => SnapshotId -> m [PackageListingInfo]
+getPackages sid = liftM (map toPLI) $ run $ do
     E.select $ E.from $ \(p,sp) -> do
         E.where_ $
             (p E.^. PackageId E.==. sp E.^. SnapshotPackagePackage) E.&&.

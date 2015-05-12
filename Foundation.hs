@@ -275,5 +275,7 @@ getExtra = fmap (appExtra . settings) getYesod
 --
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
 
-getStackageDatabase :: Handler StackageDatabase
-getStackageDatabase = getYesod >>= readIORef . stackageDatabase
+instance GetStackageDatabase Handler where
+    getStackageDatabase = getYesod >>= readIORef . stackageDatabase
+instance GetStackageDatabase (WidgetT App IO) where
+    getStackageDatabase = getYesod >>= readIORef . stackageDatabase
