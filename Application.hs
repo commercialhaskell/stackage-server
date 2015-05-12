@@ -165,7 +165,7 @@ makeFoundation useEcho conf = do
         threadDelay $ 1000 * 1000 * 60 * 20
         grRefresh websiteContent'
 
-    stackageDatabase' <- liftIO $ loadStackageDatabase >>= newIORef
+    stackageDatabase' <- liftIO $ loadStackageDatabase False >>= newIORef
 
     env <- getEnvironment
 

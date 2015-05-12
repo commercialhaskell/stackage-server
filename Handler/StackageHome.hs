@@ -11,64 +11,19 @@ import qualified Database.Esqueleto as E
 import Stackage.Database
 
 getStackageHomeR :: SnapName -> Handler Html
-getStackageHomeR slug = do
-    error "getStackageHomeR"
-    {-
-    stackage <- runDB $ do
-        Entity _ stackage <- getBy404 $ UniqueSnapshot slug
-        return stackage
+getStackageHomeR name = do
+    db <- getStackageDatabase
+    Entity sid snapshot <- lookupSnapshot db name >>= maybe notFound return
 
-    let minclusive = Just False
-        base = maybe 0 (const 1) minclusive :: Int
-        hoogleForm =
+    let hoogleForm =
             let queryText = "" :: Text
                 exact = False
             in $(widgetFile "hoogle-form")
-    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
     defaultLayout $ do
-        setTitle $ toHtml $ stackageTitle stackage
-        let maxPackages = 5000
-        (packageListClipped, packages') <- handlerToWidget $ runDB $ do
-            packages' <- E.select $ E.from $ \(m,p) -> do
-                E.where_ $
-                    (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
-                    (p E.^. PackageStackage E.==. E.val sid)
-                E.orderBy [E.asc $ m E.^. MetadataName]
-                E.groupBy ( m E.^. MetadataName
-                          , m E.^. MetadataSynopsis
-                          )
-                E.limit maxPackages
-                return
-                    ( m E.^. MetadataName
-                    , m E.^. MetadataSynopsis
-                    , E.max_ (p E.^. PackageVersion)
-                    , E.max_ $ E.case_
-                        [ ( p E.^. PackageHasHaddocks
-                          , p E.^. PackageVersion
-                          )
-                        ]
-                        (E.val (Version ""))
-                    )
-            packageCount <- count [PackageStackage ==. sid]
-            let packageListClipped = packageCount > maxPackages
-            return (packageListClipped, packages')
-        let packages = flip map packages' $ \(name, syn, latestVersion, forceNotNull -> mversion) ->
-                ( E.unValue name
-                , fmap unVersion $ E.unValue latestVersion
-                , strip $ E.unValue syn
-                , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
-                    [ toPathPiece $ E.unValue name
-                    , "-"
-                    , version
-                    ]
-                )
-            forceNotNull (E.Value Nothing) = Nothing
-            forceNotNull (E.Value (Just (Version v)))
-                | null v = Nothing
-                | otherwise = Just v
+        setTitle $ toHtml $ snapshotTitle snapshot
+        packages <- getPackages db sid
         $(widgetFile "stackage-home")
   where strip x = fromMaybe x (stripSuffix "." x)
-    -}
 
 getStackageCabalConfigR :: SnapName -> Handler TypedContent
 getStackageCabalConfigR slug = do

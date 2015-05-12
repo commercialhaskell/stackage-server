@@ -1,78 +1,64 @@
 $newline never
 <div .container .content>
     <h1>
-        #{stackageTitle stackage}
+        #{snapshotTitle snapshot}
     <p>
-        Published on #{yearMonthDay (stackageUploaded stackage)}
+        Published on #{yearMonthDay (snapshotCreated snapshot)}
         <span .separator>
         <span>
-            <a href=@{SnapshotR slug StackageCabalConfigR}>
+            <a href=@{SnapshotR name StackageCabalConfigR}>
                 \cabal.config
     <h3>Setup guide
     <div class="accordion" id="accordion2">
 
       <div class="accordion-group">
         <div class="accordion-heading">
-          <span class="accordion-toggle" data-parent="#accordion#{base + 0}" href="#collapse1">
+          <span class="accordion-toggle" data-parent="#accordion0" href="#collapse1">
             <span .number>1
             Download the #
-            <a href=@{SnapshotR slug StackageCabalConfigR}?download=true>
+            <a href=@{SnapshotR name StackageCabalConfigR}?download=true>
               \cabal.config
             \ into your project or sandbox root directory
 
       <div class="accordion-group">
         <div class="accordion-heading">
-          <span class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse2">
+          <span class="accordion-toggle" data-toggle="collapse" data-parent="#accordion0" href="#collapse2">
             <span .number>2
             <code>cabal update
       <div class="accordion-group">
         <div class="accordion-heading">
-          <span class="accordion-toggle" data-toggle="collapse" data-parent="#accordion#{base + 0}" href="#collapse3">
+          <span class="accordion-toggle" data-toggle="collapse" data-parent="#accordion0" href="#collapse3">
             <span .number>3
             <code>cabal install
 
     <p>
         <strong>Note: #
         For a global installation, please use #
-        <a href=@{SnapshotR slug StackageCabalConfigR}?global=true>
+        <a href=@{SnapshotR name StackageCabalConfigR}?global=true>
             the global configuration instructions
 
     <h3>Hoogle (experimental)
     ^{hoogleForm}
-    <a href=@{SnapshotR slug HoogleDatabaseR}>
+    <a href=@{SnapshotR name HoogleDatabaseR}>
       Download this hoogle database
 
     <h3>Packages
 
     <p>
-        <a href=@{SnapshotR slug DocsR}>View documentation by modules
+        <a href=@{SnapshotR name DocsR}>View documentation by modules
 
 <div .container .content>
     <div .packages>
-        $if packageListClipped
-            <p>
-                Note: due to a large number of packages, not all packages are display.
-                For a full listing, please see #
-                <a href=@{SnapshotR slug StackageMetadataR}>the metadata listing
-                .
         <table .table>
             <thead>
                 <th>Package
-                <th>Docs
                 <th>Synopsis
             <tbody>
-                $forall (name,mversion,synopsis,mdoc) <- packages
+                $forall pli <- packages
                     <tr>
                         <td>
-                            $maybe version <- mversion
-                                <a href=@{SnapshotR slug $ StackageSdistR $ PNVNameVersion name $ Version version}>
-                                    #{name}
-                                    -#{asText version}
-                            $nothing
-                                <a href=@{SnapshotR slug $ StackageSdistR $ PNVName name}>
-                                    #{name}
+                            <a href=@{SnapshotR name $ StackageSdistR $ PNVNameVersion (PackageName $ toPathPiece $ pliName pli) $ Version (pliVersion pli)}>
+                                #{pliName pli}
+                                -#{pliVersion pli}
                         <td>
-                            $maybe doc <- mdoc
-                                <a href=@{doc}>Docs
-                        <td>
-                            #{synopsis}
+                            #{pliSynopsis pli}

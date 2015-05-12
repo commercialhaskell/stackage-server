@@ -27,6 +27,7 @@ library
                      Data.WebsiteContent
                      Types
                      Stackage.Database
+                     Stackage.Database.Types
                      Handler.Home
                      Handler.Snapshots
                      Handler.Profile
@@ -165,6 +166,7 @@ library
                  , streaming-commons
                  , classy-prelude-conduit
                  , path-pieces
+                 , persistent-sqlite
 
 executable         stackage-server
     if flag(library-only)
