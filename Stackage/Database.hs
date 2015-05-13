@@ -27,6 +27,7 @@ module Stackage.Database
     , prettyName
     ) where
 
+import Database.Sqlite (SqliteException)
 import Web.PathPieces (toPathPiece)
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Archive.Tar.Entry as Tar
@@ -57,7 +58,17 @@ import System.IO.Temp
 import qualified Database.Esqueleto as E
 import Data.Yaml (decode)
 
+currentSchema :: Int
+currentSchema = 1
+
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+Schema
+    val Int
+Imported
+    name SnapName
+    type Text
+    UniqueImported name type
+
 Snapshot
     name SnapName
     ghc Text
@@ -122,7 +133,7 @@ sourcePackages root = do
             liftIO $ runIn dir "git" ["archive", "--output", fp, "--format", "tar", "master"]
             sourceTarFile False fp
 
-sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, FilePath, Either BuildPlan DocMap)
+sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, FilePath, Either (IO BuildPlan) (IO DocMap))
 sourceBuildPlans root = do
     forM_ ["lts-haskell", "stackage-nightly"] $ \dir -> do
         dir <- liftIO $ cloneOrUpdate root "fpco" dir
@@ -132,7 +143,7 @@ sourceBuildPlans root = do
             sourceDirectory docdir =$= concatMapMC (go Right)
   where
     go wrapper fp | Just name <- nameFromFP fp = liftIO $ do
-        bp <- decodeFileEither (fpToString fp) >>= either throwM return
+        let bp = decodeFileEither (fpToString fp) >>= either throwM return
         return $ Just (name, fp, wrapper bp)
     go _ _ = return Nothing
 
@@ -163,20 +174,47 @@ runIn dir cmd args =
 openStackageDatabase :: MonadIO m => FilePath -> m StackageDatabase
 openStackageDatabase fp = liftIO $ fmap StackageDatabase $ runNoLoggingT $ createSqlitePool (fpToText fp) 7
 
+getSchema :: FilePath -> IO (Maybe Int)
+getSchema fp = do
+    StackageDatabase pool <- openStackageDatabase fp
+    eres <- try $ runSqlPool (selectList [] []) pool
+    case eres :: Either SqliteException [Entity Schema] of
+        Right [Entity _ (Schema v)] -> return $ Just v
+        _ -> return Nothing
+
 createStackageDatabase :: MonadIO m => FilePath -> m ()
 createStackageDatabase fp = liftIO $ do
-    void $ tryIO $ removeFile $ fpToString fp
+    actualSchema <- getSchema fp
+    when (actualSchema /= Just currentSchema)
+        $ void $ tryIO $ removeFile $ fpToString fp
+
     StackageDatabase pool <- openStackageDatabase fp
     putStrLn "Initial migration"
-    runSqlPool (runMigration migrateAll) pool
+    flip runSqlPool pool $ do
+        runMigration migrateAll
+        insert_ $ Schema currentSchema
     root <- liftIO $ fmap (</> "database") $ fmap fpFromString $ getAppUserDataDirectory "stackage"
     F.createTree root
     runResourceT $ do
         flip runSqlPool pool $ sourcePackages root $$ getZipSink
             ( ZipSink (mapM_C addPackage)
-           *> ZipSink (foldlC getDeprecated' [] >>= lift . mapM_ addDeprecated)
+           *> ZipSink (do
+                deprs <- foldlC getDeprecated' []
+                lift $ do
+                    deleteWhere ([] :: [Filter Deprecated])
+                    mapM_ addDeprecated deprs)
             )
-        sourceBuildPlans root $$ mapM_C (flip runSqlPool pool . addPlan)
+        sourceBuildPlans root $$ mapM_C (\(sname, fp, eval) -> flip runSqlPool pool $ do
+            let (typ, action) =
+                    case eval of
+                        Left bp -> ("build-plan", liftIO bp >>= addPlan sname fp)
+                        Right dm -> ("doc-map", liftIO dm >>= addDocMap sname)
+            let i = Imported sname typ
+            eres <- insertBy i
+            case eres of
+                Left _ -> putStrLn $ "Skipping: " ++ fpToText fp
+                Right _ -> action
+            )
 
 getDeprecated' :: [Deprecation] -> Tar.Entry -> [Deprecation]
 getDeprecated' orig e =
@@ -213,17 +251,25 @@ addPackage :: Tar.Entry -> SqlPersistT (ResourceT IO) ()
 addPackage e =
     case ("packages/" `isPrefixOf` fp && takeExtension fp == ".yaml", Tar.entryContent e) of
         (True, Tar.NormalFile lbs _) | Just pi <- decode $ toStrict lbs -> do
-            pid <- insert Package
-                { packageName = pack base
-                , packageLatest = display $ piLatest pi
-                , packageSynopsis = piSynopsis pi
-                , packageDescription = renderContent (piDescription pi) (piDescriptionType pi)
-                , packageChangelog = renderContent (piChangeLog pi) (piChangeLogType pi)
-                , packageAuthor = piAuthor pi
-                , packageMaintainer = piMaintainer pi
-                , packageHomepage = piHomepage pi
-                , packageLicenseName = piLicenseName pi
-                }
+            let p = Package
+                    { packageName = pack base
+                    , packageLatest = display $ piLatest pi
+                    , packageSynopsis = piSynopsis pi
+                    , packageDescription = renderContent (piDescription pi) (piDescriptionType pi)
+                    , packageChangelog = renderContent (piChangeLog pi) (piChangeLogType pi)
+                    , packageAuthor = piAuthor pi
+                    , packageMaintainer = piMaintainer pi
+                    , packageHomepage = piHomepage pi
+                    , packageLicenseName = piLicenseName pi
+                    }
+
+            mp <- getBy $ UniquePackage $ packageName p
+            pid <- case mp of
+                Just (Entity pid _) -> do
+                    replace pid p
+                    return pid
+                Nothing -> insert p
+            deleteWhere [DepUser ==. pid]
             forM_ (mapToList $ piBasicDeps pi) $ \(uses, range) -> insert_ Dep
                 { depUser = pid
                 , depUses = display uses
@@ -238,8 +284,8 @@ addPackage e =
     renderContent txt "haddock" = renderHaddock txt
     renderContent txt _ = toHtml $ Textarea txt
 
-addPlan :: (SnapName, FilePath, Either BuildPlan DocMap) -> SqlPersistT (ResourceT IO) ()
-addPlan (name, fp, Left bp) = do
+addPlan :: SnapName -> FilePath -> BuildPlan -> SqlPersistT (ResourceT IO) ()
+addPlan name fp bp = do
     putStrLn $ "Adding build plan: " ++ toPathPiece name
     created <-
         case name of
@@ -287,7 +333,9 @@ addPlan (name, fp, Left bp) = do
     allPackages = mapToList
         $ fmap (, True) (siCorePackages $ bpSystemInfo bp)
        ++ fmap ((, False) . ppVersion) (bpPackages bp)
-addPlan (name, _, Right dm) = do
+
+addDocMap :: SnapName -> DocMap -> SqlPersistT (ResourceT IO) ()
+addDocMap name dm = do
     [sid] <- selectKeysList [SnapshotName ==. name] []
     putStrLn $ "Adding doc map: " ++ toPathPiece name
     forM_ (mapToList dm) $ \(pkg, pd) -> do

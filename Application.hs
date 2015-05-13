@@ -166,7 +166,7 @@ makeFoundation useEcho conf = do
         grRefresh websiteContent'
 
     let dbfile = "stackage.sqlite3"
-    unlessM (isFile dbfile) $ createStackageDatabase dbfile
+    createStackageDatabase dbfile
     stackageDatabase' <- openStackageDatabase dbfile
 
     env <- getEnvironment
