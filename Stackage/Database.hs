@@ -268,6 +268,7 @@ data PackageListingInfo = PackageListingInfo
     { pliName :: !Text
     , pliVersion :: !Text
     , pliSynopsis :: !Text
+    , pliIsCore :: !Bool
     }
 
 getPackages :: GetStackageDatabase m => SnapshotId -> m [PackageListingInfo]
@@ -281,10 +282,12 @@ getPackages sid = liftM (map toPLI) $ run $ do
             ( p E.^. PackageName
             , p E.^. PackageSynopsis
             , sp E.^. SnapshotPackageVersion
+            , sp E.^. SnapshotPackageIsCore
             )
   where
-    toPLI (E.Value name, E.Value synopsis, E.Value version) = PackageListingInfo
+    toPLI (E.Value name, E.Value synopsis, E.Value version, E.Value isCore) = PackageListingInfo
         { pliName = name
         , pliVersion = version
         , pliSynopsis = synopsis
+        , pliIsCore = isCore
         }

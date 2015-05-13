@@ -25,10 +25,8 @@ getStackageHomeR name = do
   where strip x = fromMaybe x (stripSuffix "." x)
 
 getStackageCabalConfigR :: SnapName -> Handler TypedContent
-getStackageCabalConfigR slug = do
-    error "getStackageCabalConfigR"
-    {-
-    Entity sid _ <- runDB $ getBy404 $ UniqueSnapshot slug
+getStackageCabalConfigR name = do
+    Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
     render <- getUrlRender
 
     mdownload <- lookupGetParam "download"
@@ -38,16 +36,14 @@ getStackageCabalConfigR slug = do
     mglobal <- lookupGetParam "global"
     let isGlobal = mglobal == Just "true"
 
-    respondSourceDB typePlain $ stream isGlobal render sid
-  where
-    stream isGlobal render sid =
-        selectSource
-            [ PackageStackage ==. sid
-            ]
-            [ Asc PackageName'
-            , Asc PackageVersion
-            ] $= (if isGlobal then conduitGlobal else conduitLocal) render
+    plis <- getPackages sid
 
+    respondSource typePlain $ yieldMany plis $=
+        if isGlobal
+            then conduitGlobal render
+            else conduitLocal render
+  where
+    -- FIXME move this stuff into stackage-common
     conduitGlobal render = do
         headerGlobal render
         mapC (Chunk . showPackageGlobal)
@@ -62,7 +58,7 @@ getStackageCabalConfigR slug = do
         toBuilder (asText "-- Stackage snapshot from: ") ++
         toBuilder (snapshotUrl render) ++
         toBuilder (asText "\n-- Please place these contents in your global cabal config file.\n-- To only use tested packages, uncomment the following line\n-- and comment out other remote-repo lines:\n-- remote-repo: stackage-") ++
-        toBuilder (toPathPiece slug) ++
+        toBuilder (toPathPiece name) ++
         toBuilder ':' ++
         toBuilder (snapshotUrl render) ++
         toBuilder '\n'
@@ -71,12 +67,12 @@ getStackageCabalConfigR slug = do
         toBuilder (asText "-- Stackage snapshot from: ") ++
         toBuilder (snapshotUrl render) ++
         toBuilder (asText "\n-- Please place this file next to your .cabal file as cabal.config\n-- To only use tested packages, uncomment the following line:\n-- remote-repo: stackage-") ++
-        toBuilder (toPathPiece slug) ++
+        toBuilder (toPathPiece name) ++
         toBuilder ':' ++
         toBuilder (snapshotUrl render) ++
         toBuilder '\n'
 
-    snapshotUrl render = asHttp $ render $ SnapshotR slug StackageHomeR
+    snapshotUrl render = asHttp $ render $ SnapshotR name StackageHomeR
 
     asHttp (stripPrefix "http://" -> Just s) = "http://" <> s
     asHttp (stripPrefix "https://" -> Just s) = "http://" <> s
@@ -84,28 +80,27 @@ getStackageCabalConfigR slug = do
     asHttp s = error $ "Unexpected url prefix: " <> unpack s
 
     constraint p
-        | Just True <- packageCore p = toBuilder $ asText " installed"
+        | pliIsCore p = toBuilder $ asText " installed"
         | otherwise = toBuilder (asText " ==") ++
-                      toBuilder (toPathPiece $ packageVersion p)
+                      toBuilder (pliVersion p)
 
-    showPackageGlobal (Entity _ p) =
+    showPackageGlobal p =
         toBuilder (asText "constraint: ") ++
-        toBuilder (toPathPiece $ packageName' p) ++
+        toBuilder (pliName p) ++
         constraint p ++
         toBuilder '\n'
 
     goFirst = do
         mx <- await
-        forM_ mx $ \(Entity _ p) -> yield $ Chunk $
+        forM_ mx $ \p -> yield $ Chunk $
             toBuilder (asText "constraints: ") ++
-            toBuilder (toPathPiece $ packageName' p) ++
+            toBuilder (pliName p) ++
             constraint p
 
-    showPackageLocal (Entity _ p) =
+    showPackageLocal p =
         toBuilder (asText ",\n             ") ++
-        toBuilder (toPathPiece $ packageName' p) ++
+        toBuilder (pliName p) ++
         constraint p
-    -}
 
 yearMonthDay :: FormatTime t => t -> String
 yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
