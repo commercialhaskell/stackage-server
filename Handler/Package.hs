@@ -50,11 +50,18 @@ packagePage mversion pname = do
     deps' <- getDeps pname'
     revdeps' <- getRevDeps pname'
     Entity _ package <- getPackage pname' >>= maybe notFound return
-    let mdocs :: Maybe (SnapName, Text, [Text])
-        mdocs = Nothing
-    {-
-    mdocs <- error "mdocs"
-    -}
+
+    mdocs <-
+        case mversion of
+            Just (sname, version) -> do
+                ms <- getPackageModules sname pname'
+                return $ Just (sname, toPathPiece version, ms)
+            Nothing ->
+                case latests of
+                    li:_ -> do
+                        ms <- getPackageModules (liSnapName li) pname'
+                        return $ Just (liSnapName li, liVersion li, ms)
+                    [] -> return Nothing
 
     let ixInFavourOf = zip [0::Int ..] inFavourOf
         displayedVersion = maybe (packageLatest package) (toPathPiece . snd) mversion

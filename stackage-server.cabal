@@ -168,7 +168,7 @@ library
                  , classy-prelude-conduit
                  , path-pieces
                  , persistent-sqlite
-                 , stackage-metadata
+                 , stackage-metadata >= 0.2
                  , filepath
 
 executable         stackage-server

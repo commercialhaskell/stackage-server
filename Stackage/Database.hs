@@ -14,6 +14,7 @@ module Stackage.Database
     , openStackageDatabase
     , ModuleListingInfo (..)
     , getSnapshotModules
+    , getPackageModules
     , SnapshotPackage (..)
     , lookupSnapshotPackage
     , getDeprecated
@@ -218,10 +219,10 @@ addPackage e =
                 , packageSynopsis = piSynopsis pi
                 , packageDescription = renderContent (piDescription pi) (piDescriptionType pi)
                 , packageChangelog = renderContent (piChangeLog pi) (piChangeLogType pi)
-                , packageAuthor = "FIXME author"
-                , packageMaintainer = "FIXME maintainer"
-                , packageHomepage = "FIXME homepage"
-                , packageLicenseName = "FIXME license name"
+                , packageAuthor = piAuthor pi
+                , packageMaintainer = piMaintainer pi
+                , packageHomepage = piHomepage pi
+                , packageLicenseName = piLicenseName pi
                 }
             forM_ (mapToList $ piBasicDeps pi) $ \(uses, range) -> insert_ Dep
                 { depUser = pid
@@ -389,6 +390,26 @@ getSnapshotModules sid = liftM (map toMLI) $ run $ do
         { mliName = name
         , mliPackageVersion = concat [pkg, "-", version]
         }
+
+getPackageModules
+    :: GetStackageDatabase m
+    => SnapName
+    -> Text
+    -> m [Text]
+getPackageModules sname pname = run $ do
+    sids <- selectKeysList [SnapshotName ==. sname] []
+    pids <- selectKeysList [PackageName ==. pname] []
+    case (,) <$> listToMaybe sids <*> listToMaybe pids of
+        Nothing -> return []
+        Just (sid, pid) -> do
+            spids <- selectKeysList
+                [ SnapshotPackageSnapshot ==. sid
+                , SnapshotPackagePackage ==. pid
+                ] []
+            case spids of
+                spid:_ -> map (moduleName . entityVal)
+                      <$> selectList [ModulePackage ==. spid] [Asc ModuleName]
+                [] -> return []
 
 lookupSnapshotPackage
     :: GetStackageDatabase m
