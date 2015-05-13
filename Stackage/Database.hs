@@ -12,8 +12,11 @@ module Stackage.Database
     , getPackages
     , createStackageDatabase
     , openStackageDatabase
+    , ModuleListingInfo (..)
+    , getSnapshotModules
     ) where
 
+import Web.PathPieces (toPathPiece)
 import qualified Codec.Archive.Tar as Tar
 import qualified Codec.Archive.Tar.Entry as Tar
 import Text.Markdown (Markdown (..))
@@ -71,6 +74,10 @@ SnapshotPackage
     isCore Bool
     version Text
     UniqueSnapshotPackage snapshot package
+Module
+    package SnapshotPackageId
+    name Text
+    UniqueModule package name
 Dep
     user PackageId
     usedBy PackageId
@@ -99,16 +106,19 @@ sourcePackages root = do
             liftIO $ runIn dir "git" ["archive", "--output", fp, "--format", "tar", "master"]
             sourceTarFile False fp
 
-sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, BuildPlan)
+sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, Either BuildPlan DocMap)
 sourceBuildPlans root = do
     forM_ ["lts-haskell", "stackage-nightly"] $ \dir -> do
         dir <- liftIO $ cloneOrUpdate root "fpco" dir
-        sourceDirectory dir =$= concatMapMC go
+        sourceDirectory dir =$= concatMapMC (go Left)
+        let docdir = dir </> "docs"
+        whenM (liftIO $ F.isDirectory docdir) $
+            sourceDirectory docdir =$= concatMapMC (go Right)
   where
-    go fp | Just name <- nameFromFP fp = liftIO $ do
+    go wrapper fp | Just name <- nameFromFP fp = liftIO $ do
         bp <- decodeFileEither (fpToString fp) >>= either throwM return
-        return $ Just (name, bp)
-    go _ = return Nothing
+        return $ Just (name, wrapper bp)
+    go _ _ = return Nothing
 
     nameFromFP fp = do
         base <- stripSuffix ".yaml" $ fpToText $ filename fp
@@ -141,6 +151,7 @@ createStackageDatabase :: MonadIO m => FilePath -> m ()
 createStackageDatabase fp = liftIO $ do
     void $ tryIO $ removeFile $ fpToString fp
     StackageDatabase pool <- openStackageDatabase fp
+    putStrLn "Initial migration"
     runSqlPool (runMigration migrateAll) pool
     root <- liftIO $ fmap (</> "database") $ fmap fpFromString $ getAppUserDataDirectory "stackage"
     F.createTree root
@@ -198,8 +209,9 @@ addPackage e =
     renderContent txt "haddock" = renderHaddock txt
     renderContent txt _ = toHtml $ Textarea txt
 
-addPlan :: (SnapName, BuildPlan) -> SqlPersistT (ResourceT IO) ()
-addPlan (name, bp) = do
+addPlan :: (SnapName, Either BuildPlan DocMap) -> SqlPersistT (ResourceT IO) ()
+addPlan (name, Left bp) = do
+    putStrLn $ "Adding build plan: " ++ toPathPiece name
     sid <- insert Snapshot
         { snapshotName = name
         , snapshotGhc = display $ siGhcVersion $ bpSystemInfo bp
@@ -231,7 +243,17 @@ addPlan (name, bp) = do
     allPackages = mapToList
         $ fmap (, True) (siCorePackages $ bpSystemInfo bp)
        ++ fmap ((, False) . ppVersion) (bpPackages bp)
-
+addPlan (name, Right dm) = do
+    [sid] <- selectKeysList [SnapshotName ==. name] []
+    putStrLn $ "Adding doc map: " ++ toPathPiece name
+    forM_ (mapToList dm) $ \(pkg, pd) -> do
+        [pid] <- selectKeysList [PackageName ==. pkg] []
+        [spid] <- selectKeysList [SnapshotPackageSnapshot ==. sid, SnapshotPackagePackage ==. pid] []
+        forM_ (mapToList $ pdModules pd) $ \(name, paths) ->
+            insert_ Module
+                { modulePackage = spid
+                , moduleName = name
+                }
 
 run :: GetStackageDatabase m => SqlPersistT IO a -> m a
 run inner = do
@@ -290,4 +312,34 @@ getPackages sid = liftM (map toPLI) $ run $ do
         , pliVersion = version
         , pliSynopsis = synopsis
         , pliIsCore = isCore
+        }
+
+data ModuleListingInfo = ModuleListingInfo
+    { mliName :: !Text
+    , mliPackageVersion :: !Text
+    }
+
+getSnapshotModules
+    :: GetStackageDatabase m
+    => SnapshotId
+    -> m [ModuleListingInfo]
+getSnapshotModules sid = liftM (map toMLI) $ run $ do
+    E.select $ E.from $ \(p,sp,m) -> do
+        E.where_ $
+            (p E.^. PackageId E.==. sp E.^. SnapshotPackagePackage) E.&&.
+            (sp E.^. SnapshotPackageSnapshot E.==. E.val sid) E.&&.
+            (m E.^. ModulePackage E.==. sp E.^. SnapshotPackageId)
+        E.orderBy
+            [ E.asc $ m E.^. ModuleName
+            , E.asc $ p E.^. PackageName
+            ]
+        return
+            ( m E.^. ModuleName
+            , p E.^. PackageName
+            , sp E.^. SnapshotPackageVersion
+            )
+  where
+    toMLI (E.Value name, E.Value pkg, E.Value version) = ModuleListingInfo
+        { mliName = name
+        , mliPackageVersion = concat [pkg, "-", version]
         }

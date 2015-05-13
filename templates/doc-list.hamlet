@@ -1,9 +1,9 @@
 <div .container>
-    <h1>Module listing for #{toPathPiece slug}
+    <h1>Module listing for #{toPathPiece name}
     <p>
-        <a href=@{SnapshotR slug StackageHomeR}>Return to snapshot
+        <a href=@{SnapshotR name StackageHomeR}>Return to snapshot
     <ul>
-        $forall (name, url, package, version) <- modules
+        $forall mli <- mlis
             <li>
-                <a href=#{url}>#{name}
-                (#{package}-#{version})
+                <a href=#{mliUrl mli}>#{mliName mli}
+                (#{mliPackageVersion mli})

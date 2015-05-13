@@ -105,77 +105,20 @@ getStackageCabalConfigR name = do
 yearMonthDay :: FormatTime t => t -> String
 yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
 
-getSnapshotPackagesR :: SnapName -> Handler Html
-getSnapshotPackagesR slug = do
-    error "getSnapshotPackagesR"
-    {-
-    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
-    defaultLayout $ do
-        setTitle $ toHtml $ "Package list for " ++ toPathPiece slug
-        cachedWidget (20 * 60) ("package-list-" ++ toPathPiece slug) $ do
-            packages' <- handlerToWidget $ runDB $ E.select $ E.from $ \(m,p) -> do
-                E.where_ $
-                    (m E.^. MetadataName E.==. p E.^. PackageName') E.&&.
-                    (p E.^. PackageStackage E.==. E.val sid)
-                E.orderBy [E.asc $ m E.^. MetadataName]
-                E.groupBy ( m E.^. MetadataName
-                          , m E.^. MetadataSynopsis
-                          )
-                return
-                    ( m E.^. MetadataName
-                    , m E.^. MetadataSynopsis
-                    , E.max_ $ E.case_
-                        [ ( p E.^. PackageHasHaddocks
-                          , p E.^. PackageVersion
-                          )
-                        ]
-                        (E.val (Version ""))
-                    )
-            let packages = flip map packages' $ \(name, syn, forceNotNull -> mversion) ->
-                    ( E.unValue name
-                    , mversion
-                    , strip $ E.unValue syn
-                    , (<$> mversion) $ \version -> HaddockR slug $ return $ concat
-                        [ toPathPiece $ E.unValue name
-                        , "-"
-                        , version
-                        ]
-                    )
-                forceNotNull (E.Value Nothing) = Nothing
-                forceNotNull (E.Value (Just (Version v)))
-                    | null v = Nothing
-                    | otherwise = Just v
-            $(widgetFile "package-list")
-  where strip x = fromMaybe x (stripSuffix "." x)
-        mback = Just (SnapshotR slug StackageHomeR, "Return to snapshot")
-    -}
+getSnapshotPackagesR :: SnapName -> Handler () -- FIXME move to OldLinks?
+getSnapshotPackagesR name = redirect $ SnapshotR name StackageHomeR
 
 getDocsR :: SnapName -> Handler Html
-getDocsR slug = do
-    error "getDocsR"
-    {-
-    Entity sid _stackage <- runDB $ getBy404 $ UniqueSnapshot slug
+getDocsR name = do
+    Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
+    mlis <- getSnapshotModules sid
+    render <- getUrlRender
+    let mliUrl mli = render $ HaddockR name
+            [ mliPackageVersion mli
+            , omap toDash (mliName mli) ++ ".html"
+            ]
+        toDash '.' = '-'
+        toDash c = c
     defaultLayout $ do
-        setTitle $ toHtml $ "Module list for " ++ toPathPiece slug
-        cachedWidget (20 * 60) ("module-list-" ++ toPathPiece slug) $ do
-            modules' <- handlerToWidget $ runDB $ E.select $ E.from $ \(d,m) -> do
-                E.where_ $
-                    (d E.^. DocsSnapshot E.==. E.val (Just sid)) E.&&.
-                    (d E.^. DocsId E.==. m E.^. ModuleDocs)
-                E.orderBy [ E.asc $ m E.^. ModuleName
-                          , E.asc $ d E.^. DocsName
-                          ]
-                return
-                    ( m E.^. ModuleName
-                    , m E.^. ModuleUrl
-                    , d E.^. DocsName
-                    , d E.^. DocsVersion
-                    )
-            let modules = flip map modules' $ \(name, url, package, version) ->
-                    ( E.unValue name
-                    , E.unValue url
-                    , E.unValue package
-                    , E.unValue version
-                    )
-            $(widgetFile "doc-list")
-            -}
+        setTitle $ toHtml $ "Module list for " ++ toPathPiece name
+        $(widgetFile "doc-list")
