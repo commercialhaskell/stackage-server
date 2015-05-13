@@ -16,7 +16,7 @@ import           Data.Streaming.Network (bindPortTCP)
 import           Data.Time (diffUTCTime)
 import qualified Database.Esqueleto as E
 import qualified Database.Persist
-import           Filesystem (getModified, removeTree)
+import           Filesystem (getModified, removeTree, isFile)
 import           Import hiding (catch)
 import           Language.Haskell.TH.Syntax (Loc(..))
 import           Network.Wai (Middleware, responseLBS)
@@ -39,7 +39,7 @@ import           System.IO (hSetBuffering, BufferMode (LineBuffering))
 import qualified Data.ByteString as S
 import qualified Data.Text as T
 import           System.Process (rawSystem)
-import           Stackage.Database (loadStackageDatabase)
+import           Stackage.Database (createStackageDatabase, openStackageDatabase)
 
 import qualified Echo
 
@@ -165,7 +165,9 @@ makeFoundation useEcho conf = do
         threadDelay $ 1000 * 1000 * 60 * 20
         grRefresh websiteContent'
 
-    stackageDatabase' <- liftIO $ loadStackageDatabase False >>= newIORef
+    let dbfile = "stackage.sqlite3"
+    unlessM (isFile dbfile) $ createStackageDatabase dbfile
+    stackageDatabase' <- openStackageDatabase dbfile
 
     env <- getEnvironment
 

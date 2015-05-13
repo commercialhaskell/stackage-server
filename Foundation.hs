@@ -37,7 +37,7 @@ data App = App
     , genIO :: MWC.GenIO
     , blobStore :: BlobStore StoreKey
     , websiteContent :: GitRepo WebsiteContent
-    , stackageDatabase :: IORef StackageDatabase
+    , stackageDatabase :: StackageDatabase
     }
 
 instance HasBlobStore App StoreKey where
@@ -276,6 +276,6 @@ getExtra = fmap (appExtra . settings) getYesod
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
 
 instance GetStackageDatabase Handler where
-    getStackageDatabase = getYesod >>= readIORef . stackageDatabase
+    getStackageDatabase = fmap stackageDatabase getYesod
 instance GetStackageDatabase (WidgetT App IO) where
-    getStackageDatabase = getYesod >>= readIORef . stackageDatabase
+    getStackageDatabase = fmap stackageDatabase getYesod

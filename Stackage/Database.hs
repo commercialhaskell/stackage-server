@@ -3,7 +3,6 @@ module Stackage.Database
     , GetStackageDatabase (..)
     , SnapName (..)
     , Snapshot (..)
-    , loadStackageDatabase
     , newestLTS
     , newestLTSMajor
     , newestNightly
@@ -11,16 +10,28 @@ module Stackage.Database
     , snapshotTitle
     , PackageListingInfo (..)
     , getPackages
+    , createStackageDatabase
+    , openStackageDatabase
     ) where
 
+import qualified Codec.Archive.Tar as Tar
+import qualified Codec.Archive.Tar.Entry as Tar
+import Text.Markdown (Markdown (..))
+import System.Directory (removeFile)
+import Stackage.Database.Haddock
+import System.FilePath (takeBaseName, takeExtension)
 import ClassyPrelude.Conduit
 import Data.Time
+import Text.Blaze.Html (Html, toHtml)
+import Yesod.Form.Fields (Textarea (..))
 import Stackage.Database.Types
 import System.Directory (getAppUserDataDirectory, getTemporaryDirectory)
 import qualified Filesystem as F
 import qualified Filesystem.Path.CurrentOS as F
 import Data.Conduit.Process
 import Stackage.Types
+import Stackage.Metadata
+import Stackage.PackageIndex.Conduit
 import Web.PathPieces (fromPathPiece)
 import Data.Yaml (decodeFileEither)
 import Database.Persist
@@ -30,6 +41,7 @@ import Control.Monad.Logger
 import Control.Concurrent (forkIO)
 import System.IO.Temp
 import qualified Database.Esqueleto as E
+import Data.Yaml (decode)
 
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Snapshot
@@ -50,6 +62,8 @@ Package
     name Text
     latest Text
     synopsis Text
+    description Html
+    changelog Html
     UniquePackage name
 SnapshotPackage
     snapshot SnapshotId
@@ -57,6 +71,14 @@ SnapshotPackage
     isCore Bool
     version Text
     UniqueSnapshotPackage snapshot package
+Dep
+    user PackageId
+    usedBy PackageId
+    range Text
+    UniqueDep user usedBy
+Deprecated
+    package PackageId
+    inFavorOf [PackageId]
 |]
 
 newtype StackageDatabase = StackageDatabase ConnectionPool
@@ -64,12 +86,23 @@ newtype StackageDatabase = StackageDatabase ConnectionPool
 class MonadIO m => GetStackageDatabase m where
     getStackageDatabase :: m StackageDatabase
 
-sourceBuildPlans :: MonadResource m => Producer m (SnapName, BuildPlan)
-sourceBuildPlans = do
-    root <- liftIO $ fmap (</> "database") $ fmap fpFromString $ getAppUserDataDirectory "stackage"
-    liftIO $ F.createTree root
+sourcePackages :: MonadResource m => FilePath -> Producer m Tar.Entry
+sourcePackages root = do
+    dir <- liftIO $ cloneOrUpdate root "commercialhaskell" "all-cabal-metadata"
+    bracketP
+        (do
+            (fp, h) <- openBinaryTempFile "/tmp" "all-cabal-metadata.tar"
+            hClose h
+            return fp)
+        removeFile
+        $ \fp -> do
+            liftIO $ runIn dir "git" ["archive", "--output", fp, "--format", "tar", "master"]
+            sourceTarFile False fp
+
+sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, BuildPlan)
+sourceBuildPlans root = do
     forM_ ["lts-haskell", "stackage-nightly"] $ \dir -> do
-        dir <- liftIO $ cloneOrUpdate root dir
+        dir <- liftIO $ cloneOrUpdate root "fpco" dir
         sourceDirectory dir =$= concatMapMC go
   where
     go fp | Just name <- nameFromFP fp = liftIO $ do
@@ -81,39 +114,89 @@ sourceBuildPlans = do
         base <- stripSuffix ".yaml" $ fpToText $ filename fp
         fromPathPiece base
 
-    cloneOrUpdate root name = do
-        exists <- F.isDirectory dest
-        if exists
-            then do
-                let run = runIn dest
-                run "git" ["fetch"]
-                run "git" ["reset", "--hard", "origin/master"]
-            else runIn root "git" ["clone", url, name]
-        return dest
-      where
-        url = "https://github.com/fpco/" ++ name ++ ".git"
-        dest = root </> fpFromString name
-
-        runIn dir cmd args =
-            withCheckedProcess cp $ \ClosedStream Inherited Inherited -> return ()
-          where
-            cp = (proc cmd args) { cwd = Just $ fpToString dir }
-
-loadStackageDatabase :: MonadIO m
-                     => Bool -- ^ block until all snapshots added?
-                     -> m StackageDatabase
-loadStackageDatabase toBlock = liftIO $ do
-    tmp <- getTemporaryDirectory
-    (fp, h) <- openBinaryTempFile "/tmp" "stackage-database.sqlite3"
-    hClose h
-    pool <- runNoLoggingT $ createSqlitePool (pack fp) 7
-    runSqlPool (runMigration migrateAll) pool
-    forker $ runResourceT $ sourceBuildPlans $$ mapM_C (flip runSqlPool pool . addPlan)
-    return $ StackageDatabase pool
+cloneOrUpdate :: FilePath -> String -> String -> IO FilePath
+cloneOrUpdate root org name = do
+    exists <- F.isDirectory dest
+    if exists
+        then do
+            let run = runIn dest
+            run "git" ["fetch"]
+            run "git" ["reset", "--hard", "origin/master"]
+        else runIn root "git" ["clone", url, name]
+    return dest
   where
-    forker
-        | toBlock = id
-        | otherwise = void . forkIO
+    url = "https://github.com/" ++ org ++ "/" ++ name ++ ".git"
+    dest = root </> fpFromString name
+
+runIn :: FilePath -> String -> [String] -> IO ()
+runIn dir cmd args =
+    withCheckedProcess cp $ \ClosedStream Inherited Inherited -> return ()
+  where
+    cp = (proc cmd args) { cwd = Just $ fpToString dir }
+
+openStackageDatabase :: MonadIO m => FilePath -> m StackageDatabase
+openStackageDatabase fp = liftIO $ fmap StackageDatabase $ runNoLoggingT $ createSqlitePool (fpToText fp) 7
+
+createStackageDatabase :: MonadIO m => FilePath -> m ()
+createStackageDatabase fp = liftIO $ do
+    void $ tryIO $ removeFile $ fpToString fp
+    StackageDatabase pool <- openStackageDatabase fp
+    runSqlPool (runMigration migrateAll) pool
+    root <- liftIO $ fmap (</> "database") $ fmap fpFromString $ getAppUserDataDirectory "stackage"
+    F.createTree root
+    runResourceT $ do
+        flip runSqlPool pool $ sourcePackages root $$ getZipSink
+            ( ZipSink (mapM_C addPackage)
+           *> ZipSink (foldlC getDeprecated [] >>= lift . mapM_ addDeprecated)
+            )
+        sourceBuildPlans root $$ mapM_C (flip runSqlPool pool . addPlan)
+
+getDeprecated :: [Deprecation] -> Tar.Entry -> [Deprecation]
+getDeprecated orig e =
+    case (Tar.entryPath e, Tar.entryContent e) of
+        ("deprecated.yaml", Tar.NormalFile lbs _) ->
+            case decode $ toStrict lbs of
+                Just x -> x
+                Nothing -> orig
+        _ -> orig
+
+addDeprecated :: Deprecation -> SqlPersistT (ResourceT IO) ()
+addDeprecated (Deprecation name others) = do
+    name' <- getPackageId name
+    others' <- mapM getPackageId $ setToList others
+    insert_ $ Deprecated name' others'
+
+getPackageId x = do
+    keys <- selectKeysList [PackageName ==. x] [LimitTo 1]
+    case keys of
+        k:_ -> return k
+        [] -> insert Package
+            { packageName = x
+            , packageLatest = "unknown"
+            , packageSynopsis = "Metadata not found"
+            , packageDescription = "Metadata not found"
+            , packageChangelog = mempty
+            }
+
+addPackage :: Tar.Entry -> SqlPersistT (ResourceT IO) ()
+addPackage e =
+    case ("packages/" `isPrefixOf` fp && takeExtension fp == ".yaml", Tar.entryContent e) of
+        (True, Tar.NormalFile lbs _) | Just pi <- decode $ toStrict lbs ->
+            insert_ Package
+                { packageName = pack base
+                , packageLatest = display $ piLatest pi
+                , packageSynopsis = piSynopsis pi
+                , packageDescription = renderContent (piDescription pi) (piDescriptionType pi)
+                , packageChangelog = renderContent (piChangeLog pi) (piChangeLogType pi)
+                }
+        _ -> return ()
+  where
+    fp = Tar.entryPath e
+    base = takeBaseName fp
+
+    renderContent txt "markdown" = toHtml $ Markdown $ fromStrict txt
+    renderContent txt "haddock" = renderHaddock txt
+    renderContent txt _ = toHtml $ Textarea txt
 
 addPlan :: (SnapName, BuildPlan) -> SqlPersistT (ResourceT IO) ()
 addPlan (name, bp) = do
@@ -127,9 +210,7 @@ addPlan (name, bp) = do
         }
     forM_ allPackages $ \(display -> name, (display -> version, isCore)) -> do
         mp <- getBy $ UniquePackage name
-        pid <- case mp of
-            Nothing -> insert $ Package name "FIXME latest version" "FIXME synopsis"
-            Just (Entity pid _) -> return pid
+        pid <- getPackageId name
         insert_ SnapshotPackage
             { snapshotPackageSnapshot = sid
             , snapshotPackagePackage = pid

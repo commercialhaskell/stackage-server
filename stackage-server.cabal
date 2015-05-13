@@ -27,6 +27,7 @@ library
                      Data.WebsiteContent
                      Types
                      Stackage.Database
+                     Stackage.Database.Haddock
                      Stackage.Database.Types
                      Handler.Home
                      Handler.Snapshots
@@ -167,6 +168,8 @@ library
                  , classy-prelude-conduit
                  , path-pieces
                  , persistent-sqlite
+                 , stackage-metadata
+                 , filepath
 
 executable         stackage-server
     if flag(library-only)
