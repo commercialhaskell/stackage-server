@@ -13,6 +13,7 @@ import Yesod.Auth as Import
 import Data.Slug (mkSlug)
 import Data.WebsiteContent as Import (WebsiteContent (..))
 import Data.Text.Read (decimal)
+import Stackage.Database (SnapName)
 
 requireAuthIdOrToken :: Handler UserId
 requireAuthIdOrToken = do
@@ -34,3 +35,15 @@ parseLtsPair t1 = do
     t3 <- stripPrefix "." t2
     (y, "") <- either (const Nothing) Just $ decimal t3
     Just (x, y)
+
+haddockUrl :: SnapName
+           -> Text -- ^ package-version
+           -> Text -- ^ module name
+           -> Route App
+haddockUrl sname pkgver name = HaddockR sname
+    [ pkgver
+    , omap toDash name ++ ".html"
+    ]
+  where
+    toDash '.' = '-'
+    toDash c = c

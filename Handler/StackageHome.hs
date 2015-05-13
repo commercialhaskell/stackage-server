@@ -113,12 +113,7 @@ getDocsR name = do
     Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
     mlis <- getSnapshotModules sid
     render <- getUrlRender
-    let mliUrl mli = render $ HaddockR name
-            [ mliPackageVersion mli
-            , omap toDash (mliName mli) ++ ".html"
-            ]
-        toDash '.' = '-'
-        toDash c = c
+    let mliUrl mli = render $ haddockUrl name (mliPackageVersion mli) (mliName mli)
     defaultLayout $ do
         setTitle $ toHtml $ "Module list for " ++ toPathPiece name
         $(widgetFile "doc-list")

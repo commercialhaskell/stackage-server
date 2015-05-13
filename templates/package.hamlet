@@ -12,7 +12,7 @@ $newline never
                     $forall (i, pn) <- ixInFavourOf
                       $if i /= 0
                         , #
-                      <a href="@{PackageR pn}">
+                      <a href="@{PackageR $ PackageName pn}">
                         #{pn}
             <h1>
                #{pn} #
@@ -25,21 +25,11 @@ $newline never
                    <a href="#{url}">
                        #{url}
 
-            $maybe (_ltsMajor,_ltsMinor,pkgVersion,ltsSlug) <- mlts
-                 <a href=@{SnapshotR ltsSlug StackageHomeR}>LTS Haskell
-                 \ (
-                 <a href=@{haddocksLink ltsSlug pkgVersion}>
-                     #{pkgVersion}
-                 )
-                $maybe _ <- mnightly
-                  , #
-
-            $maybe (_nightlyDay,ghcVersion,pkgVersion,nightlySlug) <- mnightly
-                 <a href=@{SnapshotR nightlySlug StackageHomeR}>Stackage Nightly GHC #{ghcVersion}
-                 \ (
-                 <a href=@{haddocksLink nightlySlug pkgVersion}>
-                     #{pkgVersion}
-                 )
+            $forall (idx, li) <- enumerate latests
+                 $if idx /= 0
+                    , #
+                 <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
+                    #{prettyName (liSnapName li) (liGhc li)} (#{liVersion li})
 
     <div .row>
         <div .span12>
@@ -73,7 +63,7 @@ $newline never
             <div .authorship>
                 <span .license>
                     <a href="">
-                        #{metadataLicenseName metadata} licensed #
+                        #{packageLicenseName package} licensed #
                     $if null maintainers
                         and maintained #
                 $if not (null authors)
@@ -113,7 +103,7 @@ $newline never
                                     <a href="mailto:#{renderEmail email}">
                                         #{renderEmail email}
 
-            $maybe (version, modules) <- mdocs
+            $maybe (sname, version, modules) <- mdocs
                 <div .docs>
                     <h4>
                         Module documentation for #{version}
@@ -121,20 +111,20 @@ $newline never
                         <p>There are no documented modules for this package.
                     $else
                         <ul .docs-list>
-                            $forall Module _ name url <- modules
+                            $forall mname <- modules
                                 <li>
-                                    <a href=#{url}>#{name}
+                                    <a href=@{haddockUrl sname (toPkgVer pname' version) mname}>#{mname}
 
-$if not (LT.null (LT.renderHtml (metadataReadme metadata)))
+$if not (LT.null (LT.renderHtml (packageDescription package)))
     <div .markdown-container .readme-container>
         <div .container .content>
             <div .row>
                 <div .span12 .expanding>
-                    #{metadataReadme metadata}
+                    #{packageDescription package}
                     <div .bottom-gradient>
                         <i class="fa fa-angle-down">
 
-$maybe log <- metadataChangelog metadata
+$if not (LT.null (LT.renderHtml (packageChangelog package)))
     <div .container .content>
        <div .row>
            <div .span12>
@@ -143,7 +133,7 @@ $maybe log <- metadataChangelog metadata
         <div .container>
             <div .row>
                 <div .span12 .expanding>
-                    #{log}
+                    #{packageChangelog package}
                     <div .bottom-gradient>
                         <i class="fa fa-angle-down">
 
@@ -153,19 +143,19 @@ $maybe log <- metadataChangelog metadata
             <div .dependencies #dependencies>
                 Depends on
                 <div .dep-list>
-                    $forall (i,name) <- deps
+                    $forall (i,(name, range)) <- deps
                         $if i /= 0
                             , #
-                        <a href=@{PackageR (PackageName name)}>
+                        <a href=@{PackageR $ PackageName name} title=#{range}>
                             #{name}
             $if not $ null revdeps
               <div .reverse-dependencies .expanding #reverse-dependencies>
                 Used by
                 <div .dep-list>
-                    $forall (i,name) <- revdeps
+                    $forall (i,(name, range)) <- revdeps
                         $if i /= 0
                             , #
-                        <a href=@{PackageR name}>
+                        <a href=@{PackageR $ PackageName name} title=#{range}>
                             #{name}
                 <div .bottom-gradient>
                     <i class="fa fa-angle-down">

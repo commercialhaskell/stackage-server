@@ -14,6 +14,16 @@ module Stackage.Database
     , openStackageDatabase
     , ModuleListingInfo (..)
     , getSnapshotModules
+    , SnapshotPackage (..)
+    , lookupSnapshotPackage
+    , getDeprecated
+    , LatestInfo (..)
+    , getLatests
+    , getDeps
+    , getRevDeps
+    , Package (..)
+    , getPackage
+    , prettyName
     ) where
 
 import Web.PathPieces (toPathPiece)
@@ -65,6 +75,10 @@ Package
     name Text
     latest Text
     synopsis Text
+    homepage Text
+    author Text
+    maintainer Text
+    licenseName Text
     description Html
     changelog Html
     UniquePackage name
@@ -80,12 +94,13 @@ Module
     UniqueModule package name
 Dep
     user PackageId
-    usedBy PackageId
+    uses Text -- avoid circular dependency issue when loading database
     range Text
-    UniqueDep user usedBy
+    UniqueDep user uses
 Deprecated
     package PackageId
     inFavorOf [PackageId]
+    UniqueDeprecated package
 |]
 
 newtype StackageDatabase = StackageDatabase ConnectionPool
@@ -158,12 +173,12 @@ createStackageDatabase fp = liftIO $ do
     runResourceT $ do
         flip runSqlPool pool $ sourcePackages root $$ getZipSink
             ( ZipSink (mapM_C addPackage)
-           *> ZipSink (foldlC getDeprecated [] >>= lift . mapM_ addDeprecated)
+           *> ZipSink (foldlC getDeprecated' [] >>= lift . mapM_ addDeprecated)
             )
         sourceBuildPlans root $$ mapM_C (flip runSqlPool pool . addPlan)
 
-getDeprecated :: [Deprecation] -> Tar.Entry -> [Deprecation]
-getDeprecated orig e =
+getDeprecated' :: [Deprecation] -> Tar.Entry -> [Deprecation]
+getDeprecated' orig e =
     case (Tar.entryPath e, Tar.entryContent e) of
         ("deprecated.yaml", Tar.NormalFile lbs _) ->
             case decode $ toStrict lbs of
@@ -187,18 +202,31 @@ getPackageId x = do
             , packageSynopsis = "Metadata not found"
             , packageDescription = "Metadata not found"
             , packageChangelog = mempty
+            , packageAuthor = ""
+            , packageMaintainer = ""
+            , packageHomepage = ""
+            , packageLicenseName = ""
             }
 
 addPackage :: Tar.Entry -> SqlPersistT (ResourceT IO) ()
 addPackage e =
     case ("packages/" `isPrefixOf` fp && takeExtension fp == ".yaml", Tar.entryContent e) of
-        (True, Tar.NormalFile lbs _) | Just pi <- decode $ toStrict lbs ->
-            insert_ Package
+        (True, Tar.NormalFile lbs _) | Just pi <- decode $ toStrict lbs -> do
+            pid <- insert Package
                 { packageName = pack base
                 , packageLatest = display $ piLatest pi
                 , packageSynopsis = piSynopsis pi
                 , packageDescription = renderContent (piDescription pi) (piDescriptionType pi)
                 , packageChangelog = renderContent (piChangeLog pi) (piChangeLogType pi)
+                , packageAuthor = "FIXME author"
+                , packageMaintainer = "FIXME maintainer"
+                , packageHomepage = "FIXME homepage"
+                , packageLicenseName = "FIXME license name"
+                }
+            forM_ (mapToList $ piBasicDeps pi) $ \(uses, range) -> insert_ Dep
+                { depUser = pid
+                , depUses = display uses
+                , depRange = display range
                 }
         _ -> return ()
   where
@@ -293,11 +321,14 @@ lookupSnapshot :: GetStackageDatabase m => SnapName -> m (Maybe (Entity Snapshot
 lookupSnapshot name = run $ getBy $ UniqueSnapshot name
 
 snapshotTitle :: Snapshot -> Text
-snapshotTitle s =
-    concat [base, " - GHC ", snapshotGhc s]
+snapshotTitle s = prettyName (snapshotName s) (snapshotGhc s)
+
+prettyName :: SnapName -> Text -> Text
+prettyName name ghc =
+    concat [base, " - GHC ", ghc]
   where
     base =
-        case snapshotName s of
+        case name of
             SNLts x y -> concat ["LTS Haskell ", tshow x, ".", tshow y]
             SNNightly d -> "Stackage Nightly " ++ tshow d
 
@@ -358,3 +389,91 @@ getSnapshotModules sid = liftM (map toMLI) $ run $ do
         { mliName = name
         , mliPackageVersion = concat [pkg, "-", version]
         }
+
+lookupSnapshotPackage
+    :: GetStackageDatabase m
+    => SnapshotId
+    -> Text
+    -> m (Maybe (Entity SnapshotPackage))
+lookupSnapshotPackage sid pname = run $ do
+    mp <- getBy $ UniquePackage pname
+    case mp of
+        Nothing -> return Nothing
+        Just (Entity pid _) -> getBy $ UniqueSnapshotPackage sid pid
+
+getDeprecated :: GetStackageDatabase m => Text -> m (Bool, [Text])
+getDeprecated name = run $ do
+    pids <- selectKeysList [PackageName ==. name] []
+    case pids of
+        [pid] -> do
+            mdep <- getBy $ UniqueDeprecated pid
+            case mdep of
+                Nothing -> return defRes
+                Just (Entity _ (Deprecated _ favors)) -> do
+                    names <- mapM getName favors
+                    return (True, catMaybes names)
+        _ -> return defRes
+  where
+    defRes = (False, [])
+
+    getName = fmap (fmap packageName) . get
+
+data LatestInfo = LatestInfo
+    { liSnapName :: !SnapName
+    , liVersion :: !Text
+    , liGhc :: !Text
+    }
+    deriving Show
+
+getLatests :: GetStackageDatabase m
+           => Text -- ^ package name
+           -> m [LatestInfo]
+getLatests pname = run $ do
+    mnightly <- latestHelper pname $ \s ln -> s E.^. SnapshotId E.==. ln E.^. NightlySnap
+    mlts <- latestHelper pname $ \s ln -> s E.^. SnapshotId E.==. ln E.^. LtsSnap
+    return $ concat [mnightly, mlts]
+
+latestHelper pname clause = fmap (fmap toLatest) $ E.select $ E.from $ \(s,ln,p,sp) -> do
+    E.where_ $
+        clause s ln E.&&.
+        (s E.^. SnapshotId E.==. sp E.^. SnapshotPackageSnapshot) E.&&.
+        (p E.^. PackageName E.==. E.val pname) E.&&.
+        (p E.^. PackageId E.==. sp E.^. SnapshotPackagePackage)
+    E.orderBy [E.desc $ s E.^. SnapshotCreated]
+    E.limit 1
+    return
+        ( s E.^. SnapshotName
+        , s E.^. SnapshotGhc
+        , sp E.^. SnapshotPackageVersion
+        )
+  where
+    toLatest (E.Value sname, E.Value ghc, E.Value version) = LatestInfo
+        { liSnapName = sname
+        , liVersion = version
+        , liGhc = ghc
+        }
+
+getDeps :: GetStackageDatabase m => Text -> m [(Text, Text)]
+getDeps pname = run $ do
+    Just (Entity pid _) <- getBy $ UniquePackage pname
+    fmap (map toPair) $ E.select $ E.from $ \d -> do
+        E.where_ $
+            (d E.^. DepUser E.==. E.val pid)
+        E.orderBy [E.asc $ d E.^. DepUses]
+        return (d E.^. DepUses, d E.^. DepRange)
+  where
+    toPair (E.Value x, E.Value y) = (x, y)
+
+getRevDeps :: GetStackageDatabase m => Text -> m [(Text, Text)]
+getRevDeps pname = run $ do
+    fmap (map toPair) $ E.select $ E.from $ \(d,p) -> do
+        E.where_ $
+            (d E.^. DepUses E.==. E.val pname) E.&&.
+            (d E.^. DepUser E.==. p E.^. PackageId)
+        E.orderBy [E.asc $ p E.^. PackageName]
+        return (p E.^. PackageName, d E.^. DepRange)
+  where
+    toPair (E.Value x, E.Value y) = (x, y)
+
+getPackage :: GetStackageDatabase m => Text -> m (Maybe (Entity Package))
+getPackage = run . getBy . UniquePackage

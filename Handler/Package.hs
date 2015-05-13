@@ -9,6 +9,7 @@ module Handler.Package
     , postPackageUnlikeR
     , postPackageTagR
     , postPackageUntagR
+    , packagePage
     ) where
 
 import           Data.Char
@@ -25,79 +26,65 @@ import           Formatting
 import           Import
 import qualified Text.Blaze.Html.Renderer.Text as LT
 import           Text.Email.Validate
+import Stackage.Database
 
 -- | Page metadata package.
 getPackageR :: PackageName -> Handler Html
-getPackageR pn =
-    error "getPackageR"
-    {-
-    packagePage pn Nothing (selectFirst [DocsName ==. pn] [Desc DocsUploaded])
+getPackageR = packagePage Nothing
 
-packagePage :: PackageName
-            -> Maybe Version
-            -> YesodDB App (Maybe (Entity Docs))
+packagePage :: Maybe (SnapName, Version)
+            -> PackageName
             -> Handler Html
-packagePage pn mversion getDocs = do
-    let haddocksLink ident version =
-            HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
+packagePage mversion pname = do
+    let pname' = toPathPiece pname
+    (deprecated, inFavourOf) <- getDeprecated pname'
+    latests <- getLatests pname'
+    render <- getUrlRender
     muid <- maybeAuthId
-    (mnightly, mlts, nLikes, liked,
-      Entity _ metadata, revdeps', mdocs, deprecated, inFavourOf) <- runDB $ do
-        mnightly <- getNightly pn
-        mlts <- getLts pn
-        nLikes <- count [LikePackage ==. pn]
-        let getLiked uid = (>0) <$> count [LikePackage ==. pn, LikeVoter ==. uid]
+    (nLikes, liked) <- runDB $ do
+        nLikes <- count [LikePackage ==. pname]
+        let getLiked uid = (>0) <$> count [LikePackage ==. pname, LikeVoter ==. uid]
         liked <- maybe (return False) getLiked muid
 
-
-
-        metadata <- getBy404 (UniqueMetadata pn)
-        revdeps' <- reverseDeps pn
-        mdocsent <- getDocs
-        mdocs <- forM mdocsent $ \(Entity docsid (Docs _ version _ _)) -> (,)
-            <$> pure version
-            <*> (map entityVal <$>
-                 selectList [ModuleDocs ==. docsid] [Asc ModuleName])
-        deprecated <- getDeprecated pn
-        inFavourOf <- getInFavourOf pn
-        return ( mnightly
-               , mlts
-               , nLikes
-               , liked
-               , metadata
-               , revdeps'
-               , mdocs
-               , deprecated
-               , inFavourOf
-               )
+        return (nLikes, liked)
+    deps' <- getDeps pname'
+    revdeps' <- getRevDeps pname'
+    Entity _ package <- getPackage pname' >>= maybe notFound return
+    let mdocs :: Maybe (SnapName, Text, [Text])
+        mdocs = Nothing
+    {-
+    mdocs <- error "mdocs"
+    -}
 
     let ixInFavourOf = zip [0::Int ..] inFavourOf
-        displayedVersion = fromMaybe (metadataVersion metadata) mversion
+        displayedVersion = maybe (packageLatest package) (toPathPiece . snd) mversion
 
-    myTags <- maybe (return []) (runDB . user'sTagsOf pn) muid
+    myTags <- maybe (return []) (runDB . user'sTagsOf pname) muid
     tags <- fmap (map (\(v,count') -> (v,count',any (==v) myTags)))
-                 (runDB (packageTags pn))
+                 (runDB (packageTags pname))
 
     let likeTitle = if liked
                        then "You liked this!"
                        else "I like this!" :: Text
 
-    let homepage = case T.strip (metadataHomepage metadata) of
+    let homepage = case T.strip (packageHomepage package) of
                      x | null x -> Nothing
                        | otherwise -> Just x
-        synopsis = metadataSynopsis metadata
-        deps = enumerate (metadataDeps metadata)
+        synopsis = packageSynopsis package
+        deps = enumerate deps'
         revdeps = enumerate revdeps'
-        authors = enumerate (parseIdentitiesLiberally (metadataAuthor metadata))
-        maintainers = let ms = enumerate (parseIdentitiesLiberally (metadataMaintainer metadata))
+        authors = enumerate (parseIdentitiesLiberally (packageAuthor package))
+        maintainers = let ms = enumerate (parseIdentitiesLiberally (packageMaintainer package))
                       in if ms == authors
                             then []
                             else ms
     defaultLayout $ do
-        setTitle $ toHtml pn
+        setTitle $ toHtml pname
         $(combineStylesheets 'StaticR
             [ css_font_awesome_min_css
             ])
+        let pn = pname
+            toPkgVer x y = concat [x, "-", y]
         $(widgetFile "package")
   where enumerate = zip [0::Int ..]
 
@@ -126,60 +113,6 @@ user'sTagsOf pn uid =
                                t ^. TagVoter E.==. E.val uid)
                      E.orderBy [E.asc (t ^. TagTag)]
                      return (t ^. TagTag))))
-
--- | Get reverse dependencies of a package.
-reverseDeps :: PackageName -> YesodDB App [PackageName]
-reverseDeps pn = fmap (map boilerplate) $ E.select $ E.from $ \dep -> do
-    E.where_ $ dep ^. DependencyDep E.==. E.val pn
-    E.orderBy [E.asc $ dep ^. DependencyUser]
-    return $ dep ^. DependencyUser
-  where boilerplate (E.Value e) = e
-
--- | Get the latest nightly snapshot for the given package.
-getNightly :: PackageName -> YesodDB App (Maybe (Day, Text, Version, SnapSlug))
-getNightly pn =
-  fmap (fmap boilerplate . listToMaybe)
-       (E.select (E.from query))
-  where boilerplate (E.Value a,E.Value b,E.Value c,E.Value d) =
-          (a,b,c,d)
-        query (p,n,s) =
-          do E.where_ ((p ^. PackageName' E.==. E.val pn) E.&&.
-                       (p ^. PackageStackage E.==. n ^. NightlyStackage) E.&&.
-                       (s ^. StackageId E.==. n ^. NightlyStackage))
-             E.orderBy [E.desc (n ^. NightlyDay)]
-             return (n ^. NightlyDay
-                    ,n ^. NightlyGhcVersion
-                    ,p ^. PackageVersion
-                    ,s ^. StackageSlug)
-
--- | Get the latest LTS snapshot for the given package.
-getLts :: PackageName -> YesodDB App (Maybe (Int,Int,Version,SnapSlug))
-getLts pn =
-  fmap (fmap boilerplate . listToMaybe)
-       (E.select (E.from query))
-  where boilerplate (E.Value a,Value b,Value c,Value d) =
-          (a,b,c,d)
-        query (p,n,s) =
-          do E.where_ ((p ^. PackageName' E.==. E.val pn) E.&&.
-                       (p ^. PackageStackage E.==. n ^. LtsStackage) E.&&.
-                       (s ^. StackageId E.==. n ^. LtsStackage))
-             E.orderBy [E.desc (n ^. LtsMajor),E.desc (n ^. LtsMinor)]
-             return (n ^. LtsMajor
-                    ,n ^. LtsMinor
-                    ,p ^. PackageVersion
-                    ,s ^. StackageSlug)
-
-getDeprecated :: PackageName -> YesodDB App Bool
-getDeprecated pn = fmap ((>0) . length) $ E.select $ E.from $ \d -> do
-  E.where_ $ d ^. DeprecatedPackage E.==. E.val pn
-  return ()
-
-getInFavourOf :: PackageName -> YesodDB App [PackageName]
-getInFavourOf pn = fmap unBoilerplate $ E.select $ E.from $ \s -> do
-    E.where_ $ s ^. SuggestedInsteadOf E.==. E.val pn
-    return (s ^. SuggestedPackage)
-  where
-    unBoilerplate = map (\(E.Value p) -> p)
 
 -- | An identifier specified in a package. Because this field has
 -- quite liberal requirements, we often encounter various forms. A
@@ -275,7 +208,6 @@ renderEmail = T.decodeUtf8 . toByteString
 -- | Format a number with commas nicely.
 formatNum :: Int -> Text
 formatNum = sformat commas
--}
 
 postPackageLikeR :: PackageName -> Handler ()
 postPackageLikeR packageName = maybeAuthId >>= \muid -> case muid of
