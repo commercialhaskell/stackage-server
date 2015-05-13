@@ -106,7 +106,7 @@ sourcePackages root = do
             liftIO $ runIn dir "git" ["archive", "--output", fp, "--format", "tar", "master"]
             sourceTarFile False fp
 
-sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, Either BuildPlan DocMap)
+sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, FilePath, Either BuildPlan DocMap)
 sourceBuildPlans root = do
     forM_ ["lts-haskell", "stackage-nightly"] $ \dir -> do
         dir <- liftIO $ cloneOrUpdate root "fpco" dir
@@ -117,7 +117,7 @@ sourceBuildPlans root = do
   where
     go wrapper fp | Just name <- nameFromFP fp = liftIO $ do
         bp <- decodeFileEither (fpToString fp) >>= either throwM return
-        return $ Just (name, wrapper bp)
+        return $ Just (name, fp, wrapper bp)
     go _ _ = return Nothing
 
     nameFromFP fp = do
@@ -209,16 +209,31 @@ addPackage e =
     renderContent txt "haddock" = renderHaddock txt
     renderContent txt _ = toHtml $ Textarea txt
 
-addPlan :: (SnapName, Either BuildPlan DocMap) -> SqlPersistT (ResourceT IO) ()
-addPlan (name, Left bp) = do
+addPlan :: (SnapName, FilePath, Either BuildPlan DocMap) -> SqlPersistT (ResourceT IO) ()
+addPlan (name, fp, Left bp) = do
     putStrLn $ "Adding build plan: " ++ toPathPiece name
+    created <-
+        case name of
+            SNNightly d -> return d
+            SNLts _ _ -> do
+                let cp' = proc "git"
+                        [ "log"
+                        , "--format=%ad"
+                        , "--date=short"
+                        , fpToString $ filename fp
+                        ]
+                    cp = cp' { cwd = Just $ fpToString $ directory fp }
+                t <- withCheckedProcess cp $ \ClosedStream out ClosedStream ->
+                    out $$ decodeUtf8C =$ foldC
+                case readMay $ concat $ take 1 $ words t of
+                    Just created -> return created
+                    Nothing -> do
+                        putStrLn $ "Warning: unknown git log output: " ++ tshow t
+                        return $ fromGregorian 1970 1 1
     sid <- insert Snapshot
         { snapshotName = name
         , snapshotGhc = display $ siGhcVersion $ bpSystemInfo bp
-        , snapshotCreated =
-            case name of
-                SNNightly d -> d
-                SNLts _ _ -> fromGregorian 1970 1 1 -- FIXME
+        , snapshotCreated = created
         }
     forM_ allPackages $ \(display -> name, (display -> version, isCore)) -> do
         mp <- getBy $ UniquePackage name
@@ -243,7 +258,7 @@ addPlan (name, Left bp) = do
     allPackages = mapToList
         $ fmap (, True) (siCorePackages $ bpSystemInfo bp)
        ++ fmap ((, False) . ppVersion) (bpPackages bp)
-addPlan (name, Right dm) = do
+addPlan (name, _, Right dm) = do
     [sid] <- selectKeysList [SnapshotName ==. name] []
     putStrLn $ "Adding doc map: " ++ toPathPiece name
     forM_ (mapToList dm) $ \(pkg, pd) -> do
