@@ -123,7 +123,7 @@ doUpload status uid ident bundleFP = do
             _ -> Nothing
     slug' <-
         case siType of
-            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2"]
+            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2 (1)"]
             STNightly2 day -> return $ "nightly-" ++ tshow day
             STLTS major minor -> return $ concat
                 [ "lts-"
@@ -133,7 +133,7 @@ doUpload status uid ident bundleFP = do
                 ]
     title <-
         case siType of
-            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2"]
+            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2 (2)"]
             STNightly2 day -> return $ concat
                 [ "Stackage Nightly "
                 , tshow day
@@ -238,7 +238,7 @@ finishUpload
             , stackageGhcMajorVersion = ghcMajorVersionMay
             }
         case siType of
-            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2"]
+            STNightly -> invalidArgs ["No longer support STNightly, use STNightly2 (3)"]
             STNightly2 day -> insert_ Nightly
                 { nightlyDay = day
                 , nightlyGhcVersion = ghcVersion

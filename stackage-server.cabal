@@ -168,7 +168,7 @@ library
                  , deepseq
                  , deepseq-generics
                  , auto-update
-                 , stackage-types >= 1.0.1
+                 , stackage-types >= 1.0.1.1
                  , stackage-build-plan >= 0.1.1
                  , yesod-sitemap
                  , streaming-commons
