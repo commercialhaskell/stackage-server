@@ -29,6 +29,7 @@ module Stackage.Database
     , getSnapshotsForPackage
     , getSnapshots
     , currentSchema
+    , last5Lts5Nightly
     ) where
 
 import Database.Sqlite (SqliteException)
@@ -132,6 +133,8 @@ newtype StackageDatabase = StackageDatabase ConnectionPool
 
 class MonadIO m => GetStackageDatabase m where
     getStackageDatabase :: m StackageDatabase
+instance MonadIO m => GetStackageDatabase (ReaderT StackageDatabase m) where
+    getStackageDatabase = ask
 
 sourcePackages :: MonadResource m => FilePath -> Producer m Tar.Entry
 sourcePackages root = do
@@ -601,3 +604,12 @@ getSnapshots l o = run $ (,)
     <*> fmap (map entityVal) (selectList
         []
         [LimitTo l, OffsetBy o, Desc SnapshotCreated])
+
+last5Lts5Nightly :: GetStackageDatabase m => m [SnapName]
+last5Lts5Nightly = run $ do
+    ls <- selectList [] [Desc LtsMajor, Desc LtsMinor, LimitTo 5]
+    ns <- selectList [] [Desc NightlyDay, LimitTo 5]
+    return $ map l ls ++ map n ns
+  where
+    l (Entity _ x) = SNLts (ltsMajor x) (ltsMinor x)
+    n (Entity _ x) = SNNightly (nightlyDay x)
