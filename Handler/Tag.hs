@@ -3,7 +3,7 @@ module Handler.Tag where
 import qualified Database.Esqueleto as E
 import           Data.Slug (Slug, unSlug)
 import           Import
-
+import Stackage.Database
 
 getTagListR :: Handler Html
 getTagListR = do
@@ -20,19 +20,17 @@ getTagListR = do
 
 getTagR :: Slug -> Handler Html
 getTagR tagSlug = do
-    error "getTagR"
-    {-
     -- FIXME arguably: check if this tag is banned. Leaving it as displayed for
     -- now, since someone needs to go out of their way to find it.
-    packages <- fmap (map (\(E.Value t,E.Value s) -> (t,strip s))) $ runDB $
-        E.selectDistinct $ E.from $ \(tag,meta) -> do
-            E.where_ (tag E.^. TagTag E.==. E.val tagSlug E.&&.
-                      meta E.^. MetadataName E.==. tag E.^. TagPackage)
-            E.orderBy [E.asc (tag E.^. TagPackage)]
-            return (tag E.^. TagPackage,meta E.^. MetadataSynopsis)
+    tags <- runDB $ selectList [TagTag ==. tagSlug] [Asc TagPackage]
+    packages <- fmap catMaybes $ forM tags $ \(Entity _ t) -> do
+        let pname = tagPackage t
+        mp <- getPackage $ toPathPiece pname
+        return $ case mp of
+            Nothing -> Nothing
+            Just (Entity _ p) -> Just (pname, strip $ packageSynopsis p)
     let tag = unSlug tagSlug
     defaultLayout $ do
           setTitle $ "Stackage tag"
           $(widgetFile "tag")
   where strip x = fromMaybe x (stripSuffix "." x)
-  -}
