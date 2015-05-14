@@ -32,7 +32,7 @@ script:
  - yesod keter
  - mkdir -p to-travis
  - mv stackage-server.keter to-travis
- - mv dist/build/cabal-loader-stackage/cabal-loader-stackage .
- - strip cabal-loader-stackage
- - bzip2 cabal-loader-stackage
- - mv cabal-loader-stackage.bz2 to-travis
+ - mv dist/build/stackage-server-cron/stackage-server-cron .
+ - strip stackage-server-cron
+ - bzip2 stackage-server-cron
+ - mv stackage-server-cron.bz2 to-travis
