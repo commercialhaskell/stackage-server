@@ -6,16 +6,9 @@ import Stackage.Database
 
 getStackageIndexR :: SnapName -> Handler TypedContent
 getStackageIndexR slug = do
-    error "getStackageIndexR"
-    {-
-    Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
-    let ident = stackageIdent stackage
-    msrc <- storeRead $ CabalIndex ident
-    case msrc of
-        Nothing -> notFound
-        Just src -> do
-            setEtag $ toPathPiece ident
-            addHeader "content-disposition" "attachment; filename=\"00-index.tar.gz\""
-            neverExpires
-            respondSource "application/x-gzip" $ mapOutput (Chunk . toBuilder) src
-            -}
+    -- Insecure, courtesy of cabal-install
+    redirect $ concat
+        [ "http://haddock.stackage.org/package-index/"
+        , toPathPiece slug
+        , ".tar.gz"
+        ]

@@ -155,7 +155,7 @@ library
                  , blaze-html
                  , haddock-library
                  , async
-                 , yesod-gitrepo >= 0.1.1
+                 , yesod-gitrepo >= 0.1.1 && < 0.2
                  , hoogle
                  , spoon
                  , deepseq
