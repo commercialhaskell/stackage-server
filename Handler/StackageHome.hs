@@ -7,7 +7,6 @@ module Handler.StackageHome
 
 import Import
 import Data.Time (FormatTime)
-import qualified Database.Esqueleto as E
 import Stackage.Database
 
 getStackageHomeR :: SnapName -> Handler Html
@@ -26,7 +25,7 @@ getStackageHomeR name = do
 
 getStackageCabalConfigR :: SnapName -> Handler TypedContent
 getStackageCabalConfigR name = do
-    Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
+    Entity sid _ <- lookupSnapshot name >>= maybe notFound return
     render <- getUrlRender
 
     mdownload <- lookupGetParam "download"
@@ -110,7 +109,7 @@ getSnapshotPackagesR name = redirect $ SnapshotR name StackageHomeR
 
 getDocsR :: SnapName -> Handler Html
 getDocsR name = do
-    Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
+    Entity sid _ <- lookupSnapshot name >>= maybe notFound return
     mlis <- getSnapshotModules sid
     render <- getUrlRender
     let mliUrl mli = render $ haddockUrl name (mliPackageVersion mli) (mliName mli)
