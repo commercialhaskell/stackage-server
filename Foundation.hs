@@ -1,7 +1,6 @@
 module Foundation where
 
 import           ClassyPrelude.Yesod
-import           Data.BlobStore
 import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
 import           Data.WebsiteContent
 import qualified Database.Persist
@@ -35,13 +34,9 @@ data App = App
     , persistConfig :: Settings.PersistConf
     , appLogger :: Logger
     , genIO :: MWC.GenIO
-    , blobStore :: BlobStore StoreKey
     , websiteContent :: GitRepo WebsiteContent
     , stackageDatabase :: StackageDatabase
     }
-
-instance HasBlobStore App StoreKey where
-    getBlobStore = blobStore
 
 instance HasGenIO App where
     getGenIO = genIO

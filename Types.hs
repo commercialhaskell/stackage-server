@@ -2,7 +2,6 @@ module Types where
 
 import ClassyPrelude.Yesod
 import Data.Aeson
-import Data.BlobStore (ToPath (..), BackupToS3 (..))
 import Data.Hashable (hashUsing)
 import Text.Blaze (ToMarkup)
 import Database.Persist.Sql (PersistFieldSql (sqlType))
@@ -60,51 +59,10 @@ instance PathPiece PackageNameVersion where
           where
             f c = (c == '.') || ('0' <= c && c <= '9')
 
-data StoreKey = HackageCabal !PackageName !Version
-              | HackageSdist !PackageName !Version
-              | CabalIndex !PackageSetIdent
-              | CustomSdist !PackageSetIdent !PackageName !Version
-              | SnapshotBundle !PackageSetIdent
-              | HaddockBundle !PackageSetIdent
-              | HoogleDB !PackageSetIdent !HoogleVersion
-    deriving (Show, Eq, Ord, Typeable)
-
 newtype HoogleVersion = HoogleVersion Text
     deriving (Show, Eq, Ord, Typeable, PathPiece)
 currentHoogleVersion :: HoogleVersion
 currentHoogleVersion = HoogleVersion VERSION_hoogle
-
-instance ToPath StoreKey where
-    toPath (HackageCabal name version) = ["hackage", toPathPiece name, toPathPiece version ++ ".cabal"]
-    toPath (HackageSdist name version) = ["hackage", toPathPiece name, toPathPiece version ++ ".tar.gz"]
-    toPath (CabalIndex ident) = ["cabal-index", toPathPiece ident ++ ".tar.gz"]
-    toPath (CustomSdist ident name version) =
-        [ "custom-tarball"
-        , toPathPiece ident
-        , toPathPiece name
-        , toPathPiece version ++ ".tar.gz"
-        ]
-    toPath (SnapshotBundle ident) =
-        [ "bundle"
-        , toPathPiece ident ++ ".tar.gz"
-        ]
-    toPath (HaddockBundle ident) =
-        [ "haddock"
-        , toPathPiece ident ++ ".tar.xz"
-        ]
-    toPath (HoogleDB ident ver) =
-        [ "hoogle"
-        , toPathPiece ver
-        , toPathPiece ident ++ ".hoo.gz"
-        ]
-instance BackupToS3 StoreKey where
-    shouldBackup HackageCabal{} = False
-    shouldBackup HackageSdist{} = False
-    shouldBackup CabalIndex{} = True
-    shouldBackup CustomSdist{} = True
-    shouldBackup SnapshotBundle{} = True
-    shouldBackup HaddockBundle{} = True
-    shouldBackup HoogleDB{} = True
 
 newtype HackageRoot = HackageRoot { unHackageRoot :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)

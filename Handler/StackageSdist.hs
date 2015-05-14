@@ -3,7 +3,6 @@ module Handler.StackageSdist
     ) where
 
 import Import
-import Data.BlobStore
 import Stackage.Database
 import Handler.Package (packagePage)
 

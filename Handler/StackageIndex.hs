@@ -1,7 +1,6 @@
 module Handler.StackageIndex where
 
 import Import
-import Data.BlobStore
 import Stackage.Database
 
 getStackageIndexR :: SnapName -> Handler TypedContent

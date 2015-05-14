@@ -22,7 +22,6 @@ library
                      Settings.Development
                      Data.Slug
                      Data.Tag
-                     Data.BlobStore
                      Data.GhcLinks
                      Data.WebsiteContent
                      Types

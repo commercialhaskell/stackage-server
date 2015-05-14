@@ -10,7 +10,6 @@ import qualified Aws
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (catch)
 import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
-import           Data.BlobStore (fileStore, cachedS3Store)
 import           Data.WebsiteContent
 import           Data.Streaming.Network (bindPortTCP)
 import           Data.Time (diffUTCTime)
@@ -34,7 +33,6 @@ import           Yesod.Default.Handlers
 import           Yesod.Default.Main
 import           Yesod.GitRepo
 import           System.Environment (getEnvironment)
-import           Data.BlobStore (HasBlobStore (..), BlobStore)
 import           System.IO (hSetBuffering, BufferMode (LineBuffering))
 import qualified Data.ByteString as S
 import qualified Data.Text as T
@@ -117,18 +115,6 @@ getDbConf conf =
     Database.Persist.loadConfig >>=
     Database.Persist.applyEnv
 
-loadBlobStore :: Manager -> AppConfig DefaultEnv Extra -> IO (BlobStore StoreKey)
-loadBlobStore manager conf =
-    case storeConfig $ appExtra conf of
-        BSCFile root -> return $ fileStore root
-        BSCAWS root access secret bucket prefix -> do
-            creds <- Aws.Credentials
-                <$> pure (encodeUtf8 access)
-                <*> pure (encodeUtf8 secret)
-                <*> newIORef []
-                <*> pure Nothing
-            return $ cachedS3Store root creds bucket prefix manager
-
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
 makeFoundation :: Bool -> AppConfig DefaultEnv Extra -> IO App
@@ -144,8 +130,6 @@ makeFoundation useEcho conf = do
     (getter, _) <- clockDateCacher
 
     gen <- MWC.createSystemRandom
-
-    blobStore' <- loadBlobStore manager conf
 
     websiteContent' <- if development
         then do
@@ -183,7 +167,6 @@ makeFoundation useEcho conf = do
             , persistConfig = dbconf
             , appLogger = logger
             , genIO = gen
-            , blobStore = blobStore'
             , websiteContent = websiteContent'
             , stackageDatabase = stackageDatabase'
             }
@@ -215,14 +198,11 @@ makeFoundation useEcho conf = do
 
 data CabalLoaderEnv = CabalLoaderEnv
     { cleSettings :: !(AppConfig DefaultEnv Extra)
-    , cleBlobStore :: !(BlobStore StoreKey)
     , cleManager :: !Manager
     }
 
 instance HasHackageRoot CabalLoaderEnv where
     getHackageRoot = hackageRoot . appExtra . cleSettings
-instance HasBlobStore CabalLoaderEnv StoreKey where
-    getBlobStore = cleBlobStore
 instance HasHttpManager CabalLoaderEnv where
     getHttpManager = cleManager
 

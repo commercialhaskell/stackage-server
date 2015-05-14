@@ -6,7 +6,6 @@ import           Control.Concurrent (forkIO)
 import           Crypto.Hash (Digest, SHA1)
 import           Crypto.Hash.Conduit (sinkHash)
 import           Data.Aeson (withObject)
-import           Data.BlobStore
 import qualified Data.ByteString.Base16 as B16
 import           Data.Byteable (toBytes)
 import           Data.Conduit.Zlib (gzip)
