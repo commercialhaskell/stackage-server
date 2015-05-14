@@ -3,21 +3,19 @@ module Handler.Sitemap (getSitemapR) where
 import Import
 import Yesod.Sitemap
 import qualified Data.Conduit.List as CL
-import qualified Control.Monad.State as State
+import Stackage.Database
 
 type SitemapFor a = forall m. Monad m => Conduit a m (SitemapUrl (Route App))
 type Sitemap = forall m. Monad m => Producer m (SitemapUrl (Route App))
 
 getSitemapR :: Handler TypedContent
 getSitemapR = sitemap $ do
-    error "getSitemapR"
-    {- FIXME
     priority 1.0 $ HomeR
 
-    priority 0.9 $ LtsR []
+    priority 0.9 $ OldLtsR []
     -- TODO: uncomment when this is presentable
     --priority 0.9 $ DownloadR
-    priority 0.8 $ NightlyR []
+    priority 0.8 $ OldNightlyR []
 
     priority 0.7 $ AllSnapshotsR
     priority 0.7 $ PackageListR
@@ -27,12 +25,10 @@ getSitemapR = sitemap $ do
     priority 0.6 $ InstallR
     priority 0.6 $ OlderReleasesR
 
-    url PackageCountsR
-
     runDBSource $ do
-        selectAll $= ltsSitemaps
-        selectAll $= snapshotSitemaps
-        selectAll $= packageMetadataSitemaps
+        --selectAll $= ltsSitemaps
+        return () $= snapshotSitemaps -- FIXME
+        return () $= packageMetadataSitemaps -- FIXME
         selectAll $= tagSitemaps
 
 
@@ -40,15 +36,16 @@ selectAll :: (PersistEntity val, PersistEntityBackend val ~ YesodPersistBackend 
   => Source (YesodDB App) val
 selectAll = selectSource [] [] $= CL.map entityVal
 
-ltsSitemaps :: SitemapFor Lts
-ltsSitemaps = sequenceConduits [ltsMajorSitemap, ltsSitemap] >> return ()
-
+{- FIXME
 clNub :: (Monad m, Eq a) => Conduit a m a
 clNub = evalStateC [] $ awaitForever $ \a -> do
     seen <- State.get
     unless (a `elem` seen) $ do
         State.put (a:seen)
         yield a
+
+ltsSitemaps :: SitemapFor Lts
+ltsSitemaps = sequenceConduits [ltsMajorSitemap, ltsSitemap] >> return ()
 
 ltsMajorSitemap :: SitemapFor Lts
 ltsMajorSitemap = CL.map ltsMajor =$= clNub =$= awaitForever go
@@ -62,29 +59,29 @@ ltsSitemap = awaitForever go
     go lts = url $ LtsR [slug]
       where
         slug = show' (ltsMajor lts) <> "." <> show' (ltsMinor lts)
+-}
 
-snapshotSitemaps :: SitemapFor Stackage
+snapshotSitemaps :: SitemapFor Snapshot
 snapshotSitemaps = awaitForever go
   where
     go s = do
         url' StackageHomeR
-        url' StackageMetadataR
         url' StackageCabalConfigR
         url' StackageIndexR
         url' SnapshotPackagesR
         url' DocsR
         url' HoogleR
       where
-        url' = url . SnapshotR (stackageSlug s)
+        url' = url . SnapshotR (snapshotName s)
 
-packageMetadataSitemaps :: SitemapFor Metadata
+packageMetadataSitemaps :: SitemapFor Package
 packageMetadataSitemaps = awaitForever go
   where
     go m = do
         url' PackageR
         url' PackageSnapshotsR
       where
-        url' floc = url $ floc $ metadataName m
+        url' floc = url $ floc $ PackageName $ packageName m
 
 tagSitemaps :: SitemapFor Tag
 tagSitemaps = awaitForever go
@@ -107,4 +104,3 @@ url loc = yield $ SitemapUrl
     , sitemapChangeFreq = Nothing
     , sitemapPriority = Nothing
     }
-    -}
