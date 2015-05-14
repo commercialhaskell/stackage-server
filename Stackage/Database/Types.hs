@@ -3,7 +3,6 @@ module Stackage.Database.Types
     ) where
 
 import ClassyPrelude.Conduit
-import Data.Time
 import Web.PathPieces
 import Data.Text.Read (decimal)
 import Database.Persist

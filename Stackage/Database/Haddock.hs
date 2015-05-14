@@ -2,7 +2,6 @@ module Stackage.Database.Haddock
     ( renderHaddock
     ) where
 
-import Text.Blaze.Html (unsafeByteString)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Documentation.Haddock.Parser as Haddock

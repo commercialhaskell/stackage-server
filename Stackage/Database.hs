@@ -30,19 +30,17 @@ module Stackage.Database
 import Database.Sqlite (SqliteException)
 import Web.PathPieces (toPathPiece)
 import qualified Codec.Archive.Tar as Tar
-import qualified Codec.Archive.Tar.Entry as Tar
+import Database.Esqueleto.Internal.Language (From)
 import Text.Markdown (Markdown (..))
 import System.Directory (removeFile)
 import Stackage.Database.Haddock
 import System.FilePath (takeBaseName, takeExtension)
-import ClassyPrelude.Conduit
-import Data.Time
+import ClassyPrelude.Conduit hiding (pi)
 import Text.Blaze.Html (Html, toHtml)
 import Yesod.Form.Fields (Textarea (..))
 import Stackage.Database.Types
-import System.Directory (getAppUserDataDirectory, getTemporaryDirectory)
+import System.Directory (getAppUserDataDirectory)
 import qualified Filesystem as F
-import qualified Filesystem.Path.CurrentOS as F
 import Data.Conduit.Process
 import Stackage.Types
 import Stackage.Metadata
@@ -53,7 +51,6 @@ import Database.Persist
 import Database.Persist.Sqlite
 import Database.Persist.TH
 import Control.Monad.Logger
-import Control.Concurrent (forkIO)
 import System.IO.Temp
 import qualified Database.Esqueleto as E
 import Data.Yaml (decode)
@@ -115,6 +112,18 @@ Deprecated
     UniqueDeprecated package
 |]
 
+_hideUnusedWarnings
+    :: ( SnapshotPackageId
+       , SchemaId
+       , ImportedId
+       , LtsId
+       , NightlyId
+       , ModuleId
+       , DepId
+       , DeprecatedId
+       ) -> ()
+_hideUnusedWarnings _ = ()
+
 newtype StackageDatabase = StackageDatabase ConnectionPool
 
 class MonadIO m => GetStackageDatabase m where
@@ -135,8 +144,8 @@ sourcePackages root = do
 
 sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, FilePath, Either (IO BuildPlan) (IO DocMap))
 sourceBuildPlans root = do
-    forM_ ["lts-haskell", "stackage-nightly"] $ \dir -> do
-        dir <- liftIO $ cloneOrUpdate root "fpco" dir
+    forM_ ["lts-haskell", "stackage-nightly"] $ \repoName -> do
+        dir <- liftIO $ cloneOrUpdate root "fpco" repoName
         sourceDirectory dir =$= concatMapMC (go Left)
         let docdir = dir </> "docs"
         whenM (liftIO $ F.isDirectory docdir) $
@@ -156,9 +165,9 @@ cloneOrUpdate root org name = do
     exists <- F.isDirectory dest
     if exists
         then do
-            let run = runIn dest
-            run "git" ["fetch"]
-            run "git" ["reset", "--hard", "origin/master"]
+            let git = runIn dest "git"
+            git ["fetch"]
+            git ["reset", "--hard", "origin/master"]
         else runIn root "git" ["clone", url, name]
     return dest
   where
@@ -204,15 +213,15 @@ createStackageDatabase fp = liftIO $ do
                     deleteWhere ([] :: [Filter Deprecated])
                     mapM_ addDeprecated deprs)
             )
-        sourceBuildPlans root $$ mapM_C (\(sname, fp, eval) -> flip runSqlPool pool $ do
+        sourceBuildPlans root $$ mapM_C (\(sname, fp', eval) -> flip runSqlPool pool $ do
             let (typ, action) =
                     case eval of
-                        Left bp -> ("build-plan", liftIO bp >>= addPlan sname fp)
+                        Left bp -> ("build-plan", liftIO bp >>= addPlan sname fp')
                         Right dm -> ("doc-map", liftIO dm >>= addDocMap sname)
             let i = Imported sname typ
             eres <- insertBy i
             case eres of
-                Left _ -> putStrLn $ "Skipping: " ++ fpToText fp
+                Left _ -> putStrLn $ "Skipping: " ++ fpToText fp'
                 Right _ -> action
             )
 
@@ -231,9 +240,10 @@ addDeprecated (Deprecation name others) = do
     others' <- mapM getPackageId $ setToList others
     insert_ $ Deprecated name' others'
 
+getPackageId :: MonadIO m => Text -> ReaderT SqlBackend m (Key Package)
 getPackageId x = do
-    keys <- selectKeysList [PackageName ==. x] [LimitTo 1]
-    case keys of
+    keys' <- selectKeysList [PackageName ==. x] [LimitTo 1]
+    case keys' of
         k:_ -> return k
         [] -> insert Package
             { packageName = x
@@ -310,9 +320,8 @@ addPlan name fp bp = do
         , snapshotGhc = display $ siGhcVersion $ bpSystemInfo bp
         , snapshotCreated = created
         }
-    forM_ allPackages $ \(display -> name, (display -> version, isCore)) -> do
-        mp <- getBy $ UniquePackage name
-        pid <- getPackageId name
+    forM_ allPackages $ \(display -> pname, (display -> version, isCore)) -> do
+        pid <- getPackageId pname
         insert_ SnapshotPackage
             { snapshotPackageSnapshot = sid
             , snapshotPackagePackage = pid
@@ -341,10 +350,10 @@ addDocMap name dm = do
     forM_ (mapToList dm) $ \(pkg, pd) -> do
         [pid] <- selectKeysList [PackageName ==. pkg] []
         [spid] <- selectKeysList [SnapshotPackageSnapshot ==. sid, SnapshotPackagePackage ==. pid] []
-        forM_ (mapToList $ pdModules pd) $ \(name, paths) ->
+        forM_ (mapToList $ pdModules pd) $ \(mname, _paths) ->
             insert_ Module
                 { modulePackage = spid
-                , moduleName = name
+                , moduleName = mname
                 }
 
 run :: GetStackageDatabase m => SqlPersistT IO a -> m a
@@ -502,6 +511,11 @@ getLatests pname = run $ do
     mlts <- latestHelper pname $ \s ln -> s E.^. SnapshotId E.==. ln E.^. LtsSnap
     return $ concat [mnightly, mlts]
 
+latestHelper
+    :: (From E.SqlQuery E.SqlExpr SqlBackend t, MonadIO m, Functor m)
+    => Text
+    -> (E.SqlExpr (Entity Snapshot) -> t -> E.SqlExpr (E.Value Bool))
+    -> ReaderT SqlBackend m [LatestInfo]
 latestHelper pname clause = fmap (fmap toLatest) $ E.select $ E.from $ \(s,ln,p,sp) -> do
     E.where_ $
         clause s ln E.&&.
