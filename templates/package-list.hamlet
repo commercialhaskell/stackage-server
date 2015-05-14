@@ -1,24 +1,14 @@
 <div .container .content>
     <h1>Packages
-    $maybe (back, backText) <- mback
-        <p>
-            <a href=@{back}>#{asText backText}
     <div .packages>
         <table .table>
             <thead>
                 <th>Package
-                <th>Docs
                 <th>Synopsis
             <tbody>
-                $forall (name,mversion,synopsis,mdoc) <- packages
+                $forall (name, version, synopsis) <- packages
                     <tr>
                         <td>
-                            <a href=@{PackageR name}>
-                                #{name}
-                                $maybe version <- mversion
-                                    -#{asText version}
+                            <a href=@{PackageR $ PackageName name}>#{name}-#{version}
                         <td>
-                            $maybe doc <- mdoc
-                                <a href=@{doc}>Docs
-                        <td>
-                            #{synopsis}
+                            #{strip synopsis}

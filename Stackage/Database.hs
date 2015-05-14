@@ -9,6 +9,7 @@ module Stackage.Database
     , lookupSnapshot
     , snapshotTitle
     , PackageListingInfo (..)
+    , getAllPackages
     , getPackages
     , createStackageDatabase
     , openStackageDatabase
@@ -389,6 +390,18 @@ prettyName name ghc =
         case name of
             SNLts x y -> concat ["LTS Haskell ", tshow x, ".", tshow y]
             SNNightly d -> "Stackage Nightly " ++ tshow d
+
+getAllPackages :: GetStackageDatabase m => m [(Text, Text, Text)]
+getAllPackages = liftM (map toPair) $ run $ do
+    E.select $ E.from $ \p -> do
+        E.orderBy [E.asc $ p E.^. PackageName]
+        return
+            ( p E.^. PackageName
+            , p E.^. PackageLatest
+            , p E.^. PackageSynopsis
+            )
+  where
+    toPair (E.Value x, E.Value y, E.Value z) = (x, y, z)
 
 data PackageListingInfo = PackageListingInfo
     { pliName :: !Text
