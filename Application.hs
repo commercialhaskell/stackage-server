@@ -28,7 +28,7 @@ import           Yesod.Default.Main
 import           Yesod.GitRepo
 import           System.Environment (getEnvironment)
 import           System.Process (rawSystem)
-import           Stackage.Database (createStackageDatabase, openStackageDatabase)
+import           Stackage.Database.Cron (loadFromS3)
 
 import qualified Echo
 
@@ -134,16 +134,14 @@ makeFoundation useEcho conf = do
             "master"
             loadWebsiteContent
 
+    (stackageDatabase', refreshDB) <- loadFromS3
+
     -- Temporary workaround to force content updates regularly, until
     -- distribution of webhooks is handled via consul
-    void $ forkIO $ forever $ void $ tryAny $ do
-        threadDelay $ 1000 * 1000 * 60 * 20
-        grRefresh websiteContent'
-
-    let dbfile = "stackage.sqlite3"
-    createStackageDatabase dbfile
-    stackageDatabase' <- openStackageDatabase dbfile
-    -- FIXME refresh this on a regular basis
+    void $ forkIO $ forever $ void $ do
+        handleAny print $ refreshDB manager
+        threadDelay $ 1000 * 1000 * 60 * 5
+        handleAny print $ grRefresh websiteContent'
 
     env <- getEnvironment
 

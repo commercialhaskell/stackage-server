@@ -28,6 +28,7 @@ module Stackage.Database
     , prettyName
     , getSnapshotsForPackage
     , getSnapshots
+    , currentSchema
     ) where
 
 import Database.Sqlite (SqliteException)
@@ -393,7 +394,7 @@ prettyName name ghc =
             SNLts x y -> concat ["LTS Haskell ", tshow x, ".", tshow y]
             SNNightly d -> "Stackage Nightly " ++ tshow d
 
-getAllPackages :: GetStackageDatabase m => m [(Text, Text, Text)]
+getAllPackages :: GetStackageDatabase m => m [(Text, Text, Text)] -- FIXME add information on whether included in LTS and Nightly
 getAllPackages = liftM (map toPair) $ run $ do
     E.select $ E.from $ \p -> do
         E.orderBy [E.asc $ p E.^. PackageName]

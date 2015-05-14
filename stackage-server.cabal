@@ -173,6 +173,8 @@ library
                  , persistent-sqlite
                  , stackage-metadata >= 0.2
                  , filepath
+                 , http-client
+                 , http-types
 
 executable         stackage-server
     if flag(library-only)

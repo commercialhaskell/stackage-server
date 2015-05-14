@@ -9,9 +9,12 @@ import qualified Hoogle
 import           Import
 import           Text.Blaze.Html (preEscapedToHtml)
 import Stackage.Database
+import qualified Stackage.Database.Cron as Cron
 
 getHoogleDB :: SnapName -> Handler (Maybe FilePath)
-getHoogleDB _ = return Nothing -- FIXME
+getHoogleDB name = do
+    app <- getYesod
+    liftIO $ Cron.getHoogleDB (httpManager app) name
 
 getHoogleR :: SnapName -> Handler Html
 getHoogleR name = do
