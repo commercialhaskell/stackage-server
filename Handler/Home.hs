@@ -6,8 +6,6 @@ module Handler.Home
     , getOlderReleasesR
     ) where
 
-import Data.Slug
-import Database.Esqueleto as E hiding (isNothing)
 import Import hiding ((=.),on,(||.),(==.))
 import Yesod.GitRepo (grContent)
 
