@@ -10,11 +10,12 @@ import           Import
 import           Text.Blaze.Html (preEscapedToHtml)
 import Stackage.Database
 
+getHoogleDB :: SnapName -> Handler (Maybe FilePath)
+getHoogleDB _ = return Nothing -- FIXME
+
 getHoogleR :: SnapName -> Handler Html
-getHoogleR slug = do
-    error "getHoogleR"
-    {- FIXME
-    dirs <- getDirs
+getHoogleR name = do
+    Entity _ snapshot <- lookupSnapshot name >>= maybe notFound return
     mquery <- lookupGetParam "q"
     mpage <- lookupGetParam "page"
     exact <- maybe False (const True) <$> lookupGetParam "exact"
@@ -28,11 +29,10 @@ getHoogleR slug = do
                 Just (Right (i, "")) -> i
                 _ -> 1
         offset = (page - 1) * perPage
-    Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
-    mdatabasePath <- getHoogleDB dirs stackage
+    mdatabasePath <- getHoogleDB name
     heDatabase <- case mdatabasePath of
         Just x -> return $ liftIO $ Hoogle.loadDatabase $ fpToString x
-        Nothing -> hoogleDatabaseNotAvailableFor slug
+        Nothing -> hoogleDatabaseNotAvailableFor name
 
     mresults <- case mquery of
         Just query -> runHoogleQuery heDatabase HoogleQueryInput
@@ -43,36 +43,31 @@ getHoogleR slug = do
             }
         Nothing -> return $ HoogleQueryOutput "" [] Nothing
     let queryText = fromMaybe "" mquery
-        pageLink p = (SnapshotR slug HoogleR
+        pageLink p = (SnapshotR name HoogleR
             , (if exact then (("exact", "true"):) else id)
             $ (maybe id (\q' -> (("q", q'):)) mquery)
               [("page", tshow p)])
-        snapshotLink = SnapshotR slug StackageHomeR
+        snapshotLink = SnapshotR name StackageHomeR
         hoogleForm = $(widgetFile "hoogle-form")
     defaultLayout $ do
         setTitle "Hoogle Search"
         $(widgetFile "hoogle")
-    -}
 
 getHoogleDatabaseR :: SnapName -> Handler Html
-getHoogleDatabaseR slug = do
-    error "getHoogleDatabaseR"
-    {-
-    dirs <- getDirs
-    Entity _ stackage <- runDB $ getBy404 $ UniqueSnapshot slug
-    mdatabasePath <- getHoogleDB dirs stackage
+getHoogleDatabaseR name = do
+    mdatabasePath <- getHoogleDB name
     case mdatabasePath of
-        Nothing -> hoogleDatabaseNotAvailableFor slug
+        Nothing -> hoogleDatabaseNotAvailableFor name
         Just path -> sendFile "application/octet-stream" $ fpToString path
 
-hoogleDatabaseNotAvailableFor :: SnapSlug -> Handler a
-hoogleDatabaseNotAvailableFor slug = (>>= sendResponse) $ defaultLayout $ do
+hoogleDatabaseNotAvailableFor :: SnapName -> Handler a
+hoogleDatabaseNotAvailableFor name = (>>= sendResponse) $ defaultLayout $ do
     setTitle "Hoogle database not available"
     [whamlet|
         <div .container>
             <p>The given Hoogle database is not available.
             <p>
-                <a href=@{SnapshotR slug StackageHomeR}>Return to snapshot homepage
+                <a href=@{SnapshotR name StackageHomeR}>Return to snapshot homepage
     |]
 
 getPageCount :: Int -> Int
@@ -170,4 +165,3 @@ runHoogleQuery heDatabase HoogleQueryInput {..} =
             modu' = ModuleLink moduname modu
         return $ asMap $ singletonMap pkg' [modu']
     getPkgModPair _ = Nothing
-    -}

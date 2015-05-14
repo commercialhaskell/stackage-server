@@ -1,7 +1,7 @@
 <div .container>
     <div .content>
         <h1>Hoogle Search (experimental)
-        <p>Within <a href=@{snapshotLink}>#{stackageTitle stackage}</a>
+        <p>Within <a href=@{snapshotLink}>#{snapshotTitle snapshot}</a>
         ^{hoogleForm}
         $case mresults
             $of HoogleQueryBad err
