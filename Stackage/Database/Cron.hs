@@ -12,6 +12,16 @@ import Filesystem (rename)
 import Web.PathPieces (toPathPiece)
 import Filesystem (isFile)
 import Network.HTTP.Types (status200)
+import           Network.AWS                   (Credentials (Discover),
+                                                Region (NorthVirginia), getEnv,
+                                                send, sourceFileIO)
+import           Network.AWS.S3                (ObjectCannedACL (PublicRead),
+                                                poACL,
+                                                putObject)
+import Control.Lens (set)
+import qualified Data.Conduit.Binary as CB
+import           Data.Conduit.Zlib             (WindowBits (WindowBits),
+                                                compress)
 
 filename' :: Text
 filename' = concat
@@ -24,12 +34,16 @@ keyName :: Text
 keyName = "stackage-database/" ++ filename'
 
 url :: Text
-url = "https://s3.amazonaws.com/haddock.stackage.org/" ++ keyName
+url = concat
+    [ "https://s3.amazonaws.com/haddock.stackage.org/"
+    , keyName
+    , ".gz"
+    ]
 
 -- | Provides an action to be used to refresh the file from S3.
 loadFromS3 :: IO (StackageDatabase, Manager -> IO ())
 loadFromS3 = do
-    let fp = fpFromText filename'
+    let fp = fpFromText keyName
         fptmp = fp <.> "tmp"
     req <- parseUrl $ unpack url
     let download man = withResponse req man $ \res -> do
@@ -39,10 +53,6 @@ loadFromS3 = do
             rename fptmp fp
     db <- openStackageDatabase fp
     return (db, download)
-
-stackageServerCron :: IO ()
-stackageServerCron = error "FIXME: stackageServerCron not implemented"
-
 
 hoogleKey :: SnapName -> Text
 hoogleKey name = concat
@@ -54,7 +64,11 @@ hoogleKey name = concat
     ]
 
 hoogleUrl :: SnapName -> Text
-hoogleUrl n = "https://s3.amazonaws.com/haddock.stackage.org/" ++ hoogleKey n
+hoogleUrl n = concat
+    [ "https://s3.amazonaws.com/haddock.stackage.org/"
+    , hoogleKey n
+    , ".gz"
+    ]
 
 getHoogleDB :: Manager -> SnapName -> IO (Maybe FilePath)
 getHoogleDB man name = do
@@ -75,6 +89,27 @@ getHoogleDB man name = do
                 else do
                     mapM brRead res >>= print
                     return Nothing
+
+stackageServerCron :: IO ()
+stackageServerCron = do
+    env <- getEnv NorthVirginia Discover
+    let upload fp key = do
+            let fpgz = fpToString $ fp <.> "gz"
+            runResourceT $ sourceFile fp
+                        $$ compress 9 (WindowBits 31)
+                        =$ CB.sinkFile fpgz
+            body <- sourceFileIO fpgz
+            let po = 
+                      set poACL (Just PublicRead)
+                   $  putObject body "haddock.stackage.org" key
+            eres <- runResourceT $ send env po
+            case eres of
+                Left e -> error $ show (fp, key, e)
+                Right _ -> return ()
+
+    let dbfp = fpFromText keyName
+    createStackageDatabase dbfp
+    upload dbfp keyName
 
 {-
     createStackageDatabase dbfile

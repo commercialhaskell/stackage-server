@@ -175,6 +175,10 @@ library
                  , filepath
                  , http-client
                  , http-types
+                 , amazonka
+                 , amazonka-core
+                 , amazonka-s3
+                 , lens
 
 executable         stackage-server
     if flag(library-only)
