@@ -26,6 +26,7 @@ module Stackage.Database
     , Package (..)
     , getPackage
     , prettyName
+    , getSnapshotsForPackage
     ) where
 
 import Database.Sqlite (SqliteException)
@@ -573,3 +574,17 @@ getRevDeps pname = run $ do
 
 getPackage :: GetStackageDatabase m => Text -> m (Maybe (Entity Package))
 getPackage = run . getBy . UniquePackage
+
+getSnapshotsForPackage
+    :: GetStackageDatabase m
+    => Text
+    -> m [(Snapshot, Text)] -- version
+getSnapshotsForPackage pname = run $ do
+    pid <- getPackageId pname
+    sps <- selectList [SnapshotPackagePackage ==. pid] []
+    fmap catMaybes $ forM sps $ \(Entity _ sp) -> do
+        let sid = snapshotPackageSnapshot sp
+        ms <- get sid
+        return $ case ms of
+            Nothing -> Nothing
+            Just s -> Just (s, snapshotPackageVersion sp)

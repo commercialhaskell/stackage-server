@@ -10,13 +10,9 @@ $newline never
                         Package
                     <th>
                         Snapshot
-                $forall (version, title, slug, hasHaddocks) <- snapshots
+                $forall (snapshot, version) <- snapshots
                     <tr>
-                        <td>
-                            $if hasHaddocks
-                              <a href=@{haddocksLink slug version}>
-                                  Docs
                         <td>
                             #{version}
                         <td>
-                            <a href=@{SnapshotR slug StackageHomeR}>#{fromMaybe title $ stripSuffix ", exclusive" title}
+                            <a href=@{SnapshotR (snapshotName snapshot) $ StackageSdistR $ PNVName pn}>#{snapshotTitle snapshot}

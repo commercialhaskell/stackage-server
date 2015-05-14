@@ -19,7 +19,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as LT
 
-import           Database.Esqueleto ((^.), (&&.), Value (Value))
+import           Database.Esqueleto ((^.))
 import qualified Database.Esqueleto as E
 import qualified Database.Persist as P
 import           Formatting
@@ -39,7 +39,6 @@ packagePage mversion pname = do
     let pname' = toPathPiece pname
     (deprecated, inFavourOf) <- getDeprecated pname'
     latests <- getLatests pname'
-    render <- getUrlRender
     muid <- maybeAuthId
     (nLikes, liked) <- runDB $ do
         nLikes <- count [LikePackage ==. pname]
@@ -212,10 +211,6 @@ parseChunk chunk =
 renderEmail :: EmailAddress -> Text
 renderEmail = T.decodeUtf8 . toByteString
 
--- | Format a number with commas nicely.
-formatNum :: Int -> Text
-formatNum = sformat commas
-
 postPackageLikeR :: PackageName -> Handler ()
 postPackageLikeR packageName = maybeAuthId >>= \muid -> case muid of
     Nothing -> return ()
@@ -258,31 +253,10 @@ postPackageUntagR packageName =
              Nothing -> error "Need a slug"
 
 getPackageSnapshotsR :: PackageName -> Handler Html
-getPackageSnapshotsR pn = error "getPackageSnapshotsR"
-{-
-  do let haddocksLink ident version =
-             HaddockR ident [concat [toPathPiece pn, "-", toPathPiece version]]
-     snapshots <- (runDB .
-                   fmap (map reformat) .
-                   E.select . E.from)
-                    (\(p,s) ->
-                       do E.where_ $
-                            (p ^. PackageStackage E.==. s ^. StackageId) &&.
-                            (p ^. PackageName' E.==. E.val pn)
-                          E.orderBy [E.desc $ s ^. StackageUploaded]
-                          return
-                            (p ^. PackageVersion
-                            ,s ^. StackageTitle
-                            ,s ^. StackageSlug
-                            ,s ^. StackageHasHaddocks))
+getPackageSnapshotsR pn =
+  do snapshots <- getSnapshotsForPackage $ toPathPiece pn
      defaultLayout
        (do setTitle ("Packages for " >> toHtml pn)
            $(combineStylesheets 'StaticR
                                 [css_font_awesome_min_css])
            $(widgetFile "package-snapshots"))
-  where reformat (Value version,Value title,Value ident,Value hasHaddocks) =
-          (version
-          ,fromMaybe title (stripPrefix "Stackage build for " title)
-          ,ident
-          ,hasHaddocks)
-          -}
