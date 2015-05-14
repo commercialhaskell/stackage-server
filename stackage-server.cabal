@@ -25,9 +25,13 @@ library
                      Data.GhcLinks
                      Data.WebsiteContent
                      Types
+
+                     -- once stabilized, will likely move into its own package
                      Stackage.Database
                      Stackage.Database.Haddock
                      Stackage.Database.Types
+                     Stackage.Database.Cron
+
                      Handler.Home
                      Handler.Snapshots
                      Handler.Profile
@@ -182,15 +186,13 @@ executable         stackage-server
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
 
-executable         cabal-loader-stackage
+executable         stackage-server-cron
     if flag(library-only)
         Buildable: False
 
-    main-is:           cabal-loader.hs
+    main-is:           stackage-server-cron.hs
     hs-source-dirs:    app
-    build-depends:     base
-                     , stackage-server
-                     , yesod
+    build-depends:     base, stackage-server
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
 

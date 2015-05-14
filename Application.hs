@@ -3,19 +3,13 @@ module Application
     ( makeApplication
     , getApplicationDev
     , makeFoundation
-    , cabalLoaderMain
     ) where
 
-import qualified Aws
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (catch)
-import           Control.Monad.Logger (runLoggingT, LoggingT, defaultLogStr)
+import           Control.Monad.Logger (runLoggingT)
 import           Data.WebsiteContent
-import           Data.Streaming.Network (bindPortTCP)
-import           Data.Time (diffUTCTime)
-import qualified Database.Esqueleto as E
 import qualified Database.Persist
-import           Filesystem (getModified, removeTree, isFile)
 import           Import hiding (catch)
 import           Language.Haskell.TH.Syntax (Loc(..))
 import           Network.Wai (Middleware, responseLBS)
@@ -33,9 +27,6 @@ import           Yesod.Default.Handlers
 import           Yesod.Default.Main
 import           Yesod.GitRepo
 import           System.Environment (getEnvironment)
-import           System.IO (hSetBuffering, BufferMode (LineBuffering))
-import qualified Data.ByteString as S
-import qualified Data.Text as T
 import           System.Process (rawSystem)
 import           Stackage.Database (createStackageDatabase, openStackageDatabase)
 
@@ -152,11 +143,9 @@ makeFoundation useEcho conf = do
     let dbfile = "stackage.sqlite3"
     createStackageDatabase dbfile
     stackageDatabase' <- openStackageDatabase dbfile
+    -- FIXME refresh this on a regular basis
 
     env <- getEnvironment
-
-    let runDB' :: (MonadIO m, MonadBaseControl IO m) => SqlPersistT m a -> m a
-        runDB' = flip (Database.Persist.runPool dbconf) p
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
@@ -171,8 +160,6 @@ makeFoundation useEcho conf = do
             , stackageDatabase = stackageDatabase'
             }
 
-    let urlRender' = yesodRender foundation (appRoot conf)
-
     -- Perform database migration using our application's logging settings.
     when (lookup "STACKAGE_SKIP_MIGRATION" env /= Just "1") $
         runResourceT $
@@ -185,78 +172,7 @@ makeFoundation useEcho conf = do
             checkMigration 2 setCorePackages
             -}
 
-
-    let updateDB = lookup "STACKAGE_CABAL_LOADER" env /= Just "0"
-        hoogleGen = lookup "STACKAGE_HOOGLE_GEN" env /= Just "0"
-        forceUpdate = lookup "STACKAGE_FORCE_UPDATE" env == Just "1"
-
     return foundation
-  where ifRunCabalLoader m =
-            if cabalFileLoader
-               then void m
-               else return ()
-
-data CabalLoaderEnv = CabalLoaderEnv
-    { cleSettings :: !(AppConfig DefaultEnv Extra)
-    , cleManager :: !Manager
-    }
-
-instance HasHackageRoot CabalLoaderEnv where
-    getHackageRoot = hackageRoot . appExtra . cleSettings
-instance HasHttpManager CabalLoaderEnv where
-    getHttpManager = cleManager
-
-cabalLoaderMain :: IO ()
-cabalLoaderMain = do
-    -- Hacky approach instead of PID files
-    void $ catchIO (bindPortTCP 17834 "127.0.0.1") $ \_ ->
-        error $ "cabal loader process already running, exiting"
-
-    error "cabalLoaderMain"
-    {- FIXME
-    conf <- fromArgs parseExtra
-    dbconf <- getDbConf conf
-    pool <- Database.Persist.createPoolConfig dbconf
-    manager <- newManager
-    bs <- loadBlobStore manager conf
-    hSetBuffering stdout LineBuffering
-    env <- getEnvironment
-    let forceUpdate = lookup "STACKAGE_FORCE_UPDATE" env == Just "1"
-    flip runLoggingT logFunc $ appLoadCabalFiles
-        True -- update database?
-        forceUpdate
-        CabalLoaderEnv
-            { cleSettings = conf
-            , cleBlobStore = bs
-            , cleManager = manager
-            }
-        dbconf
-        pool
-
-    let foundation = App
-            { settings = conf
-            , getStatic = error "getStatic"
-            , connPool = pool
-            , httpManager = manager
-            , persistConfig = dbconf
-            , appLogger = error "appLogger"
-            , genIO = error "genIO"
-            , blobStore = bs
-            , haddockRootDir = error "haddockRootDir"
-            , appDocUnpacker = error "appDocUnpacker"
-            , widgetCache = error "widgetCache"
-            , websiteContent = error "websiteContent"
-            }
-    createHoogleDatabases
-        bs
-        (flip (Database.Persist.runPool dbconf) pool)
-        putStrLn
-        (yesodRender foundation (appRoot conf))
-  where
-    logFunc loc src level str
-        | level > LevelDebug = S.hPutStr stdout $ fromLogStr $ defaultLogStr loc src level str
-        | otherwise = return ()
-        -}
 
 -- for yesod devel
 getApplicationDev :: Bool -> IO (Int, Application)
@@ -267,11 +183,11 @@ getApplicationDev useEcho =
         { csParseExtra = parseExtra
         }
 
-checkMigration :: MonadIO m
-               => Int
-               -> ReaderT SqlBackend m ()
-               -> ReaderT SqlBackend m ()
-checkMigration num f = do
+_checkMigration :: MonadIO m
+                => Int
+                -> ReaderT SqlBackend m ()
+                -> ReaderT SqlBackend m ()
+_checkMigration num f = do
     eres <- insertBy $ Migration num
     case eres of
         Left _ -> return ()
