@@ -61,4 +61,4 @@ $newline never
                                 #{pliName pli}
                                 -#{pliVersion pli}
                         <td>
-                            #{pliSynopsis pli}
+                            #{strip $ pliSynopsis pli}

@@ -27,6 +27,7 @@ module Stackage.Database
     , getPackage
     , prettyName
     , getSnapshotsForPackage
+    , getSnapshots
     ) where
 
 import Database.Sqlite (SqliteException)
@@ -588,3 +589,14 @@ getSnapshotsForPackage pname = run $ do
         return $ case ms of
             Nothing -> Nothing
             Just s -> Just (s, snapshotPackageVersion sp)
+
+getSnapshots
+    :: GetStackageDatabase m
+    => Int -- ^ limit
+    -> Int -- ^ offset
+    -> m (Int, [Snapshot])
+getSnapshots l o = run $ (,)
+    <$> count ([] :: [Filter Snapshot])
+    <*> fmap (map entityVal) (selectList
+        []
+        [LimitTo l, OffsetBy o, Desc SnapshotCreated])

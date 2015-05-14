@@ -3,10 +3,10 @@
 module Handler.Snapshots where
 
 import           Data.Time.Clock
-import qualified Database.Esqueleto as E
 import           Formatting
 import           Formatting.Time
 import           Import
+import Stackage.Database
 
 snapshotsPerPage :: Integral a => a
 snapshotsPerPage = 50
@@ -20,27 +20,14 @@ snapshotsPerPage = 50
 -- inclined, or create a single monolithic file.
 getAllSnapshotsR :: Handler Html
 getAllSnapshotsR = do
-    error "getAllSnapshotsR"
-    {-
     now' <- liftIO getCurrentTime
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int
         currentPage = fromMaybe 1 (currentPageMay >>= readMay)
-    (totalCount, groups) <- fmap (groupUp now') $ runDB $ do
-        c <- count ([] :: [Filter Stackage])
-        rs <- E.select $ E.from $ \(stackage `E.InnerJoin` user) -> do
-            E.on (stackage E.^. StackageUser E.==. user E.^. UserId)
-            E.orderBy [E.desc $ stackage E.^. StackageUploaded]
-            E.limit snapshotsPerPage
-            E.offset ((fromIntegral currentPage - 1) * snapshotsPerPage)
-            return
-                ( stackage E.^. StackageSlug
-                , stackage E.^. StackageTitle
-                , stackage E.^. StackageUploaded
-                , user E.^. UserDisplay
-                , user E.^. UserHandle
-                )
-        return (c, rs)
+    (totalCount, snapshots) <- getSnapshots
+        snapshotsPerPage
+        ((fromIntegral currentPage - 1) * snapshotsPerPage)
+    let groups = groupUp now' snapshots
 
     let isFirstPage = currentPage == 1
         isLastPage = currentPage * snapshotsPerPage >= totalCount
@@ -49,8 +36,13 @@ getAllSnapshotsR = do
         setTitle "Stackage Server"
         let snapshotsNav = $(widgetFile "snapshots-nav")
         $(widgetFile "all-snapshots")
-  where uncrapify now' c =
-            let (E.Value ident, E.Value title, E.Value uploaded, E.Value display, E.Value handle') = c
-            in (ident,title,format (diff True) (diffUTCTime uploaded now'),display,handle')
-        groupUp now' (c, rs) = (c, (groupBy (on (==) (\(_,_,uploaded,_,_) -> uploaded)) . map (uncrapify now')) rs)
-        -}
+  where uncrapify now' snapshot =
+            ( snapshotName snapshot
+            , snapshotTitle snapshot
+            , format (diff True)
+                $ diffUTCTime
+                    (UTCTime (snapshotCreated snapshot) 0)
+                    now'
+            )
+        groupUp now' = groupBy (on (==) (\(_,_,uploaded) -> uploaded))
+                     . map (uncrapify now')

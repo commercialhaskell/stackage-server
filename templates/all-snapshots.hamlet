@@ -3,15 +3,13 @@
         <h1>Snapshots
         ^{snapshotsNav}
         $forall stackages <- groups
-            $forall (_, _, uploaded, _, _) <- take 1 stackages
+            $forall (_, _, uploaded) <- take 1 stackages
                 <h3>
                     #{uploaded}
             <ul .snapshots>
-                $forall (ident, title, _uploaded, display, handle) <- stackages
+                $forall (ident, title, _uploaded) <- stackages
                     <li>
                         <strong>
                             <a href=@{SnapshotR ident StackageHomeR}>
                                 #{title}
-                        <p>
-                            #{display} (#{handle})
         ^{snapshotsNav}
