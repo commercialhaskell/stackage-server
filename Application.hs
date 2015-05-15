@@ -134,13 +134,13 @@ makeFoundation useEcho conf = do
             "master"
             loadWebsiteContent
 
-    (stackageDatabase', refreshDB) <- loadFromS3
+    (stackageDatabase', refreshDB) <- loadFromS3 manager
 
     -- Temporary workaround to force content updates regularly, until
     -- distribution of webhooks is handled via consul
     void $ forkIO $ forever $ void $ do
-        handleAny print $ refreshDB manager
         threadDelay $ 1000 * 1000 * 60 * 5
+        handleAny print refreshDB
         handleAny print $ grRefresh websiteContent'
 
     env <- getEnvironment

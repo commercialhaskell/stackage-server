@@ -5,6 +5,7 @@ module Stackage.Database.Cron
     ) where
 
 import ClassyPrelude.Conduit
+import Control.Concurrent (threadDelay)
 import Stackage.PackageIndex.Conduit
 import Database.Persist (Entity (Entity))
 import Data.Char (isAlpha)
@@ -28,7 +29,7 @@ import           Network.AWS.S3                (ObjectCannedACL (PublicRead),
 import Control.Lens (set, view)
 import qualified Data.Conduit.Binary as CB
 import           Data.Conduit.Zlib             (WindowBits (WindowBits),
-                                                compress)
+                                                compress, ungzip)
 import qualified Hoogle
 
 filename' :: Text
@@ -45,23 +46,53 @@ url :: Text
 url = concat
     [ "https://s3.amazonaws.com/haddock.stackage.org/"
     , keyName
-    , ".gz"
     ]
 
 -- | Provides an action to be used to refresh the file from S3.
-loadFromS3 :: IO (StackageDatabase, Manager -> IO ())
-loadFromS3 = do
-    let fp = fpFromText keyName
-        fptmp = fp <.> "tmp"
+loadFromS3 :: Manager -> IO (IO StackageDatabase, IO ())
+loadFromS3 man = do
+    killPrevVar <- newTVarIO $ return ()
+    currSuffixVar <- newTVarIO (1 :: Int)
+
+    let root = "stackage-database"
+    handleIO print $ removeTree root
+    createTree root
+
     req <- parseUrl $ unpack url
-    let download man = withResponse req man $ \res -> do
-            createTree $ parent fptmp
-            runResourceT
-                 $ bodyReaderSource (responseBody res)
-                $$ sinkFile fptmp
-            rename fptmp fp
-    db <- openStackageDatabase fp
-    return (db, download)
+    let download = do
+            suffix <- atomically $ do
+                x <- readTVar currSuffixVar
+                writeTVar currSuffixVar $! x + 1
+                return x
+
+            let fp = root </> fpFromText ("database-download-" ++ tshow suffix)
+            putStrLn $ "Downloading database to " ++ fpToText fp
+            withResponse req man $ \res ->
+                runResourceT
+                     $ bodyReaderSource (responseBody res)
+                    $= ungzip
+                    $$ sinkFile fp
+            putStrLn "Finished downloading database"
+
+            return fp
+
+    dbvar <- newTVarIO $ error "database not yet loaded"
+
+    let update = do
+            fp <- download
+            db <- openStackageDatabase fp
+            void $ tryIO $ join $ atomically $ do
+                writeTVar dbvar db
+                oldKill <- readTVar killPrevVar
+                writeTVar killPrevVar $ do
+                    -- give existing users a chance to clean up
+                    threadDelay $ 1000000 * 30
+                    void $ tryIO $ removeFile fp
+                return oldKill
+
+    update
+
+    return (readTVarIO dbvar, update)
 
 hoogleKey :: SnapName -> Text
 hoogleKey name = concat
@@ -128,7 +159,7 @@ stackageServerCron = do
     createStackageDatabase dbfp
     upload dbfp keyName
 
-    (db, _) <- loadFromS3
+    db <- openStackageDatabase dbfp
     names <- runReaderT last5Lts5Nightly db
     let manager = view envManager env
     forM_ names $ \name -> do

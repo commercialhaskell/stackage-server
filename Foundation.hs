@@ -35,7 +35,7 @@ data App = App
     , appLogger :: Logger
     , genIO :: MWC.GenIO
     , websiteContent :: GitRepo WebsiteContent
-    , stackageDatabase :: StackageDatabase
+    , stackageDatabase :: IO StackageDatabase
     }
 
 instance HasGenIO App where
@@ -271,6 +271,6 @@ getExtra = fmap (appExtra . settings) getYesod
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
 
 instance GetStackageDatabase Handler where
-    getStackageDatabase = fmap stackageDatabase getYesod
+    getStackageDatabase = getYesod >>= liftIO . stackageDatabase
 instance GetStackageDatabase (WidgetT App IO) where
-    getStackageDatabase = fmap stackageDatabase getYesod
+    getStackageDatabase = getYesod >>= liftIO . stackageDatabase
