@@ -66,6 +66,7 @@ currentSchema = 1
 share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
 Schema
     val Int
+    deriving Show
 Imported
     name SnapName
     type Text
@@ -194,24 +195,30 @@ getSchema :: FilePath -> IO (Maybe Int)
 getSchema fp = do
     StackageDatabase pool <- openStackageDatabase fp
     eres <- try $ runSqlPool (selectList [] []) pool
+    putStrLn $ "getSchema result: " ++ tshow eres
     case eres :: Either SqliteException [Entity Schema] of
         Right [Entity _ (Schema v)] -> return $ Just v
         _ -> return Nothing
 
 createStackageDatabase :: MonadIO m => FilePath -> m ()
 createStackageDatabase fp = liftIO $ do
+    putStrLn "Entering createStackageDatabase"
     actualSchema <- getSchema fp
-    when (actualSchema /= Just currentSchema)
-        $ void $ tryIO $ removeFile $ fpToString fp
+    let schemaMatch = actualSchema == Just currentSchema
+    unless schemaMatch $ do
+        putStrLn $ "Current schema does not match actual schema: " ++ tshow (actualSchema, currentSchema)
+        putStrLn $ "Deleting " ++ fpToText fp
+        void $ tryIO $ removeFile $ fpToString fp
 
     StackageDatabase pool <- openStackageDatabase fp
-    putStrLn "Initial migration"
     flip runSqlPool pool $ do
         runMigration migrateAll
-        insert_ $ Schema currentSchema
+        unless schemaMatch $ insert_ $ Schema currentSchema
+
     root <- liftIO $ fmap (</> "database") $ fmap fpFromString $ getAppUserDataDirectory "stackage"
     F.createTree root
     runResourceT $ do
+        putStrLn "Updating all-cabal-metadata repo"
         flip runSqlPool pool $ sourcePackages root $$ getZipSink
             ( ZipSink (mapM_C addPackage)
            *> ZipSink (do
@@ -219,6 +226,18 @@ createStackageDatabase fp = liftIO $ do
                 lift $ do
                     deleteWhere ([] :: [Filter Deprecated])
                     mapM_ addDeprecated deprs)
+           *> ZipSink (
+                let loop i =
+                        await >>= maybe (return ()) (const $ go $ i + 1)
+                    go i = do
+                        when (i `mod` 500 == 0)
+                            $ putStrLn $ concat
+                                [ "Processed "
+                                , tshow i
+                                , " packages"
+                                ]
+                        loop i
+                 in loop (0 :: Int))
             )
         sourceBuildPlans root $$ mapM_C (\(sname, fp', eval) -> flip runSqlPool pool $ do
             let (typ, action) =
@@ -231,6 +250,7 @@ createStackageDatabase fp = liftIO $ do
                 Left _ -> putStrLn $ "Skipping: " ++ fpToText fp'
                 Right _ -> action
             )
+        flip runSqlPool pool $ rawExecute "VACUUM" []
 
 getDeprecated' :: [Deprecation] -> Tar.Entry -> [Deprecation]
 getDeprecated' orig e =

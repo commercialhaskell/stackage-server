@@ -125,9 +125,8 @@ stackageServerCron = do
                 Right _ -> putStrLn "Success"
 
     let dbfp = fpFromText keyName
-    _ <- return (upload, dbfp)
-    --createStackageDatabase dbfp
-    --upload dbfp keyName
+    createStackageDatabase dbfp
+    upload dbfp keyName
 
     (db, _) <- loadFromS3
     names <- runReaderT last5Lts5Nightly db
