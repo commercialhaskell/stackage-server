@@ -250,7 +250,7 @@ createStackageDatabase fp = liftIO $ do
                 Left _ -> putStrLn $ "Skipping: " ++ fpToText fp'
                 Right _ -> action
             )
-        flip runSqlPool pool $ rawExecute "VACUUM" []
+        flip runSqlPool pool $ mapM_ (flip rawExecute []) ["COMMIT", "VACUUM", "BEGIN"]
 
 getDeprecated' :: [Deprecation] -> Tar.Entry -> [Deprecation]
 getDeprecated' orig e =
