@@ -147,7 +147,9 @@ stackageServerCron = do
 
 createHoogleDB :: StackageDatabase -> Manager -> SnapName -> IO (Maybe FilePath)
 createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
-    req <- parseUrl $ unpack tarUrl
+    req' <- parseUrl $ unpack tarUrl
+    let req = req' { decompress = const True }
+
     unlessM (isFile tarFP) $ withResponse req man $ \res -> do
         let tmp = tarFP <.> "tmp"
         createTree $ parent tmp
@@ -160,7 +162,7 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     createTree bindir
 
     dbs <- runResourceT
-        $ sourceTarFile True (fpToString tarFP)
+        $ sourceTarFile False (fpToString tarFP)
        $$ evalStateC 1 (mapMC (singleDB db name bindir))
        =$ sinkList
 
