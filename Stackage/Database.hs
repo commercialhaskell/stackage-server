@@ -46,6 +46,7 @@ import Yesod.Form.Fields (Textarea (..))
 import Stackage.Database.Types
 import System.Directory (getAppUserDataDirectory)
 import qualified Filesystem as F
+import Filesystem.Path (parent)
 import Data.Conduit.Process
 import Stackage.Types
 import Stackage.Metadata
@@ -189,7 +190,9 @@ runIn dir cmd args =
     cp = (proc cmd args) { cwd = Just $ fpToString dir }
 
 openStackageDatabase :: MonadIO m => FilePath -> m StackageDatabase
-openStackageDatabase fp = liftIO $ fmap StackageDatabase $ runNoLoggingT $ createSqlitePool (fpToText fp) 7
+openStackageDatabase fp = liftIO $ do
+    F.createTree $ parent fp
+    fmap StackageDatabase $ runNoLoggingT $ createSqlitePool (fpToText fp) 7
 
 getSchema :: FilePath -> IO (Maybe Int)
 getSchema fp = do
