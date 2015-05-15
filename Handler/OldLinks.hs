@@ -8,6 +8,7 @@ module Handler.OldLinks
 import Import
 import Stackage.Database
 import qualified Data.Text.Read as Reader
+import Network.Wai (rawQueryString)
 
 data LtsSuffix = LSMajor !Int
                | LSMinor !Int !Int
@@ -21,6 +22,11 @@ parseLtsSuffix t0 = do
                 t2 <- stripPrefix "." t1
                 Right (y, "") <- Just $ Reader.decimal t2
                 return $ LSMinor x y
+
+redirectWithQueryText :: Text -> Handler a
+redirectWithQueryText url = do
+    req <- waiRequest
+    redirect $ url ++ decodeUtf8 (rawQueryString req)
 
 getOldLtsR :: [Text] -> Handler ()
 getOldLtsR pieces = do
@@ -36,13 +42,13 @@ getOldLtsR pieces = do
             (x, y) <- newestLTS >>= maybe notFound return
             return (x, y, pieces)
     let name = concat ["lts-", tshow x, ".", tshow y]
-    redirect $ concatMap (cons '/') $ name : pieces'
+    redirectWithQueryText $ concatMap (cons '/') $ name : pieces'
 
 getOldLtsMajorR :: LtsMajor -> [Text] -> Handler ()
 getOldLtsMajorR (LtsMajor x) pieces = do
     y <- newestLTSMajor x >>= maybe notFound return
     let name = concat ["lts-", tshow x, ".", tshow y]
-    redirect $ concatMap (cons '/') $ name : pieces
+    redirectWithQueryText $ concatMap (cons '/') $ name : pieces
 
 getOldNightlyR :: [Text] -> Handler ()
 getOldNightlyR pieces = do
@@ -52,10 +58,10 @@ getOldNightlyR pieces = do
             day <- newestNightly >>= maybe notFound return
             return (day, pieces)
     let name = "nightly-" ++ tshow day
-    redirect $ concatMap (cons '/') $ name : pieces'
+    redirectWithQueryText $ concatMap (cons '/') $ name : pieces'
 
 getOldSnapshotR :: Text -> [Text] -> Handler ()
 getOldSnapshotR t ts =
     case fromPathPiece t :: Maybe SnapName of
-        Just _ -> redirect $ concatMap (cons '/') $ t : ts
+        Just _ -> redirectWithQueryText $ concatMap (cons '/') $ t : ts
         Nothing -> notFound
