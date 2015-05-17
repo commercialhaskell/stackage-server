@@ -245,3 +245,9 @@ div.plain-text {
     }
   }
 }
+
+.add-to-nightly {
+  border: 1px solid black;
+  padding: 0.5em;
+  background: #eef;
+}
