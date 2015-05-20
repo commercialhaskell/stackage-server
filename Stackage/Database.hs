@@ -5,6 +5,7 @@ module Stackage.Database
     , Snapshot (..)
     , newestLTS
     , newestLTSMajor
+    , ltsMajorVersions
     , newestNightly
     , lookupSnapshot
     , snapshotTitle
@@ -400,6 +401,19 @@ newestLTS =
 newestLTSMajor :: GetStackageDatabase m => Int -> m (Maybe Int)
 newestLTSMajor x =
     run $ liftM (fmap $ ltsMinor . entityVal) $ selectFirst [LtsMajor ==. x] [Desc LtsMinor]
+
+ltsMajorVersions :: GetStackageDatabase m => m [(Int, Int)]
+ltsMajorVersions =
+    run $ liftM (dropOldMinors . map (toPair . entityVal))
+        $ selectList [] [Desc LtsMajor, Desc LtsMinor]
+  where
+    toPair (Lts _ x y) = (x, y)
+
+    dropOldMinors [] = []
+    dropOldMinors (l@(x, _):rest) =
+        l : dropOldMinors (dropWhile sameMinor rest)
+      where
+        sameMinor (y, _) = x == y
 
 newestNightly :: GetStackageDatabase m => m (Maybe Day)
 newestNightly =
