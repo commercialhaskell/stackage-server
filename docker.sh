@@ -10,4 +10,5 @@ cd docker/app
 tar xf ../../stackage-server.keter
 cd ..
 docker build -t snoyberg/stackage-server .
+docker push snoyberg/stackage-server
 )
