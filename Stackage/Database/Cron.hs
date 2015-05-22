@@ -107,7 +107,6 @@ hoogleUrl :: SnapName -> Text
 hoogleUrl n = concat
     [ "https://s3.amazonaws.com/haddock.stackage.org/"
     , hoogleKey n
-    , ".gz"
     ]
 
 getHoogleDB :: Bool -- ^ print exceptions?
@@ -120,11 +119,15 @@ getHoogleDB toPrint man name = do
         then return $ Just fp
         else do
             req' <- parseUrl $ unpack $ hoogleUrl name
-            let req = req' { checkStatus = \_ _ _ -> Nothing }
+            let req = req'
+                    { checkStatus = \_ _ _ -> Nothing
+                    , decompress = const False
+                    }
             withResponse req man $ \res -> if responseStatus res == status200
                 then do
                     createTree $ parent fptmp
                     runResourceT $ bodyReaderSource (responseBody res)
+                                $= ungzip
                                 $$ sinkFile fptmp
                     rename fptmp fp
                     return $ Just fp
