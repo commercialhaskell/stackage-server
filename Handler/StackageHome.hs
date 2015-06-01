@@ -55,7 +55,7 @@ getStackageCabalConfigR name = do
 
     headerGlobal render = yield $ Chunk $
         toBuilder (asText "-- Stackage snapshot from: ") ++
-        toBuilder (snapshotUrl render) ++
+        toBuilder (oldSnapshotUrl render) ++
         toBuilder (asText "\n-- Please place these contents in your global cabal config file.\n-- To only use tested packages, uncomment the following line\n-- and comment out other remote-repo lines:\n-- remote-repo: stackage-") ++
         toBuilder (toPathPiece name) ++
         toBuilder ':' ++
@@ -64,13 +64,14 @@ getStackageCabalConfigR name = do
 
     headerLocal render = yield $ Chunk $
         toBuilder (asText "-- Stackage snapshot from: ") ++
-        toBuilder (snapshotUrl render) ++
+        toBuilder (oldSnapshotUrl render) ++
         toBuilder (asText "\n-- Please place this file next to your .cabal file as cabal.config\n-- To only use tested packages, uncomment the following line:\n-- remote-repo: stackage-") ++
         toBuilder (toPathPiece name) ++
         toBuilder ':' ++
         toBuilder (snapshotUrl render) ++
         toBuilder '\n'
 
+    oldSnapshotUrl render = asHttp $ render $ OldSnapshotR (toPathPiece name) []
     snapshotUrl render = asHttp $ render $ SnapshotR name StackageHomeR
 
     asHttp (stripPrefix "http://" -> Just s) = "http://" <> s
