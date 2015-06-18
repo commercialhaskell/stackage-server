@@ -594,12 +594,14 @@ latestHelper pname clause = fmap (fmap toLatest) $ E.select $ E.from $ \(s,ln,p,
 
 getDeps :: GetStackageDatabase m => Text -> m [(Text, Text)]
 getDeps pname = run $ do
-    Just (Entity pid _) <- getBy $ UniquePackage pname
-    fmap (map toPair) $ E.select $ E.from $ \d -> do
-        E.where_ $
-            (d E.^. DepUser E.==. E.val pid)
-        E.orderBy [E.asc $ d E.^. DepUses]
-        return (d E.^. DepUses, d E.^. DepRange)
+    mp <- getBy $ UniquePackage pname
+    case mp of
+        Nothing -> return []
+        Just (Entity pid _) -> fmap (map toPair) $ E.select $ E.from $ \d -> do
+            E.where_ $
+                (d E.^. DepUser E.==. E.val pid)
+            E.orderBy [E.asc $ d E.^. DepUses]
+            return (d E.^. DepUses, d E.^. DepRange)
   where
     toPair (E.Value x, E.Value y) = (x, y)
 
