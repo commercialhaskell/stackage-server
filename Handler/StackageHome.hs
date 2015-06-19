@@ -56,7 +56,7 @@ getStackageCabalConfigR name = do
     headerGlobal render = yield $ Chunk $
         toBuilder (asText "-- Stackage snapshot from: ") ++
         toBuilder (oldSnapshotUrl render) ++
-        toBuilder (asText "\n-- Please place these contents in your global cabal config file.\n-- To only use tested packages, uncomment the following line\n-- and comment out other remote-repo lines:\n-- remote-repo: stackage-") ++
+        toBuilder (asText "\n-- Please append these contents to the end of your global cabal config file.\n-- To only use tested packages, uncomment the following line\n-- and comment out other remote-repo lines:\n-- remote-repo: stackage-") ++
         toBuilder (toPathPiece name) ++
         toBuilder ':' ++
         toBuilder (snapshotUrl render) ++
