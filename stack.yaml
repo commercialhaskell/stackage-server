@@ -1,5 +1,5 @@
 packages:
 - .
-- ../cabal-metadata
-extra-deps: []
+extra-deps:
+- stackage-metadata-0.3.0.0
 resolver: lts-2.9
