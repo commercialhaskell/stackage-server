@@ -22,7 +22,8 @@ import Network.HTTP.Types (status200)
 import           Data.Streaming.Network (bindPortTCP)
 import           Network.AWS                   (Credentials (Discover),
                                                 Region (NorthVirginia), getEnv,
-                                                send, sourceFileIO, envManager )
+                                                send, sourceFileIO, envManager)
+import           Network.AWS.Data              (toBody)
 import           Network.AWS.S3                (ObjectCannedACL (PublicRead),
                                                 poACL,
                                                 putObject)
@@ -31,9 +32,6 @@ import qualified Data.Conduit.Binary as CB
 import           Data.Conduit.Zlib             (WindowBits (WindowBits),
                                                 compress, ungzip)
 import qualified Hoogle
-import System.IO.Temp (withSystemTempFile)
-import qualified Data.Aeson as A
-import qualified Data.ByteString.Lazy as L
 
 filename' :: Text
 filename' = concat
@@ -167,11 +165,17 @@ stackageServerCron = do
 
     db <- openStackageDatabase dbfp
 
-    snapshots <- runReaderT snapshotsJSON db
-    withSystemTempFile "snapshots.json" $ \fp h -> do
-        L.hPut h $ A.encode snapshots
-        hClose h
-        upload (fpFromString fp) "snapshots.json"
+    do
+        snapshots <- runReaderT snapshotsJSON db
+        let key = "snapshots.json" :: Text
+            po =
+                  set poACL (Just PublicRead)
+               $  putObject (toBody snapshots) "haddock.stackage.org" key
+        putStrLn $ "Uploading: " ++ key
+        eres <- runResourceT $ send env po
+        case eres of
+            Left e -> error $ show (key, e)
+            Right _ -> putStrLn "Success"
 
     names <- runReaderT last5Lts5Nightly db
     let manager = view envManager env
