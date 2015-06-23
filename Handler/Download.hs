@@ -41,25 +41,7 @@ getDownloadSnapshotsJsonR :: Handler Value
 getDownloadSnapshotsJsonR = getDownloadLtsSnapshotsJsonR
 
 getDownloadLtsSnapshotsJsonR :: Handler Value
-getDownloadLtsSnapshotsJsonR = do
-    mlatestNightly <- newestNightly
-    ltses <- ltsMajorVersions
-    let lts = case ltses of
-            [] -> []
-            majorVersions@(latest:_) ->
-                   ("lts" .= printLts latest)
-                 : map toObj majorVersions
-        nightly = case mlatestNightly of
-            Nothing -> id
-            Just n -> (("nightly" .= printNightly n):)
-    return $ object $ nightly lts
-  where
-    toObj lts@(major, _) =
-        pack ("lts-" ++ show major) .= printLts lts
-    printLts (major, minor) =
-        "lts-" ++ show major ++ "." ++ show minor
-
-    printNightly day = "nightly-" ++ tshow day
+getDownloadLtsSnapshotsJsonR = snapshotsJSON
 
 -- Print the ghc major version for the given snapshot.
 ghcMajorVersionText :: Snapshot -> Text

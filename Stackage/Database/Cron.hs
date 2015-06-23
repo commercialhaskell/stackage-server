@@ -31,6 +31,9 @@ import qualified Data.Conduit.Binary as CB
 import           Data.Conduit.Zlib             (WindowBits (WindowBits),
                                                 compress, ungzip)
 import qualified Hoogle
+import System.IO.Temp (withSystemTempFile)
+import qualified Data.Aeson as A
+import qualified Data.ByteString.Lazy as L
 
 filename' :: Text
 filename' = concat
@@ -149,7 +152,7 @@ stackageServerCron = do
                         $$ compress 9 (WindowBits 31)
                         =$ CB.sinkFile fpgz
             body <- sourceFileIO fpgz
-            let po = 
+            let po =
                       set poACL (Just PublicRead)
                    $  putObject body "haddock.stackage.org" key
             putStrLn $ "Uploading: " ++ key
@@ -163,6 +166,13 @@ stackageServerCron = do
     upload dbfp keyName
 
     db <- openStackageDatabase dbfp
+
+    snapshots <- runReaderT snapshotsJSON db
+    withSystemTempFile "snapshots.json" $ \fp h -> do
+        L.hPut h $ A.encode snapshots
+        hClose h
+        upload (fpFromString fp) "snapshots.json"
+
     names <- runReaderT last5Lts5Nightly db
     let manager = view envManager env
     forM_ names $ \name -> do

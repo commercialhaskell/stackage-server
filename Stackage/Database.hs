@@ -31,6 +31,7 @@ module Stackage.Database
     , getSnapshots
     , currentSchema
     , last5Lts5Nightly
+    , snapshotsJSON
     ) where
 
 import Database.Sqlite (SqliteException)
@@ -61,6 +62,7 @@ import Control.Monad.Logger
 import System.IO.Temp
 import qualified Database.Esqueleto as E
 import Data.Yaml (decode)
+import qualified Data.Aeson as A
 
 currentSchema :: Int
 currentSchema = 1
@@ -652,3 +654,24 @@ last5Lts5Nightly = run $ do
   where
     l (Entity _ x) = SNLts (ltsMajor x) (ltsMinor x)
     n (Entity _ x) = SNNightly (nightlyDay x)
+
+snapshotsJSON :: GetStackageDatabase m => m A.Value
+snapshotsJSON = do
+    mlatestNightly <- newestNightly
+    ltses <- ltsMajorVersions
+    let lts = case ltses of
+            [] -> []
+            majorVersions@(latest:_) ->
+                   ("lts" A..= printLts latest)
+                 : map toObj majorVersions
+        nightly = case mlatestNightly of
+            Nothing -> id
+            Just n -> (("nightly" A..= printNightly n):)
+    return $ A.object $ nightly lts
+  where
+    toObj lts@(major, _) =
+        pack ("lts-" ++ show major) A..= printLts lts
+    printLts (major, minor) =
+        "lts-" ++ show major ++ "." ++ show minor
+
+    printNightly day = "nightly-" ++ tshow day
