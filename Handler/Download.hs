@@ -33,9 +33,7 @@ currentlySupported Linux64 = True
 currentlySupported _ = False
 
 getDownloadR :: Handler Html
-getDownloadR = defaultLayout $ do
-    setTitle "Download"
-    $(widgetFile "download")
+getDownloadR = redirectWith status301 InstallR
 
 getDownloadSnapshotsJsonR :: Handler Value
 getDownloadSnapshotsJsonR = getDownloadLtsSnapshotsJsonR
