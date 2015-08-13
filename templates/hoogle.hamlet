@@ -1,6 +1,6 @@
 <div .container>
     <div .content>
-        <h1>Hoogle Search (experimental)
+        <h1>Hoogle Search
         <p>Within <a href=@{snapshotLink}>#{snapshotTitle snapshot}</a>
         ^{hoogleForm}
         $case mresults

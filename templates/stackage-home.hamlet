@@ -37,7 +37,7 @@ $newline never
         <a href=@{SnapshotR name StackageCabalConfigR}?global=true>
             the global configuration instructions
 
-    <h3>Hoogle (experimental)
+    <h3>Hoogle
     ^{hoogleForm}
     <a href=@{SnapshotR name HoogleDatabaseR}>
       Download this hoogle database
