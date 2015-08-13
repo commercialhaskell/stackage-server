@@ -22,9 +22,12 @@ getTagR :: Slug -> Handler Html
 getTagR tagSlug = do
     -- FIXME arguably: check if this tag is banned. Leaving it as displayed for
     -- now, since someone needs to go out of their way to find it.
-    tags <- runDB $ selectList [TagTag ==. tagSlug] [Asc TagPackage]
-    packages <- fmap catMaybes $ forM tags $ \(Entity _ t) -> do
-        let pname = tagPackage t
+    packages' <- runDB $ E.select $ E.from $ \tag -> do
+        E.groupBy (tag E.^. TagPackage)
+        E.where_ $ tag E.^. TagTag E.==. E.val tagSlug
+        E.orderBy [E.asc $ tag E.^. TagPackage]
+        return $ tag E.^. TagPackage
+    packages <- fmap catMaybes $ forM packages' $ \(E.Value pname) -> do
         mp <- getPackage $ toPathPiece pname
         return $ case mp of
             Nothing -> Nothing
