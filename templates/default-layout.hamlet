@@ -20,32 +20,16 @@
             $nothing
               <li>
                   <a href=@{route}>#{route}
-          $maybe Entity _ user <- muser
-              <li>
-                  <a href=@{ProfileR} .user-handle>
-                      #{userDisplay user} (#{userHandle user})
-              <li>
-                <a href=@{AuthR LogoutR}>Logout
-          $nothing
-              <li>
-                <a href=@{AuthR LoginR}>Login
 
 $maybe msg <- mmsg
     <div .container>
         <div .alert .alter-info>#{msg}
 
-$case cur
-  $of Just (AuthR _)
-      <div .container>
-          <h1>Authorization
-          <p>Please login with an authorization method below:
-          ^{widget}
-  $of _
-    $if insideContainer
-      <div .container>
-        ^{widget}
-    $else
-      ^{widget}
+$if insideContainer
+  <div .container>
+    ^{widget}
+$else
+  ^{widget}
 
 <div .footer>
   <div .container>

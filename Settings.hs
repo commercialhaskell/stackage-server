@@ -8,17 +8,11 @@ module Settings where
 import ClassyPrelude.Yesod
 import Text.Shakespeare.Text (st)
 import Language.Haskell.TH.Syntax
-import Database.Persist.Postgresql (PostgresConf)
 import Yesod.Default.Config
 import Yesod.Default.Util
 import Data.Yaml
 import Settings.Development
 import Text.Hamlet
-import Data.Aeson (withText, withObject)
-import Types
-
--- | Which Persistent backend this site is using.
-type PersistConf = PostgresConf
 
 -- Static setting below. Changing these requires a recompile
 
@@ -65,45 +59,7 @@ widgetFile = (if development then widgetFileReload
               widgetFileSettings
 
 data Extra = Extra
-    { storeConfig :: !BlobStoreConfig
-    , hackageRoot :: !HackageRoot
-    , adminUsers  :: !(HashSet Text)
-    , googleAuth  :: !(Maybe GoogleAuth)
-    }
     deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
-parseExtra _ o = Extra
-    <$> o .: "blob-store"
-    <*> (HackageRoot <$> o .: "hackage-root")
-    <*> o .:? "admin-users" .!= mempty
-    <*> o .:? "google-auth"
-
-data BlobStoreConfig = BSCFile !FilePath
-                     | BSCAWS !FilePath !Text !Text !Text !Text
-    deriving Show
-
-instance FromJSON BlobStoreConfig where
-    parseJSON v = file v <|> aws v
-      where
-        file = withText "BlobStoreConfig" $ \t ->
-            case () of
-                ()
-                    | Just root <- stripPrefix "file:" t -> return $ BSCFile $ fpFromText root
-                    | otherwise -> fail $ "Invalid BlobStoreConfig: " ++ show t
-        aws = withObject "BlobStoreConfig" $ \o -> BSCAWS
-            <$> (fpFromText <$> (o .: "local"))
-            <*> o .: "access"
-            <*> o .: "secret"
-            <*> o .: "bucket"
-            <*> o .:? "prefix" .!= ""
-
-data GoogleAuth = GoogleAuth
-    { gaClientId :: !Text
-    , gaClientSecret :: !Text
-    }
-    deriving Show
-instance FromJSON GoogleAuth where
-    parseJSON = withObject "GoogleAuth" $ \o -> GoogleAuth
-        <$> o .: "client-id"
-        <*> o .: "client-secret"
+parseExtra _ _ = pure Extra

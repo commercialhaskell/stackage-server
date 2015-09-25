@@ -15,7 +15,6 @@ library
     exposed-modules: Application
                      Foundation
                      Import
-                     Model
                      Echo
                      Settings
                      Settings.StaticFiles
@@ -34,9 +33,6 @@ library
 
                      Handler.Home
                      Handler.Snapshots
-                     Handler.Profile
-                     Handler.Email
-                     Handler.ResetToken
                      Handler.StackageHome
                      Handler.StackageIndex
                      Handler.StackageSdist
@@ -45,8 +41,6 @@ library
                      Handler.Hoogle
                      Handler.Package
                      Handler.PackageList
-                     Handler.Tag
-                     Handler.BannedTags
                      Handler.BuildVersion
                      Handler.Sitemap
                      Handler.BuildPlan
@@ -119,7 +113,6 @@ library
                   , mtl                           >= 2.1
                   , mwc-random                    >= 0.13
                   , persistent                    >= 1.3.1
-                  , persistent-postgresql         >= 1.3
                   , persistent-template           >= 1.3
                   , resourcet                     >= 1.1.2
                   , shakespeare                   >= 2.0

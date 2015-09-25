@@ -1,7 +1,6 @@
 !/#LtsMajor/*Texts OldLtsMajorR GET
 
 /static StaticR Static getStatic
-/auth   AuthR   Auth   getAuth
 /reload WebsiteContentR GitRepo-WebsiteContent websiteContent
 
 /favicon.ico FaviconR GET
@@ -10,9 +9,6 @@
 
 / HomeR GET
 /snapshots AllSnapshotsR GET
-/profile ProfileR GET PUT
-/email/#EmailId EmailR DELETE
-/reset-token ResetTokenR POST
 
 /snapshot/#Text/*Texts OldSnapshotR GET
 
@@ -33,13 +29,6 @@
 /package/#PackageName PackageR GET
 /package/#PackageName/snapshots PackageSnapshotsR GET
 /package PackageListR GET
-/package/#PackageName/like PackageLikeR POST
-/package/#PackageName/unlike PackageUnlikeR POST
-/package/#PackageName/tag PackageTagR POST
-/package/#PackageName/untag PackageUntagR POST
-/tags TagListR GET
-/tag/#Slug TagR GET
-/banned-tags BannedTagsR GET PUT
 
 /lts/*Texts OldLtsR GET
 /nightly/*Texts OldNightlyR GET
