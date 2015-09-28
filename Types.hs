@@ -64,14 +64,6 @@ newtype HoogleVersion = HoogleVersion Text
 currentHoogleVersion :: HoogleVersion
 currentHoogleVersion = HoogleVersion VERSION_hoogle
 
-newtype HackageRoot = HackageRoot { unHackageRoot :: Text }
-    deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup)
-
-class HasHackageRoot a where
-    getHackageRoot :: a -> HackageRoot
-instance HasHackageRoot HackageRoot where
-    getHackageRoot = id
-
 data UnpackStatus = USReady
                   | USBusy
                   | USFailed !Text

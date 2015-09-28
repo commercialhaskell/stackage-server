@@ -1,13 +1,12 @@
 module Foundation where
 
 import           ClassyPrelude.Yesod
-import           Data.Slug (safeMakeSlug, HasGenIO (getGenIO), randomSlug, Slug)
+import           Data.Slug (HasGenIO (getGenIO), randomSlug, Slug)
 import           Data.WebsiteContent
 import qualified Database.Persist
 import           Database.Persist.Sql (PersistentSqlException (Couldn'tGetSQLConnection))
-import           Model
 import qualified Settings
-import           Settings (widgetFile, Extra (..), GoogleAuth (..))
+import           Settings (widgetFile, Extra (..))
 import           Settings.Development (development)
 import           Settings.StaticFiles
 import qualified System.Random.MWC as MWC
@@ -29,9 +28,7 @@ import Stackage.Database
 data App = App
     { settings :: AppConfig DefaultEnv Extra
     , getStatic :: Static -- ^ Settings for static file serving.
-    , connPool :: Database.Persist.PersistConfigPool Settings.PersistConf -- ^ Database connection pool.
     , httpManager :: Manager
-    , persistConfig :: Settings.PersistConf
     , appLogger :: Logger
     , genIO :: MWC.GenIO
     , websiteContent :: GitRepo WebsiteContent
@@ -43,9 +40,6 @@ instance HasGenIO App where
 
 instance HasHttpManager App where
     getHttpManager = httpManager
-
-instance HasHackageRoot App where
-    getHackageRoot = hackageRoot . appExtra . settings
 
 -- This is where we define all of the routes in our application. For a full
 -- explanation of the syntax, please see:
@@ -64,9 +58,6 @@ defaultLayoutNoContainer = defaultLayoutWithContainer False
 defaultLayoutWithContainer :: Bool -> Widget -> Handler Html
 defaultLayoutWithContainer insideContainer widget = do
     mmsg <- getMessage
-    muser <- catch maybeAuth $ \e -> case e of
-        Couldn'tGetSQLConnection -> return Nothing
-        _ -> throwM e
 
     -- We break up the default layout into two components:
     -- default-layout is the contents of the body tag, and
@@ -118,9 +109,6 @@ instance Yesod App where
         Just $ uncurry (joinPath y "") $ renderRoute route
     urlRenderOverride _ _ = Nothing
 
-    -- The page to be redirected to when authentication is required.
-    authRoute _ = Just $ AuthR LoginR
-
     {- Temporarily disable to allow for horizontal scaling
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
@@ -152,107 +140,7 @@ instance ToMarkup (Route App) where
     toMarkup c =
         case c of
           AllSnapshotsR{} -> "Snapshots"
-          AuthR (LoginR{}) -> "Login"
           _ -> ""
-
--- How to run database actions.
-instance YesodPersist App where
-    type YesodPersistBackend App = SqlBackend
-    runDB = defaultRunDB persistConfig connPool
-instance YesodPersistRunner App where
-    getDBRunner = defaultGetDBRunner connPool
-
-instance YesodAuth App where
-    type AuthId App = UserId
-
-    -- Where to send a user after successful login
-    loginDest _ = HomeR
-    -- Where to send a user after logout
-    logoutDest _ = HomeR
-
-    redirectToReferer _ = True
-
-    getAuthId creds = do
-        muid <- maybeAuthId
-        join $ runDB $ case muid of
-            Nothing -> do
-                x <- getBy $ UniqueEmail $ credsIdent creds
-                case x of
-                    Just (Entity _ email) -> return $ return $ Just $ emailUser email
-                    Nothing -> do
-                        handle' <- getHandle (0 :: Int)
-                        token <- getToken
-                        userid <- insert User
-                            { userHandle = handle'
-                            , userDisplay = credsIdent creds
-                            , userToken = token
-                            }
-                        insert_ Email
-                            { emailEmail = credsIdent creds
-                            , emailUser = userid
-                            }
-                        return $ return $ Just userid
-            Just uid -> do
-                memail <- getBy $ UniqueEmail $ credsIdent creds
-                case memail of
-                    Nothing -> do
-                        insert_ Email
-                            { emailEmail = credsIdent creds
-                            , emailUser = uid
-                            }
-                        return $ do
-                            setMessage $ toHtml $ concat
-                                [ "Email address "
-                                , credsIdent creds
-                                , " added to your account."
-                                ]
-                            redirect ProfileR
-                    Just (Entity _ email)
-                        | emailUser email == uid -> return $ do
-                            setMessage $ toHtml $ concat
-                                [ "The email address "
-                                , credsIdent creds
-                                , " is already part of your account"
-                                ]
-                            redirect ProfileR
-                        | otherwise -> invalidArgs $ return $ concat
-                            [ "The email address "
-                            , credsIdent creds
-                            , " is already associated with a different account."
-                            ]
-      where
-        handleBase = takeWhile (/= '@') (credsIdent creds)
-        getHandle cnt | cnt > 50 = error "Could not get a unique slug"
-        getHandle cnt = do
-            slug <- lift $ safeMakeSlug handleBase (cnt > 0)
-            muser <- getBy $ UniqueHandle slug
-            case muser of
-                Nothing -> return slug
-                Just _  -> getHandle (cnt + 1)
-
-    -- You can add other plugins like BrowserID, email or OAuth here
-    authPlugins app =
-        authBrowserId def : google
-      where
-        google =
-            case googleAuth $ appExtra $ settings app of
-                Nothing -> []
-                Just GoogleAuth {..} -> [authGoogleEmail gaClientId gaClientSecret]
-
-    authHttpManager = httpManager
-instance YesodAuthPersist App
-
-getToken :: YesodDB App Slug
-getToken =
-    go (0 :: Int)
-  where
-    go cnt | cnt > 50 = error "Could not get a unique token"
-    go cnt = do
-        slug <- lift $ randomSlug 25
-        muser <- getBy $ UniqueToken slug
-        case muser of
-            Nothing -> return slug
-            Just _  -> go (cnt + 1)
 
 -- This instance is required to use forms. You can modify renderMessage to
 -- achieve customized and internationalized form validation messages.

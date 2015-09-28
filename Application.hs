@@ -36,9 +36,6 @@ import qualified Echo
 -- Don't forget to add new modules to your cabal file!
 import           Handler.Home
 import           Handler.Snapshots
-import           Handler.Profile
-import           Handler.Email
-import           Handler.ResetToken
 import           Handler.StackageHome
 import           Handler.StackageIndex
 import           Handler.StackageSdist
@@ -46,8 +43,6 @@ import           Handler.System
 import           Handler.Haddock
 import           Handler.Package
 import           Handler.PackageList
-import           Handler.Tag
-import           Handler.BannedTags
 import           Handler.Hoogle
 import           Handler.BuildVersion
 import           Handler.Sitemap
@@ -100,20 +95,12 @@ nicerExceptions app req send = catch (app req send) $ \e -> do
     send $ responseLBS status500 [("Content-Type", "text/plain")] $
         fromStrict $ encodeUtf8 text
 
-getDbConf :: AppConfig DefaultEnv Extra -> IO Settings.PersistConf
-getDbConf conf =
-    withYamlEnvironment "config/postgresql.yml" (appEnv conf)
-    Database.Persist.loadConfig >>=
-    Database.Persist.applyEnv
-
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
 makeFoundation :: Bool -> AppConfig DefaultEnv Extra -> IO App
 makeFoundation useEcho conf = do
     manager <- newManager
     s <- staticSite
-    dbconf <- getDbConf conf
-    p <- Database.Persist.createPoolConfig dbconf
 
     loggerSet' <- if useEcho
                      then newFileLoggerSet defaultBufSize "/dev/null"
@@ -149,26 +136,12 @@ makeFoundation useEcho conf = do
         foundation = App
             { settings = conf
             , getStatic = s
-            , connPool = p
             , httpManager = manager
-            , persistConfig = dbconf
             , appLogger = logger
             , genIO = gen
             , websiteContent = websiteContent'
             , stackageDatabase = stackageDatabase'
             }
-
-    -- Perform database migration using our application's logging settings.
-    when (lookup "STACKAGE_SKIP_MIGRATION" env /= Just "1") $
-        runResourceT $
-        flip runReaderT gen $
-        flip runLoggingT (messageLoggerSource foundation logger) $
-        flip (Database.Persist.runPool dbconf) p $ do
-            runMigration migrateAll
-            {-
-            checkMigration 1 fixSnapSlugs
-            checkMigration 2 setCorePackages
-            -}
 
     return foundation
 
@@ -180,13 +153,3 @@ getApplicationDev useEcho =
     loader = Yesod.Default.Config.loadConfig (configSettings Development)
         { csParseExtra = parseExtra
         }
-
-_checkMigration :: MonadIO m
-                => Int
-                -> ReaderT SqlBackend m ()
-                -> ReaderT SqlBackend m ()
-_checkMigration num f = do
-    eres <- insertBy $ Migration num
-    case eres of
-        Left _ -> return ()
-        Right _ -> f

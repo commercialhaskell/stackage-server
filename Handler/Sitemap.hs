@@ -20,23 +20,21 @@ getSitemapR = sitemap $ do
     priority 0.7 $ AllSnapshotsR
     priority 0.7 $ PackageListR
 
-    priority 0.6 $ TagListR
     priority 0.6 $ AuthorsR
     priority 0.6 $ InstallR
     priority 0.6 $ OlderReleasesR
 
+{- FIXME
     runDBSource $ do
         --selectAll $= ltsSitemaps
         return () $= snapshotSitemaps -- FIXME
         return () $= packageMetadataSitemaps -- FIXME
-        selectAll $= tagSitemaps
 
 
 selectAll :: (PersistEntity val, PersistEntityBackend val ~ YesodPersistBackend App)
   => Source (YesodDB App) val
 selectAll = selectSource [] [] $= CL.map entityVal
 
-{- FIXME
 clNub :: (Monad m, Eq a) => Conduit a m a
 clNub = evalStateC [] $ awaitForever $ \a -> do
     seen <- State.get
@@ -82,11 +80,6 @@ packageMetadataSitemaps = awaitForever go
         url' PackageSnapshotsR
       where
         url' floc = url $ floc $ PackageName $ packageName m
-
-tagSitemaps :: SitemapFor Tag
-tagSitemaps = awaitForever go
-  where
-    go t = url $ TagR $ tagTag t
 
 
 priority :: Double -> Route App -> Sitemap

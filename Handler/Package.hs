@@ -5,10 +5,6 @@
 module Handler.Package
     ( getPackageR
     , getPackageSnapshotsR
-    , postPackageLikeR
-    , postPackageUnlikeR
-    , postPackageTagR
-    , postPackageUntagR
     , packagePage
     ) where
 
@@ -39,13 +35,6 @@ packagePage mversion pname = do
     let pname' = toPathPiece pname
     (deprecated, inFavourOf) <- getDeprecated pname'
     latests <- getLatests pname'
-    muid <- maybeAuthId
-    (nLikes, liked) <- runDB $ do
-        nLikes <- count [LikePackage ==. pname]
-        let getLiked uid = (>0) <$> count [LikePackage ==. pname, LikeVoter ==. uid]
-        liked <- maybe (return False) getLiked muid
-
-        return (nLikes, liked)
     deps' <- getDeps pname'
     revdeps' <- getRevDeps pname'
     Entity _ package <- getPackage pname' >>= maybe notFound return
@@ -64,14 +53,6 @@ packagePage mversion pname = do
 
     let ixInFavourOf = zip [0::Int ..] inFavourOf
         displayedVersion = maybe (packageLatest package) (toPathPiece . snd) mversion
-
-    myTags <- maybe (return []) (runDB . user'sTagsOf pname) muid
-    tags <- fmap (map (\(v,count') -> (v,count',any (==v) myTags)))
-                 (runDB (packageTags pname))
-
-    let likeTitle = if liked
-                       then "You liked this!"
-                       else "I like this!" :: Text
 
     let homepage = case T.strip (packageHomepage package) of
                      x | null x -> Nothing
@@ -93,32 +74,6 @@ packagePage mversion pname = do
             toPkgVer x y = concat [x, "-", y]
         $(widgetFile "package")
   where enumerate = zip [0::Int ..]
-
--- | Get tags of the given package.
-packageTags :: PackageName -> YesodDB App [(Slug,Int)]
-packageTags pn =
-    fmap (map boilerplate)
-         (E.select
-              (E.from (\(t `E.LeftOuterJoin` bt) -> do
-                 E.on $ t E.^. TagTag E.==. bt E.^. BannedTagTag
-                 E.where_
-                     $ (t ^. TagPackage E.==. E.val pn) E.&&.
-                       (E.isNothing $ E.just $ bt E.^. BannedTagTag)
-                 E.groupBy (t ^. TagTag)
-                 E.orderBy [E.asc (t ^. TagTag)]
-                 return (t ^. TagTag,E.count (t ^. TagTag)))))
-  where boilerplate (E.Value a,E.Value b) = (a,b)
-
--- | Get tags of the package by the user.
-user'sTagsOf :: PackageName -> UserId -> YesodDB App [Slug]
-user'sTagsOf pn uid =
-    fmap (map (\(E.Value v) -> v))
-         (E.select
-              (E.from (\t ->
-                  do E.where_ (t ^. TagPackage E.==. E.val pn E.&&.
-                               t ^. TagVoter E.==. E.val uid)
-                     E.orderBy [E.asc (t ^. TagTag)]
-                     return (t ^. TagTag))))
 
 -- | An identifier specified in a package. Because this field has
 -- quite liberal requirements, we often encounter various forms. A
@@ -210,47 +165,6 @@ parseChunk chunk =
 -- | Render email to text.
 renderEmail :: EmailAddress -> Text
 renderEmail = T.decodeUtf8 . toByteString
-
-postPackageLikeR :: PackageName -> Handler ()
-postPackageLikeR packageName = maybeAuthId >>= \muid -> case muid of
-    Nothing -> return ()
-    Just uid -> runDB $ P.insert_ $ Like packageName uid
-
-postPackageUnlikeR :: PackageName -> Handler ()
-postPackageUnlikeR name = maybeAuthId >>= \muid -> case muid of
-    Nothing -> return ()
-    Just uid -> runDB $ P.deleteWhere [LikePackage ==. name, LikeVoter ==. uid]
-
-postPackageTagR :: PackageName -> Handler ()
-postPackageTagR packageName =
-  maybeAuthId >>=
-  \muid ->
-    case muid of
-      Nothing -> return ()
-      Just uid ->
-        do mtag <- lookupPostParam "slug"
-           case mtag of
-             Just tag ->
-               do slug <- mkTag tag
-                  void (runDB (P.insert (Tag packageName slug uid)))
-             Nothing -> error "Need a slug"
-
-postPackageUntagR :: PackageName -> Handler ()
-postPackageUntagR packageName =
-  maybeAuthId >>=
-  \muid ->
-    case muid of
-      Nothing -> return ()
-      Just uid ->
-        do mtag <- lookupPostParam "slug"
-           case mtag of
-             Just tag ->
-               do slug <- mkTag tag
-                  void (runDB (P.deleteWhere
-                                 [TagPackage ==. packageName
-                                 ,TagTag ==. slug
-                                 ,TagVoter ==. uid]))
-             Nothing -> error "Need a slug"
 
 getPackageSnapshotsR :: PackageName -> Handler Html
 getPackageSnapshotsR pn =
