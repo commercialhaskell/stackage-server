@@ -67,8 +67,12 @@ packagePage mversion pname = do
                             else ms
     defaultLayout $ do
         setTitle $ toHtml pname
+        $(combineScripts 'StaticR
+                          [ js_highlight_js
+                          ])
         $(combineStylesheets 'StaticR
             [ css_font_awesome_min_css
+            , css_highlight_github_css
             ])
         let pn = pname
             toPkgVer x y = concat [x, "-", y]
