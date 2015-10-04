@@ -14,3 +14,5 @@ cd docker
 docker build -t snoyberg/stackage-server:$TAG .
 docker push snoyberg/stackage-server:$TAG
 )
+
+echo Pushed as snoyberg/stackage-server:$TAG
