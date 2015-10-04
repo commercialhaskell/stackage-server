@@ -23,6 +23,7 @@ library
                      Data.Tag
                      Data.GhcLinks
                      Data.WebsiteContent
+                     Distribution.Package.ModuleForest
                      Types
 
                      -- once stabilized, will likely move into its own package

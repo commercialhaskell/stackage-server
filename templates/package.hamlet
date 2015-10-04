@@ -89,10 +89,7 @@ $newline never
                     $if null modules
                         <p>There are no documented modules for this package.
                     $else
-                        <ul .docs-list>
-                            $forall mname <- modules
-                                <li>
-                                    <a href=@{haddockUrl sname (toPkgVer pname' version) mname}>#{mname}
+                        ^{renderModules sname (toPkgVer pname' version) modules}
 
 $if not (LT.null (LT.renderHtml (packageDescription package)))
     <div .markdown-container .readme-container>

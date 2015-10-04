@@ -14,10 +14,12 @@ import           Data.Tag
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as LT
+import           Distribution.Package.ModuleForest
 
 import           Database.Esqueleto ((^.))
 import qualified Database.Esqueleto as E
 import qualified Database.Persist as P
+
 import           Formatting
 import           Import
 import qualified Text.Blaze.Html.Renderer.Text as LT
@@ -78,6 +80,26 @@ packagePage mversion pname = do
             toPkgVer x y = concat [x, "-", y]
         $(widgetFile "package")
   where enumerate = zip [0::Int ..]
+        renderModules sname version = renderForest [] . moduleForest . map moduleName
+          where
+            renderForest _ [] = mempty
+            renderForest pathRev trees =
+              [hamlet|<ul .docs-list>
+                        $forall tree <- trees
+                          ^{renderTree tree}
+              |]
+              where
+                renderTree (Node{..}) = [hamlet|
+                  <li>
+                    $if isModule
+                      <a href=@{haddockUrl sname version path'}>#{path'}
+                    $else
+                      #{path'}
+                    ^{renderForest pathRev' subModules}
+                |]
+                  where
+                    pathRev' = component:pathRev
+                    path'    = T.intercalate "." $ reverse pathRev'
 
 -- | An identifier specified in a package. Because this field has
 -- quite liberal requirements, we often encounter various forms. A

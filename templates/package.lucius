@@ -52,17 +52,57 @@ h3 {
   margin-top: 0.5em;
   padding-top: 0.5em;
 }
+
 .docs {
   margin-top: 0.5em;
   border-top: 1px solid #ddd;
   padding-top: 0.5em;
   ul {
     list-style-type: none;
-    margin-left: 0;
-    padding-left: 0;
     li { line-height: 1.5em }
   }
 }
+
+.docs, .docs ul, .docs li {
+  position: relative;
+}
+
+.docs ul {
+  list-style:none;
+  padding-left: 10px;
+}
+
+.docs li::before, .docs li::after {
+  content: "";
+  position: absolute;
+  left: -12px;
+}
+
+.docs li::before {
+  border-top: 1px solid #DDD;
+  top: 9px;
+  width: 8px;
+  height: 0;
+}
+
+.docs li::after {
+  border-left: 1px solid #DDD;
+  height: 100%;
+  width: 0px;
+  top: 0;
+}
+.docs ul > li:last-child::after {
+    height: 9px;
+}
+
+.docs > ul > li::after {
+  border-left: none;
+}
+
+.docs > ul > li::before {
+  border-top: none;
+}
+
 .downloads {
   margin-left: 1em;
 }
@@ -251,3 +291,4 @@ div.plain-text {
   padding: 0.5em;
   background: #eef;
 }
+
