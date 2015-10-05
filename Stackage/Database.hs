@@ -42,13 +42,13 @@ import Text.Markdown (Markdown (..))
 import System.Directory (removeFile)
 import Stackage.Database.Haddock
 import System.FilePath (takeBaseName, takeExtension)
-import ClassyPrelude.Conduit hiding (pi)
+import ClassyPrelude.Conduit hiding (pi, FilePath, (</>))
 import Text.Blaze.Html (Html, toHtml)
 import Yesod.Form.Fields (Textarea (..))
 import Stackage.Database.Types
 import System.Directory (getAppUserDataDirectory)
 import qualified Filesystem as F
-import Filesystem.Path (parent)
+import Filesystem.Path.CurrentOS (parent, filename, directory, FilePath, encodeString, (</>))
 import Data.Conduit.Process
 import Stackage.Types
 import Stackage.Metadata
@@ -158,18 +158,18 @@ sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, FilePat
 sourceBuildPlans root = do
     forM_ ["lts-haskell", "stackage-nightly"] $ \repoName -> do
         dir <- liftIO $ cloneOrUpdate root "fpco" repoName
-        sourceDirectory dir =$= concatMapMC (go Left)
+        sourceDirectory (encodeString dir) =$= concatMapMC (go Left . fromString)
         let docdir = dir </> "docs"
         whenM (liftIO $ F.isDirectory docdir) $
-            sourceDirectory docdir =$= concatMapMC (go Right)
+            sourceDirectory (encodeString docdir) =$= concatMapMC (go Right . fromString)
   where
     go wrapper fp | Just name <- nameFromFP fp = liftIO $ do
-        let bp = decodeFileEither (fpToString fp) >>= either throwM return
+        let bp = decodeFileEither (encodeString fp) >>= either throwM return
         return $ Just (name, fp, wrapper bp)
     go _ _ = return Nothing
 
     nameFromFP fp = do
-        base <- stripSuffix ".yaml" $ fpToText $ filename fp
+        base <- stripSuffix ".yaml" $ pack $ encodeString $ filename fp
         fromPathPiece base
 
 cloneOrUpdate :: FilePath -> String -> String -> IO FilePath
@@ -184,18 +184,18 @@ cloneOrUpdate root org name = do
     return dest
   where
     url = "https://github.com/" ++ org ++ "/" ++ name ++ ".git"
-    dest = root </> fpFromString name
+    dest = root </> fromString name
 
 runIn :: FilePath -> String -> [String] -> IO ()
 runIn dir cmd args =
     withCheckedProcess cp $ \ClosedStream Inherited Inherited -> return ()
   where
-    cp = (proc cmd args) { cwd = Just $ fpToString dir }
+    cp = (proc cmd args) { cwd = Just $ encodeString dir }
 
 openStackageDatabase :: MonadIO m => FilePath -> m StackageDatabase
 openStackageDatabase fp = liftIO $ do
     F.createTree $ parent fp
-    fmap StackageDatabase $ runNoLoggingT $ createSqlitePool (fpToText fp) 7
+    fmap StackageDatabase $ runNoLoggingT $ createSqlitePool (pack $ encodeString fp) 7
 
 getSchema :: FilePath -> IO (Maybe Int)
 getSchema fp = do
@@ -213,15 +213,15 @@ createStackageDatabase fp = liftIO $ do
     let schemaMatch = actualSchema == Just currentSchema
     unless schemaMatch $ do
         putStrLn $ "Current schema does not match actual schema: " ++ tshow (actualSchema, currentSchema)
-        putStrLn $ "Deleting " ++ fpToText fp
-        void $ tryIO $ removeFile $ fpToString fp
+        putStrLn $ "Deleting " ++ pack (encodeString fp)
+        void $ tryIO $ removeFile $ encodeString fp
 
     StackageDatabase pool <- openStackageDatabase fp
     flip runSqlPool pool $ do
         runMigration migrateAll
         unless schemaMatch $ insert_ $ Schema currentSchema
 
-    root <- liftIO $ fmap (</> "database") $ fmap fpFromString $ getAppUserDataDirectory "stackage"
+    root <- liftIO $ fmap (</> fromString "database") $ fmap fromString $ getAppUserDataDirectory "stackage"
     F.createTree root
     runResourceT $ do
         putStrLn "Updating all-cabal-metadata repo"
@@ -253,7 +253,7 @@ createStackageDatabase fp = liftIO $ do
             let i = Imported sname typ
             eres <- insertBy i
             case eres of
-                Left _ -> putStrLn $ "Skipping: " ++ fpToText fp'
+                Left _ -> putStrLn $ "Skipping: " ++ tshow fp'
                 Right _ -> action
             )
         flip runSqlPool pool $ mapM_ (flip rawExecute []) ["COMMIT", "VACUUM", "BEGIN"]
@@ -338,9 +338,9 @@ addPlan name fp bp = do
                         [ "log"
                         , "--format=%ad"
                         , "--date=short"
-                        , fpToString $ filename fp
+                        , encodeString $ filename fp
                         ]
-                    cp = cp' { cwd = Just $ fpToString $ directory fp }
+                    cp = cp' { cwd = Just $ encodeString $ directory fp }
                 t <- withCheckedProcess cp $ \ClosedStream out ClosedStream ->
                     out $$ decodeUtf8C =$ foldC
                 case readMay $ concat $ take 1 $ words t of

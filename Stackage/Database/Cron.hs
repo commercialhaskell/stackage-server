@@ -16,7 +16,7 @@ import Network.HTTP.Client.Conduit (bodyReaderSource)
 import Filesystem (rename, removeTree, removeFile)
 import Web.PathPieces (toPathPiece)
 import Filesystem (isFile, createTree)
-import Filesystem.Path (parent)
+import Filesystem.Path.CurrentOS (parent, fromText, encodeString)
 import Control.Monad.State.Strict (StateT, get, put)
 import Network.HTTP.Types (status200)
 import           Data.Streaming.Network (bindPortTCP)
@@ -81,14 +81,14 @@ loadFromS3 man = do
 
     let update = do
             fp <- download
-            db <- openStackageDatabase fp
+            db <- openStackageDatabase (fromString fp)
             void $ tryIO $ join $ atomically $ do
                 writeTVar dbvar db
                 oldKill <- readTVar killPrevVar
                 writeTVar killPrevVar $ do
                     -- give existing users a chance to clean up
                     threadDelay $ 1000000 * 30
-                    void $ tryIO $ removeFile fp
+                    void $ tryIO $ removeFile (fromString fp)
                 return oldKill
 
     update
@@ -113,11 +113,11 @@ hoogleUrl n = concat
 getHoogleDB :: Bool -- ^ print exceptions?
             -> Manager -> SnapName -> IO (Maybe FilePath)
 getHoogleDB toPrint man name = do
-    let fp = fpFromText $ hoogleKey name
-        fptmp = fp <.> "tmp"
+    let fp = fromText $ hoogleKey name
+        fptmp = encodeString fp <.> "tmp"
     exists <- isFile fp
     if exists
-        then return $ Just fp
+        then return $ Just (encodeString fp)
         else do
             req' <- parseUrl $ unpack $ hoogleUrl name
             let req = req'
@@ -126,12 +126,12 @@ getHoogleDB toPrint man name = do
                     }
             withResponse req man $ \res -> if responseStatus res == status200
                 then do
-                    createTree $ parent fptmp
+                    createTree $ parent (fromString fptmp)
                     runResourceT $ bodyReaderSource (responseBody res)
                                 $= ungzip
                                 $$ sinkFile fptmp
-                    rename fptmp fp
-                    return $ Just fp
+                    rename (fromString fptmp) fp
+                    return $ Just $ encodeString fp
                 else do
                     when toPrint $ mapM brRead res >>= print
                     return Nothing
@@ -159,9 +159,9 @@ stackageServerCron = do
                 Left e -> error $ show (fp, key, e)
                 Right _ -> putStrLn "Success"
 
-    let dbfp = fpFromText keyName
+    let dbfp = fromText keyName
     createStackageDatabase dbfp
-    upload dbfp keyName
+    upload (encodeString dbfp) keyName
 
     db <- openStackageDatabase dbfp
 
@@ -189,24 +189,24 @@ stackageServerCron = do
                     let key = hoogleKey name
                     upload fp key
                     let dest = fpFromText key
-                    createTree $ parent dest
-                    rename fp dest
+                    createTree $ parent (fromString dest)
+                    rename (fromString fp) (fromString dest)
 
 createHoogleDB :: StackageDatabase -> Manager -> SnapName -> IO (Maybe FilePath)
 createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     req' <- parseUrl $ unpack tarUrl
     let req = req' { decompress = const True }
 
-    unlessM (isFile tarFP) $ withResponse req man $ \res -> do
+    unlessM (isFile (fromString tarFP)) $ withResponse req man $ \res -> do
         let tmp = tarFP <.> "tmp"
-        createTree $ parent tmp
+        createTree $ parent (fromString tmp)
         runResourceT $ bodyReaderSource (responseBody res)
                     $$ sinkFile tmp
-        rename tmp tarFP
+        rename (fromString tmp) (fromString tarFP)
 
-    void $ tryIO $ removeTree bindir
-    void $ tryIO $ removeFile outname
-    createTree bindir
+    void $ tryIO $ removeTree (fromString bindir)
+    void $ tryIO $ removeFile (fromString outname)
+    createTree (fromString bindir)
 
     dbs <- runResourceT
         $ sourceTarFile False (fpToString tarFP)

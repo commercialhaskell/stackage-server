@@ -37,7 +37,7 @@ readGhcLinks dir = do
             path = dir
               </> fpFromText (toPathPiece arch)
               </> fpFromText fileName
-        whenM (liftIO $ isFile path) $ do
-          text <- liftIO $ readTextFile path
+        whenM (liftIO $ isFile (fromString path)) $ do
+          text <- liftIO $ readTextFile (fromString path)
           modify (HashMap.insert (arch, ver) text)
       return $ GhcLinks hashMap
