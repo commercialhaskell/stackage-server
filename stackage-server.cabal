@@ -150,7 +150,7 @@ library
                  , markdown >= 0.1.13
                  , formatting
                  , blaze-html
-                 , haddock-library
+                 , haddock-library >= 1.2.0
                  , async
                  , yesod-gitrepo >= 0.1.1
                  , hoogle
