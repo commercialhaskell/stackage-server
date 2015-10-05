@@ -1,5 +1,4 @@
 packages:
 - .
-extra-deps:
-- stackage-metadata-0.3.0.0
-resolver: lts-2.17
+extra-deps: []
+resolver: lts-3.2
