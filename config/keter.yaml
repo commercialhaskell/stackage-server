@@ -1,9 +1,0 @@
-stanzas:
-- type: webapp
-  exec: ../dist/build/stackage-server/stackage-server
-  args:
-    - production
-  env:
-    STACKAGE_CABAL_LOADER: "0"
-    STACKAGE_HOOGLE_GEN: "0"
-  host: www.stackage.org
