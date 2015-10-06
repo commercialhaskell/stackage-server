@@ -66,8 +66,8 @@ loadFromS3 man = do
                 writeTVar currSuffixVar $! x + 1
                 return x
 
-            let fp = root </> fpFromText ("database-download-" ++ tshow suffix)
-            putStrLn $ "Downloading database to " ++ fpToText fp
+            let fp = root </> unpack ("database-download-" ++ tshow suffix)
+            putStrLn $ "Downloading database to " ++ pack fp
             withResponse req man $ \res ->
                 runResourceT
                      $ bodyReaderSource (responseBody res)
@@ -145,7 +145,7 @@ stackageServerCron = do
     env <- getEnv NorthVirginia Discover
     let upload :: FilePath -> Text -> IO ()
         upload fp key = do
-            let fpgz = fpToString $ fp <.> "gz"
+            let fpgz = fp <.> "gz"
             runResourceT $ sourceFile fp
                         $$ compress 9 (WindowBits 31)
                         =$ CB.sinkFile fpgz
@@ -188,7 +188,7 @@ stackageServerCron = do
                 forM_ mfp' $ \fp -> do
                     let key = hoogleKey name
                     upload fp key
-                    let dest = fpFromText key
+                    let dest = unpack key
                     createTree $ parent (fromString dest)
                     rename (fromString fp) (fromString dest)
 
@@ -209,12 +209,12 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     createTree (fromString bindir)
 
     dbs <- runResourceT
-        $ sourceTarFile False (fpToString tarFP)
+        $ sourceTarFile False tarFP
        $$ evalStateC 1 (mapMC (singleDB db name bindir))
        =$ sinkList
 
     putStrLn "Merging databases..."
-    Hoogle.mergeDatabase (map fpToString $ catMaybes dbs) (fpToString outname)
+    Hoogle.mergeDatabase (catMaybes dbs) outname
     putStrLn "Merge done"
 
     return $ Just outname
@@ -225,7 +225,7 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
 
     tarKey = toPathPiece name ++ "/hoogle/orig.tar"
     tarUrl = "https://s3.amazonaws.com/haddock.stackage.org/" ++ tarKey
-    tarFP = root </> fpFromText tarKey
+    tarFP = root </> unpack tarKey
 
 singleDB :: StackageDatabase
          -> SnapName
@@ -248,7 +248,7 @@ singleDB db sname bindir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
         Just (Entity _ sp) -> do
             let ver = snapshotPackageVersion sp
                 pkgver = concat [pkg, "-", ver]
-                out = bindir </> fpFromString (show idx) <.> "hoo"
+                out = bindir </> show idx <.> "hoo"
                 src' = unlines
                      $ haddockHacks (Just $ unpack docsUrl)
                      $ lines
@@ -262,7 +262,7 @@ singleDB db sname bindir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
                     , "/index.html"
                     ]
 
-            _errs <- liftIO $ Hoogle.createDatabase "" Hoogle.Haskell [] src' $ fpToString out
+            _errs <- liftIO $ Hoogle.createDatabase "" Hoogle.Haskell [] src' out
 
             return $ Just out
 singleDB _ _ _ _ = return Nothing

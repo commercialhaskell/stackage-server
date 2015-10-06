@@ -34,7 +34,7 @@ getHoogleR name = do
         offset = (page - 1) * perPage
     mdatabasePath <- getHoogleDB name
     heDatabase <- case mdatabasePath of
-        Just x -> return $ liftIO $ Hoogle.loadDatabase $ fpToString x
+        Just x -> return $ liftIO $ Hoogle.loadDatabase x
         Nothing -> hoogleDatabaseNotAvailableFor name
 
     mresults <- case mquery of
@@ -61,7 +61,7 @@ getHoogleDatabaseR name = do
     mdatabasePath <- getHoogleDB name
     case mdatabasePath of
         Nothing -> hoogleDatabaseNotAvailableFor name
-        Just path -> sendFile "application/octet-stream" $ fpToString path
+        Just path -> sendFile "application/octet-stream" path
 
 hoogleDatabaseNotAvailableFor :: SnapName -> Handler a
 hoogleDatabaseNotAvailableFor name = (>>= sendResponse) $ defaultLayout $ do
