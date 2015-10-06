@@ -11,9 +11,6 @@ module Echo where
 
 import Control.Concurrent.MVar
 import Control.Monad.Trans      (MonadIO(..))
-#if !MIN_VERSION_time(1,5,0)
-import System.Locale
-#endif
 import Data.Time
 import Language.Haskell.TH
 import Language.Haskell.TH.Lift

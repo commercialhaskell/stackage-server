@@ -9,7 +9,6 @@ import Settings.Development as Import
 import Settings.StaticFiles as Import
 import Types as Import
 import Yesod.Auth as Import
-import Data.Slug (mkSlug)
 import Data.WebsiteContent as Import (WebsiteContent (..))
 import Data.Text.Read (decimal)
 import Stackage.Database (SnapName)

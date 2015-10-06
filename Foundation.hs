@@ -1,11 +1,8 @@
 module Foundation where
 
 import           ClassyPrelude.Yesod
-import           Data.Slug (HasGenIO (getGenIO), randomSlug, Slug)
+import           Data.Slug (HasGenIO (getGenIO))
 import           Data.WebsiteContent
-import qualified Database.Persist
-import           Database.Persist.Sql (PersistentSqlException (Couldn'tGetSQLConnection))
-import qualified Settings
 import           Settings (widgetFile, Extra (..))
 import           Settings.Development (development)
 import           Settings.StaticFiles
@@ -13,9 +10,6 @@ import qualified System.Random.MWC as MWC
 import           Text.Blaze
 import           Text.Hamlet (hamletFile)
 import           Types
-import           Yesod.Auth
-import           Yesod.Auth.BrowserId
-import           Yesod.Auth.GoogleEmail2 (authGoogleEmail)
 import           Yesod.Core.Types (Logger)
 import           Yesod.Default.Config
 import           Yesod.GitRepo
