@@ -7,9 +7,7 @@ module Application
 
 import           Control.Concurrent (forkIO, threadDelay)
 import           Control.Exception (catch)
-import           Control.Monad.Logger (runLoggingT)
 import           Data.WebsiteContent
-import qualified Database.Persist
 import           Import hiding (catch)
 import           Language.Haskell.TH.Syntax (Loc(..))
 import           Network.Wai (Middleware, responseLBS)
@@ -18,7 +16,6 @@ import           Network.Wai.Middleware.RequestLogger
     ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination
     )
 import qualified Network.Wai.Middleware.RequestLogger as RequestLogger
-import           Settings
 import           System.Log.FastLogger (newStdoutLoggerSet, newFileLoggerSet, defaultBufSize, fromLogStr)
 import qualified System.Random.MWC as MWC
 import           Yesod.Core.Types (loggerSet, Logger (Logger))
@@ -26,7 +23,6 @@ import           Yesod.Default.Config
 import           Yesod.Default.Handlers
 import           Yesod.Default.Main
 import           Yesod.GitRepo
-import           System.Environment (getEnvironment)
 import           System.Process (rawSystem)
 import           Stackage.Database.Cron (loadFromS3)
 
@@ -130,8 +126,6 @@ makeFoundation useEcho conf = do
         threadDelay $ 1000 * 1000 * 60 * 5
         handleAny print refreshDB
         handleAny print $ grRefresh websiteContent'
-
-    env <- getEnvironment
 
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App

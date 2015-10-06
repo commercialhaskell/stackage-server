@@ -2,7 +2,6 @@ module Handler.Sitemap (getSitemapR) where
 
 import Import
 import Yesod.Sitemap
-import qualified Data.Conduit.List as CL
 import Stackage.Database
 
 type SitemapFor a = forall m. Monad m => Conduit a m (SitemapUrl (Route App))

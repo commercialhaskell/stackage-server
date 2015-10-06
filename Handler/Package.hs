@@ -9,18 +9,10 @@ module Handler.Package
     ) where
 
 import           Data.Char
-import           Data.Slug
-import           Data.Tag
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as LT
 import           Distribution.Package.ModuleForest
-
-import           Database.Esqueleto ((^.))
-import qualified Database.Esqueleto as E
-import qualified Database.Persist as P
-
-import           Formatting
 import           Import
 import qualified Text.Blaze.Html.Renderer.Text as LT
 import           Text.Email.Validate
