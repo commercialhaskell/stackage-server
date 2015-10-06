@@ -16,7 +16,7 @@ import Network.HTTP.Client.Conduit (bodyReaderSource)
 import Filesystem (rename, removeTree, removeFile)
 import Web.PathPieces (toPathPiece)
 import Filesystem (isFile, createTree)
-import Filesystem.Path (parent)
+import Filesystem.Path.CurrentOS (parent, fromText, encodeString)
 import Control.Monad.State.Strict (StateT, get, put)
 import Network.HTTP.Types (status200)
 import           Data.Streaming.Network (bindPortTCP)
@@ -68,18 +68,18 @@ loadFromS3 develMode man = do
                 writeTVar currSuffixVar $! x + 1
                 return x
 
-            let fp = root </> fpFromText ("database-download-" ++ tshow suffix)
+            let fp = root </> unpack ("database-download-" ++ tshow suffix)
                 isInitial = suffix == 1
             toSkip <-
                 if isInitial
                     then do
                         putStrLn $ "Checking if database exists: " ++ tshow fp
-                        doesFileExist $ fpToString fp
+                        doesFileExist fp
                     else return False
             if toSkip
                 then putStrLn "Skipping initial database download"
                 else do
-                    putStrLn $ "Downloading database to " ++ fpToText fp
+                    putStrLn $ "Downloading database to " ++ pack fp
                     withResponse req man $ \res ->
                         runResourceT
                              $ bodyReaderSource (responseBody res)
@@ -93,14 +93,14 @@ loadFromS3 develMode man = do
 
     let update = do
             fp <- download
-            db <- openStackageDatabase fp `onException` removeFile fp
+            db <- openStackageDatabase (fromString fp) `onException` removeFile (fromString fp)
             void $ tryIO $ join $ atomically $ do
                 writeTVar dbvar db
                 oldKill <- readTVar killPrevVar
                 writeTVar killPrevVar $ do
                     -- give existing users a chance to clean up
                     threadDelay $ 1000000 * 30
-                    void $ tryIO $ removeFile fp
+                    void $ tryIO $ removeFile (fromString fp)
                 return oldKill
 
     update
@@ -125,11 +125,11 @@ hoogleUrl n = concat
 getHoogleDB :: Bool -- ^ print exceptions?
             -> Manager -> SnapName -> IO (Maybe FilePath)
 getHoogleDB toPrint man name = do
-    let fp = fpFromText $ hoogleKey name
-        fptmp = fp <.> "tmp"
+    let fp = fromText $ hoogleKey name
+        fptmp = encodeString fp <.> "tmp"
     exists <- isFile fp
     if exists
-        then return $ Just fp
+        then return $ Just (encodeString fp)
         else do
             req' <- parseUrl $ unpack $ hoogleUrl name
             let req = req'
@@ -138,12 +138,12 @@ getHoogleDB toPrint man name = do
                     }
             withResponse req man $ \res -> if responseStatus res == status200
                 then do
-                    createTree $ parent fptmp
+                    createTree $ parent (fromString fptmp)
                     runResourceT $ bodyReaderSource (responseBody res)
                                 $= ungzip
                                 $$ sinkFile fptmp
-                    rename fptmp fp
-                    return $ Just fp
+                    rename (fromString fptmp) fp
+                    return $ Just $ encodeString fp
                 else do
                     when toPrint $ mapM brRead res >>= print
                     return Nothing
@@ -157,7 +157,7 @@ stackageServerCron = do
     env <- getEnv NorthVirginia Discover
     let upload :: FilePath -> Text -> IO ()
         upload fp key = do
-            let fpgz = fpToString $ fp <.> "gz"
+            let fpgz = fp <.> "gz"
             runResourceT $ sourceFile fp
                         $$ compress 9 (WindowBits 31)
                         =$ CB.sinkFile fpgz
@@ -171,9 +171,9 @@ stackageServerCron = do
                 Left e -> error $ show (fp, key, e)
                 Right _ -> putStrLn "Success"
 
-    let dbfp = fpFromText keyName
+    let dbfp = fromText keyName
     createStackageDatabase dbfp
-    upload dbfp keyName
+    upload (encodeString dbfp) keyName
 
     db <- openStackageDatabase dbfp
 
@@ -200,33 +200,33 @@ stackageServerCron = do
                 forM_ mfp' $ \fp -> do
                     let key = hoogleKey name
                     upload fp key
-                    let dest = fpFromText key
-                    createTree $ parent dest
-                    rename fp dest
+                    let dest = unpack key
+                    createTree $ parent (fromString dest)
+                    rename (fromString fp) (fromString dest)
 
 createHoogleDB :: StackageDatabase -> Manager -> SnapName -> IO (Maybe FilePath)
 createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     req' <- parseUrl $ unpack tarUrl
     let req = req' { decompress = const True }
 
-    unlessM (isFile tarFP) $ withResponse req man $ \res -> do
+    unlessM (isFile (fromString tarFP)) $ withResponse req man $ \res -> do
         let tmp = tarFP <.> "tmp"
-        createTree $ parent tmp
+        createTree $ parent (fromString tmp)
         runResourceT $ bodyReaderSource (responseBody res)
                     $$ sinkFile tmp
-        rename tmp tarFP
+        rename (fromString tmp) (fromString tarFP)
 
-    void $ tryIO $ removeTree bindir
-    void $ tryIO $ removeFile outname
-    createTree bindir
+    void $ tryIO $ removeTree (fromString bindir)
+    void $ tryIO $ removeFile (fromString outname)
+    createTree (fromString bindir)
 
     dbs <- runResourceT
-        $ sourceTarFile False (fpToString tarFP)
+        $ sourceTarFile False tarFP
        $$ evalStateC 1 (mapMC (singleDB db name bindir))
        =$ sinkList
 
     putStrLn "Merging databases..."
-    Hoogle.mergeDatabase (map fpToString $ catMaybes dbs) (fpToString outname)
+    Hoogle.mergeDatabase (catMaybes dbs) outname
     putStrLn "Merge done"
 
     return $ Just outname
@@ -237,7 +237,7 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
 
     tarKey = toPathPiece name ++ "/hoogle/orig.tar"
     tarUrl = "https://s3.amazonaws.com/haddock.stackage.org/" ++ tarKey
-    tarFP = root </> fpFromText tarKey
+    tarFP = root </> unpack tarKey
 
 singleDB :: StackageDatabase
          -> SnapName
@@ -260,7 +260,7 @@ singleDB db sname bindir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
         Just (Entity _ sp) -> do
             let ver = snapshotPackageVersion sp
                 pkgver = concat [pkg, "-", ver]
-                out = bindir </> fpFromString (show idx) <.> "hoo"
+                out = bindir </> show idx <.> "hoo"
                 src' = unlines
                      $ haddockHacks (Just $ unpack docsUrl)
                      $ lines
@@ -274,7 +274,7 @@ singleDB db sname bindir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
                     , "/index.html"
                     ]
 
-            _errs <- liftIO $ Hoogle.createDatabase "" Hoogle.Haskell [] src' $ fpToString out
+            _errs <- liftIO $ Hoogle.createDatabase "" Hoogle.Haskell [] src' out
 
             return $ Just out
 singleDB _ _ _ _ = return Nothing

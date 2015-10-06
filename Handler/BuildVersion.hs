@@ -9,15 +9,15 @@ getBuildVersionR :: Handler Text
 getBuildVersionR = return $ pack $(do
     let headFile = ".git/HEAD"
     qAddDependentFile headFile
-    ehead <- qRunIO $ tryIO $ readFile $ fpFromString headFile
+    ehead <- qRunIO $ tryIO $ readFile $ headFile
     case decodeUtf8 <$> ehead of
         Left e -> lift $ ".git/HEAD not read: " ++ show e
         Right raw ->
             case takeWhile (/= '\n') <$> stripPrefix "ref: " raw of
                 Nothing -> lift $ ".git/HEAD not in expected format: " ++ show raw
                 Just fp' -> do
-                    let fp = ".git" </> fpFromText fp'
-                    qAddDependentFile $ fpToString fp
+                    let fp = ".git" </> unpack (fp' :: Text)
+                    qAddDependentFile fp
                     bs <- qRunIO $ readFile fp
                     isDirty <- qRunIO
                              $ (/= ExitSuccess)

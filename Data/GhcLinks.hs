@@ -22,7 +22,7 @@ supportedArches = [minBound .. maxBound]
 readGhcLinks :: FilePath -> IO GhcLinks
 readGhcLinks dir = do
   let ghcMajorVersionsPath = dir </> "supported-ghc-major-versions.yaml"
-  Yaml.decodeFile (fpToString ghcMajorVersionsPath) >>= \case
+  Yaml.decodeFile ghcMajorVersionsPath >>= \case
     Nothing -> return $ GhcLinks HashMap.empty
     Just (ghcMajorVersions :: [GhcMajorVersion]) -> do
       let opts =
@@ -35,9 +35,9 @@ readGhcLinks dir = do
         let verText = ghcMajorVersionToText ver
             fileName = "ghc-" <> verText <> "-links.yaml"
             path = dir
-              </> fpFromText (toPathPiece arch)
-              </> fpFromText fileName
-        whenM (liftIO $ isFile path) $ do
-          text <- liftIO $ readTextFile path
+              </> unpack (toPathPiece arch)
+              </> unpack fileName
+        whenM (liftIO $ isFile (fromString path)) $ do
+          text <- liftIO $ readTextFile (fromString path)
           modify (HashMap.insert (arch, ver) text)
       return $ GhcLinks hashMap

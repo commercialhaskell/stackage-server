@@ -5,12 +5,12 @@ module Stackage.Database.Haddock
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Documentation.Haddock.Parser as Haddock
-import Documentation.Haddock.Types (DocH (..), Hyperlink (..), Picture (..), Header (..), Example (..))
+import Documentation.Haddock.Types (DocH (..), Hyperlink (..), Picture (..), Header (..), Example (..), MetaDoc(..))
 import ClassyPrelude.Conduit
 import Text.Blaze.Html (Html, toHtml)
 
 renderHaddock :: Text -> Html
-renderHaddock = hToHtml . Haddock.toRegular . Haddock.parseParas . unpack
+renderHaddock = hToHtml . Haddock.toRegular . _doc . Haddock.parseParas . unpack
 
 -- | Convert a Haddock doc to HTML.
 hToHtml :: DocH String String -> Html
