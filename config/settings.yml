@@ -5,6 +5,7 @@ Default: &defaults
 
 Development:
   <<: *defaults
+  dev-download: true
 
 Testing:
   <<: *defaults

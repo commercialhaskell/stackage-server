@@ -59,7 +59,10 @@ widgetFile = (if development then widgetFileReload
               widgetFileSettings
 
 data Extra = Extra
+    { extraDevDownload :: !Bool
+    -- ^ Controls how Git and database resources are downloaded (True means less downloading)
+    }
     deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
-parseExtra _ _ = pure Extra
+parseExtra _ o = Extra <$> o .:? "dev-download" .!= False

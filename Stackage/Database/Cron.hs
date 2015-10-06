@@ -32,6 +32,7 @@ import qualified Data.Conduit.Binary as CB
 import           Data.Conduit.Zlib             (WindowBits (WindowBits),
                                                 compress, ungzip)
 import qualified Hoogle
+import System.Directory (doesFileExist)
 
 filename' :: Text
 filename' = concat
@@ -50,13 +51,14 @@ url = concat
     ]
 
 -- | Provides an action to be used to refresh the file from S3.
-loadFromS3 :: Manager -> IO (IO StackageDatabase, IO ())
-loadFromS3 man = do
+loadFromS3 :: Bool -- ^ devel mode? if True, won't delete old databases, and won't refresh them either
+           -> Manager -> IO (IO StackageDatabase, IO ())
+loadFromS3 develMode man = do
     killPrevVar <- newTVarIO $ return ()
     currSuffixVar <- newTVarIO (1 :: Int)
 
     let root = "stackage-database"
-    handleIO print $ removeTree root
+    unless develMode $ handleIO print $ removeTree root
     createTree root
 
     req <- parseUrl $ unpack url
@@ -67,12 +69,22 @@ loadFromS3 man = do
                 return x
 
             let fp = root </> fpFromText ("database-download-" ++ tshow suffix)
-            putStrLn $ "Downloading database to " ++ fpToText fp
-            withResponse req man $ \res ->
-                runResourceT
-                     $ bodyReaderSource (responseBody res)
-                    $= ungzip
-                    $$ sinkFile fp
+                isInitial = suffix == 1
+            toSkip <-
+                if isInitial
+                    then do
+                        putStrLn $ "Checking if database exists: " ++ tshow fp
+                        doesFileExist $ fpToString fp
+                    else return False
+            if toSkip
+                then putStrLn "Skipping initial database download"
+                else do
+                    putStrLn $ "Downloading database to " ++ fpToText fp
+                    withResponse req man $ \res ->
+                        runResourceT
+                             $ bodyReaderSource (responseBody res)
+                            $= ungzip
+                            $$ sinkFile fp
             putStrLn "Finished downloading database"
 
             return fp
@@ -81,7 +93,7 @@ loadFromS3 man = do
 
     let update = do
             fp <- download
-            db <- openStackageDatabase fp
+            db <- openStackageDatabase fp `onException` removeFile fp
             void $ tryIO $ join $ atomically $ do
                 writeTVar dbvar db
                 oldKill <- readTVar killPrevVar
@@ -93,7 +105,7 @@ loadFromS3 man = do
 
     update
 
-    return (readTVarIO dbvar, update)
+    return (readTVarIO dbvar, unless develMode update)
 
 hoogleKey :: SnapName -> Text
 hoogleKey name = concat

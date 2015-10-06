@@ -99,6 +99,7 @@ nicerExceptions app req send = catch (app req send) $ \e -> do
 -- performs some initialization.
 makeFoundation :: Bool -> AppConfig DefaultEnv Extra -> IO App
 makeFoundation useEcho conf = do
+    let extra = appExtra conf
     manager <- newManager
     s <- staticSite
 
@@ -109,7 +110,7 @@ makeFoundation useEcho conf = do
 
     gen <- MWC.createSystemRandom
 
-    websiteContent' <- if development
+    websiteContent' <- if extraDevDownload extra
         then do
             void $ rawSystem "git"
                 [ "clone"
@@ -121,7 +122,7 @@ makeFoundation useEcho conf = do
             "master"
             loadWebsiteContent
 
-    (stackageDatabase', refreshDB) <- loadFromS3 manager
+    (stackageDatabase', refreshDB) <- loadFromS3 (extraDevDownload extra) manager
 
     -- Temporary workaround to force content updates regularly, until
     -- distribution of webhooks is handled via consul
