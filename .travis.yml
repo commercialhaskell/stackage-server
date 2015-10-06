@@ -1,38 +1,36 @@
-deploy:
-  provider: s3
-  access_key_id: AKIAI5DCW74VHQYKQPAA
-  secret_access_key:
-    secure: OHa5APTj1t/1Z9oMckolt1uEdd4UlBV/GOs4iuy3egMZQv6W2Y5vshMJAjxF3cuaNBE5HSLDMjckXWUhIAbh67dTAv8dn1VvWkMf8S2qRQOY+Z0YEsBjZVitRpdNpNWus/0+utX5hRMrsYmbniubQyJgUFowZmMDa0BJ4Yb+0U0=
-  bucket: stackage-travis
-  acl: public_read
-  skip_cleanup: true
-  local_dir: to-travis
-  upload-dir: stackage-server
+# Use new container infrastructure to enable caching
+sudo: false
 
+# Choose a lightweight base image; we provide our own build tools.
+language: c
+
+# GHC depends on GMP. You can add other dependencies here as well.
+addons:
+  apt:
+    packages:
+    - libgmp-dev
+
+# The different configurations we want to test. You could also do things like
+# change flags or use --stack-yaml to point to a different file.
 env:
- - CABALVER=1.20 GHCVER=7.8.4
+- ARGS=""
+#- ARGS="--resolver lts-2"
+#- ARGS="--resolver lts-3"
+#- ARGS="--resolver lts"
+#- ARGS="--resolver nightly"
 
-# Note: the distinction between `before_install` and `install` is not important.
 before_install:
- - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
- - travis_retry sudo apt-get update
- - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER # see note about happy/alex
- - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.cabal/bin:$PATH
+# Download and unpack the stack executable
+- mkdir -p ~/.local/bin
+- export PATH=$HOME/.local/bin:$PATH
+- travis_retry curl -L https://github.com/commercialhaskell/stack/releases/download/v0.1.4.0/stack-0.1.4.0-x86_64-linux.tar.gz | tar xz -C ~/.local/bin
 
-install:
- - cabal --version
- - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
- - travis_retry cabal update
- - cabal install alex happy
- - cabal install yesod-bin
- - cabal install --only-dependencies || cabal install --only-dependencies -j1
+# This line does all of the work: installs GHC if necessary, build the library,
+# executables, and test suites, and runs the test suites. --no-terminal works
+# around some quirks in Travis's terminal implementation.
+script: stack $ARGS --no-terminal --install-ghc test --haddock --pedantic
 
-# Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
-script:
- - yesod keter
- - mkdir -p to-travis
- - mv stackage-server.keter to-travis
- - mv dist/build/stackage-server-cron/stackage-server-cron .
- - strip stackage-server-cron
- - bzip2 stackage-server-cron
- - mv stackage-server-cron.bz2 to-travis
+# Caching so the next build will be fast too.
+cache:
+  directories:
+  - $HOME/.stack
