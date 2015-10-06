@@ -207,7 +207,6 @@ test-suite test
                  , yesod-core
                  , yesod
                  , persistent
-                 , persistent-postgresql
                  , resourcet
                  , monad-logger
                  , transformers
