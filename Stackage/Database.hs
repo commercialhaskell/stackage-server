@@ -2,6 +2,7 @@ module Stackage.Database
     ( StackageDatabase
     , GetStackageDatabase (..)
     , SnapName (..)
+    , SnapshotId ()
     , Snapshot (..)
     , newestLTS
     , newestLTSMajor

@@ -31,6 +31,7 @@ library
                      Stackage.Database.Haddock
                      Stackage.Database.Types
                      Stackage.Database.Cron
+                     Stackage.Snapshot.Diff
 
                      Handler.Home
                      Handler.Snapshots
@@ -93,6 +94,7 @@ library
                   , blaze-markup                  >= 0.7         &&   < 0.8
                   , byteable                      >= 0.1         &&   < 0.2
                   , bytestring                    >= 0.10        &&   < 0.11
+                  , classy-prelude                >= 0.12        &&   < 0.13
                   , classy-prelude-yesod          >= 0.12        &&   < 0.13
                   , conduit                       >= 1.2         &&   < 1.3
                   , conduit-extra                 >= 1.1         &&   < 1.2
@@ -123,6 +125,7 @@ library
                   , template-haskell              >= 2.10        &&   < 2.11
                   , temporary-rc                  >= 1.2         &&   < 1.3
                   , text                          >= 1.2         &&   < 1.3
+                  , these                         >= 0.6         &&   < 0.7
                   , wai                           >= 3.0         &&   < 3.1
                   , wai-extra                     >= 3.0         &&   < 3.1
                   , wai-logger                    >= 2.2         &&   < 2.3
