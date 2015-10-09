@@ -24,6 +24,8 @@
     /build-plan BuildPlanR GET
     /ghc-major-version GhcMajorVersionR GET
 
+/diff/#SnapName/#SnapName StackageDiffR GET
+
 /system SystemR GET
 /haddock/#SnapName/*Texts HaddockR GET
 /package/#PackageName PackageR GET

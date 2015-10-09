@@ -1,0 +1,33 @@
+<h1>Compare Stackage snapshots
+
+<div .container .content>
+  <div .packages>
+    <table .table>
+      <thead>
+        <th>
+          <select .form-control onchange="document.location = this.value">
+            $forall name1' <- snapNames
+              $if name1' == name1
+                <option selected value=@{StackageDiffR name1' name2}>#{toPathPiece name1'}
+              $else
+                <option value=@{StackageDiffR name1' name2}>#{toPathPiece name1'}
+        <th>
+          <select .form-control onchange="document.location = this.value">
+            $forall name2' <- snapNames
+              $if name2' == name2
+                <option selected value=@{StackageDiffR name1 name2'}>#{toPathPiece name2'}
+              $else
+                <option value=@{StackageDiffR name1 name2'}>#{toPathPiece name2'}
+      <tbody>
+        $forall (name, VersionChange verChange) <- HashMap.toList snapDiff
+          <tr>
+            $case verChange
+              $of This oldVersion
+                <td>#{name}-#{oldVersion}
+                <td>
+              $of That newVersion
+                <td>
+                <td>#{name}-#{newVersion}
+              $of These oldVersion newVersion
+                <td>#{name}-#{oldVersion}
+                <td>#{name}-#{newVersion}

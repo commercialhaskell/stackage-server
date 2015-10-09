@@ -1,13 +1,18 @@
 module Handler.StackageHome
     ( getStackageHomeR
+    , getStackageDiffR
     , getStackageCabalConfigR
     , getDocsR
     , getSnapshotPackagesR
     ) where
 
 import Import
+import qualified Data.HashMap.Strict as HashMap
+import Data.These
 import Data.Time (FormatTime)
 import Stackage.Database
+import Stackage.Database.Types (sortNicely)
+import Stackage.Snapshot.Diff
 
 getStackageHomeR :: SnapName -> Handler Html
 getStackageHomeR name = do
@@ -22,6 +27,17 @@ getStackageHomeR name = do
         packages <- getPackages sid
         $(widgetFile "stackage-home")
   where strip x = fromMaybe x (stripSuffix "." x)
+
+getStackageDiffR :: SnapName -> SnapName -> Handler Html
+getStackageDiffR name1 name2 = do
+    Entity sid1 s1 <- lookupSnapshot name1 >>= maybe notFound return
+    Entity sid2 s2 <- lookupSnapshot name2 >>= maybe notFound return
+    snapNames <- sortNicely . map snapshotName . snd <$> getSnapshots 0 0
+    snapDiff <- getSnapshotDiff sid1 sid2
+    defaultLayout $ do
+        setTitle $ "Compare " ++ toHtml (toPathPiece name1) ++ " with "
+                              ++ toHtml (toPathPiece name2)
+        $(widgetFile "stackage-diff")
 
 getStackageCabalConfigR :: SnapName -> Handler TypedContent
 getStackageCabalConfigR name = do
