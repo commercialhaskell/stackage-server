@@ -1,6 +1,7 @@
 module Stackage.Database.Types
     ( SnapName (..)
-    , sortNicely
+    , isLts
+    , isNightly
     , previousSnapName
     ) where
 
@@ -14,22 +15,17 @@ data SnapName = SNLts !Int !Int
               | SNNightly !Day
     deriving (Eq, Ord, Read, Show)
 
-isLTS :: SnapName -> Bool
-isLTS SNLts{}     = True
-isLTS SNNightly{} = False
+isLts :: SnapName -> Bool
+isLts SNLts{}     = True
+isLts SNNightly{} = False
 
--- | Sorts a list of SnapName's in a way suitable for rendering a select list.
---   Order:
---     1. LTS snapshots (recent first)
---     2. Nightly snapshots (recent first)
---     3. Anything else
-sortNicely :: [SnapName] -> [SnapName]
-sortNicely ns = reverse (sort lts) ++ reverse (sort nightly)
-  where (lts, nightly) = partition isLTS ns
+isNightly :: SnapName -> Bool
+isNightly SNLts{}     = False
+isNightly SNNightly{} = True
 
 previousSnapName :: [SnapName] -> SnapName -> SnapName
 previousSnapName ns n =
-  fromMaybe n $ maximumMay $ filter (< n) $ filter ((isLTS n ==) . isLTS) ns
+  fromMaybe n $ maximumMay $ filter (< n) $ filter ((isLts n ==) . isLts) ns
 
 instance PersistField SnapName where
     toPersistValue = toPersistValue . toPathPiece

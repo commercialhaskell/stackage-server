@@ -11,7 +11,7 @@ import qualified Data.HashMap.Strict as HashMap
 import Data.These
 import Data.Time (FormatTime)
 import Stackage.Database
-import Stackage.Database.Types (sortNicely, previousSnapName)
+import Stackage.Database.Types (isLts, previousSnapName)
 import Stackage.Snapshot.Diff
 
 getStackageHomeR :: SnapName -> Handler Html
@@ -32,7 +32,8 @@ getStackageDiffR :: SnapName -> SnapName -> Handler Html
 getStackageDiffR name1 name2 = do
     Entity sid1 s1 <- lookupSnapshot name1 >>= maybe notFound return
     Entity sid2 s2 <- lookupSnapshot name2 >>= maybe notFound return
-    snapNames <- sortNicely . map snapshotName . snd <$> getSnapshots 0 0
+    snapNames <- map snapshotName . snd <$> getSnapshots 0 0
+    let (ltsSnaps, nightlySnaps) = partition isLts $ reverse $ sort snapNames
     snapDiff <- getSnapshotDiff sid1 sid2
     defaultLayout $ do
         setTitle $ "Compare " ++ toHtml (toPathPiece name1) ++ " with "
