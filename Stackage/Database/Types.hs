@@ -1,6 +1,7 @@
 module Stackage.Database.Types
     ( SnapName (..)
     , sortNicely
+    , previousSnapName
     ) where
 
 import ClassyPrelude.Conduit
@@ -25,6 +26,10 @@ isLTS SNNightly{} = False
 sortNicely :: [SnapName] -> [SnapName]
 sortNicely ns = reverse (sort lts) ++ reverse (sort nightly)
   where (lts, nightly) = partition isLTS ns
+
+previousSnapName :: [SnapName] -> SnapName -> SnapName
+previousSnapName ns n =
+  fromMaybe n $ maximumMay $ filter (< n) $ filter ((isLTS n ==) . isLTS) ns
 
 instance PersistField SnapName where
     toPersistValue = toPersistValue . toPathPiece

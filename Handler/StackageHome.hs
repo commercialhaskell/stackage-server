@@ -11,13 +11,13 @@ import qualified Data.HashMap.Strict as HashMap
 import Data.These
 import Data.Time (FormatTime)
 import Stackage.Database
-import Stackage.Database.Types (sortNicely)
+import Stackage.Database.Types (sortNicely, previousSnapName)
 import Stackage.Snapshot.Diff
 
 getStackageHomeR :: SnapName -> Handler Html
 getStackageHomeR name = do
     Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
-
+    snapNames <- map snapshotName . snd <$> getSnapshots 0 0
     let hoogleForm =
             let queryText = "" :: Text
                 exact = False
