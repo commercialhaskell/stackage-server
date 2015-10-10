@@ -3,8 +3,6 @@ module Stackage.Snapshot.Diff
   ( getSnapshotDiff
   , snapshotDiff
   , SnapshotDiff
-  , PackageName
-  , Version
   , VersionChange(..)
   ) where
 
