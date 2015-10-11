@@ -45,3 +45,4 @@
 /download/snapshots.json DownloadSnapshotsJsonR GET
 /download/lts-snapshots.json DownloadLtsSnapshotsJsonR GET
 /download/#SupportedArch/#Text DownloadGhcLinksR GET
+/feed FeedR GET

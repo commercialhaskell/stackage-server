@@ -12,6 +12,7 @@ import           Text.Hamlet (hamletFile)
 import           Types
 import           Yesod.Core.Types (Logger)
 import           Yesod.Default.Config
+import           Yesod.AtomFeed
 import           Yesod.GitRepo
 import Stackage.Database
 
@@ -70,6 +71,7 @@ defaultLayoutWithContainer insideContainer widget = do
                           [ js_jquery_js
                           , js_bootstrap_js
                           ]))
+        atomLink FeedR "Recent Stackage snapshots"
         $(widgetFile "default-layout")
 
     mcurr <- getCurrentRoute
