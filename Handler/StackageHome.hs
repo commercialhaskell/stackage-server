@@ -30,8 +30,8 @@ getStackageHomeR name = do
 
 getStackageDiffR :: SnapName -> SnapName -> Handler Html
 getStackageDiffR name1 name2 = do
-    Entity sid1 s1 <- lookupSnapshot name1 >>= maybe notFound return
-    Entity sid2 s2 <- lookupSnapshot name2 >>= maybe notFound return
+    Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
+    Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
     snapNames <- map snapshotName . snd <$> getSnapshots 0 0
     let (ltsSnaps, nightlySnaps) = partition isLts $ reverse $ sort snapNames
     snapDiff <- getSnapshotDiff sid1 sid2
