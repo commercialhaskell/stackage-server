@@ -33,7 +33,7 @@
                 $else
                   <option value=@{StackageDiffR name1 name2'}>#{toPathPiece name2'}
       <tbody>
-        $forall (name, VersionChange verChange) <- HashMap.toList snapDiff
+        $forall (name, VersionChange verChange) <- sortOn (toCaseFold . fst) $ HashMap.toList snapDiff
           <tr>
             $case verChange
               $of This oldVersion
