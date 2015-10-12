@@ -17,7 +17,7 @@ import Stackage.Snapshot.Diff
 getStackageHomeR :: SnapName -> Handler Html
 getStackageHomeR name = do
     Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
-    snapNames <- map snapshotName . snd <$> getSnapshots 0 0
+    snapNames <- map (snapshotName . entityVal) . snd <$> getSnapshots 0 0
     let hoogleForm =
             let queryText = "" :: Text
                 exact = False
@@ -32,7 +32,7 @@ getStackageDiffR :: SnapName -> SnapName -> Handler Html
 getStackageDiffR name1 name2 = do
     Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
     Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
-    snapNames <- map snapshotName . snd <$> getSnapshots 0 0
+    snapNames <- map (snapshotName . entityVal) . snd <$> getSnapshots 0 0
     let (ltsSnaps, nightlySnaps) = partition isLts $ reverse $ sort snapNames
     snapDiff <- getSnapshotDiff sid1 sid2
     defaultLayout $ do

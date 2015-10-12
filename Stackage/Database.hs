@@ -8,6 +8,8 @@ module Stackage.Database
     , newestLTSMajor
     , ltsMajorVersions
     , newestNightly
+    , nightlyBefore
+    , ltsBefore
     , lookupSnapshot
     , snapshotTitle
     , PackageListingInfo (..)
@@ -28,6 +30,7 @@ module Stackage.Database
     , Package (..)
     , getPackage
     , prettyName
+    , prettyNameShort
     , getSnapshotsForPackage
     , getSnapshots
     , currentSchema
@@ -422,6 +425,22 @@ newestNightly :: GetStackageDatabase m => m (Maybe Day)
 newestNightly =
     run $ liftM (fmap $ nightlyDay . entityVal) $ selectFirst [] [Desc NightlyDay]
 
+nightlyBefore :: GetStackageDatabase m => Day -> m (Maybe (SnapshotId, SnapName))
+nightlyBefore day = do
+    run $ liftM (fmap go) $ selectFirst [NightlyDay <. day] [Desc NightlyDay]
+  where
+    go (Entity _ nightly) = (nightlySnap nightly, SNNightly $ nightlyDay nightly)
+
+ltsBefore :: GetStackageDatabase m => Int -> Int -> m (Maybe (SnapshotId, SnapName))
+ltsBefore x y = do
+    run $ liftM (fmap go) $ selectFirst
+        ( [LtsMajor <=. x, LtsMinor <. y] ||.
+          [LtsMajor <. x]
+        )
+        [Desc LtsMajor, Desc LtsMinor]
+  where
+    go (Entity _ lts) = (ltsSnap lts, SNLts (ltsMajor lts) (ltsMinor lts))
+
 lookupSnapshot :: GetStackageDatabase m => SnapName -> m (Maybe (Entity Snapshot))
 lookupSnapshot name = run $ getBy $ UniqueSnapshot name
 
@@ -429,13 +448,13 @@ snapshotTitle :: Snapshot -> Text
 snapshotTitle s = prettyName (snapshotName s) (snapshotGhc s)
 
 prettyName :: SnapName -> Text -> Text
-prettyName name ghc =
-    concat [base, " - GHC ", ghc]
-  where
-    base =
-        case name of
-            SNLts x y -> concat ["LTS Haskell ", tshow x, ".", tshow y]
-            SNNightly d -> "Stackage Nightly " ++ tshow d
+prettyName name ghc = concat [prettyNameShort name, " - GHC ", ghc]
+
+prettyNameShort :: SnapName -> Text
+prettyNameShort name =
+    case name of
+        SNLts x y -> concat ["LTS Haskell ", tshow x, ".", tshow y]
+        SNNightly d -> "Stackage Nightly " ++ tshow d
 
 getAllPackages :: GetStackageDatabase m => m [(Text, Text, Text)] -- FIXME add information on whether included in LTS and Nightly
 getAllPackages = liftM (map toPair) $ run $ do
@@ -640,12 +659,12 @@ getSnapshots
     :: GetStackageDatabase m
     => Int -- ^ limit
     -> Int -- ^ offset
-    -> m (Int, [Snapshot])
+    -> m (Int, [Entity Snapshot])
 getSnapshots l o = run $ (,)
     <$> count ([] :: [Filter Snapshot])
-    <*> fmap (map entityVal) (selectList
+    <*> selectList
         []
-        [LimitTo l, OffsetBy o, Desc SnapshotCreated])
+        [LimitTo l, OffsetBy o, Desc SnapshotCreated]
 
 last5Lts5Nightly :: GetStackageDatabase m => m [SnapName]
 last5Lts5Nightly = run $ do
