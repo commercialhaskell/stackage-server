@@ -1,4 +1,8 @@
-module Handler.Feed where
+module Handler.Feed
+    ( getFeedR
+    , getLtsFeedR
+    , getNightlyFeedR
+    ) where
 
 import Import
 import Stackage.Database
@@ -7,8 +11,16 @@ import Stackage.Snapshot.Diff
 import qualified Data.HashMap.Strict as HashMap
 
 getFeedR :: Handler TypedContent
-getFeedR = do
-    (_, snaps) <- getSnapshots 20 0
+getFeedR = mkFeed . snd =<< getSnapshots 20 0
+
+getLtsFeedR :: Handler TypedContent
+getLtsFeedR = mkFeed . snd =<< getLtsSnapshots 20 0
+
+getNightlyFeedR :: Handler TypedContent
+getNightlyFeedR = mkFeed . snd =<< getNightlySnapshots 20 0
+
+mkFeed :: [Entity Snapshot] -> Handler TypedContent
+mkFeed snaps = do
     entries <- forM snaps $ \(Entity snapid snap) -> do
         content <- getContent snapid snap
         return FeedEntry
