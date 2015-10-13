@@ -1,14 +1,33 @@
-module Handler.Feed where
+module Handler.Feed
+    ( getFeedR
+    , getLtsFeedR
+    , getLtsMajorFeedR
+    , getNightlyFeedR
+    ) where
 
 import Import
 import Stackage.Database
 import           Data.These
 import Stackage.Snapshot.Diff
 import qualified Data.HashMap.Strict as HashMap
+import Text.Blaze (text)
 
 getFeedR :: Handler TypedContent
-getFeedR = do
-    (_, snaps) <- getSnapshots 20 0
+getFeedR = mkFeed "" . snd =<< getSnapshots 20 0
+
+getLtsFeedR :: Handler TypedContent
+getLtsFeedR = mkFeed "LTS" . snd =<< getLtsSnapshots 20 0
+
+getLtsMajorFeedR :: LtsMajor -> Handler TypedContent
+getLtsMajorFeedR (LtsMajor v) =
+    mkFeed ("LTS-" <> tshow v) . snd =<< getLtsMajorSnapshots v 20 0
+
+getNightlyFeedR :: Handler TypedContent
+getNightlyFeedR = mkFeed "Nightly" . snd =<< getNightlySnapshots 20 0
+
+mkFeed :: Text -> [Entity Snapshot] -> Handler TypedContent
+mkFeed _ [] = notFound
+mkFeed branch snaps = do
     entries <- forM snaps $ \(Entity snapid snap) -> do
         content <- getContent snapid snap
         return FeedEntry
@@ -22,11 +41,11 @@ getFeedR = do
             [] -> liftIO getCurrentTime
             x:_ -> return $ feedEntryUpdated x
     newsFeed Feed
-        { feedTitle = "Recent Stackage snapshots"
+        { feedTitle = "Recent Stackage " <> branch <> " snapshots"
         , feedLinkSelf = FeedR
         , feedLinkHome = HomeR
         , feedAuthor = "Stackage Project"
-        , feedDescription = "Recent Stackage snapshots"
+        , feedDescription = text ("Recent Stackage " <> branch <> " snapshots")
         , feedLanguage = "en"
         , feedUpdated = updated
         , feedEntries = entries

@@ -45,4 +45,8 @@
 /download/snapshots.json DownloadSnapshotsJsonR GET
 /download/lts-snapshots.json DownloadLtsSnapshotsJsonR GET
 /download/#SupportedArch/#Text DownloadGhcLinksR GET
+
 /feed FeedR GET
+!/feed/#LtsMajor LtsMajorFeedR GET
+/feed/lts LtsFeedR GET
+/feed/nightly NightlyFeedR GET
