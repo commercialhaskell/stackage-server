@@ -8,6 +8,7 @@ module Stackage.Database
     , newestLTSMajor
     , ltsMajorVersions
     , newestNightly
+    , snapshotBefore
     , nightlyBefore
     , ltsBefore
     , lookupSnapshot
@@ -427,6 +428,11 @@ ltsMajorVersions =
 newestNightly :: GetStackageDatabase m => m (Maybe Day)
 newestNightly =
     run $ liftM (fmap $ nightlyDay . entityVal) $ selectFirst [] [Desc NightlyDay]
+
+-- | Get the snapshot which precedes the given one with respect to it's branch (nightly/lts)
+snapshotBefore :: GetStackageDatabase m => SnapName -> m (Maybe (SnapshotId, SnapName))
+snapshotBefore (SNLts x y)     = ltsBefore x y
+snapshotBefore (SNNightly day) = nightlyBefore day
 
 nightlyBefore :: GetStackageDatabase m => Day -> m (Maybe (SnapshotId, SnapName))
 nightlyBefore day = do

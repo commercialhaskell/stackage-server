@@ -6,7 +6,7 @@ $newline never
         Published on #{yearMonthDay (snapshotCreated snapshot)}
         <span .separator>
         <span>
-            <a href=@{StackageDiffR (previousSnapName snapNames name) name}>View changes
+            <a href=@{StackageDiffR previousSnapName name}>View changes
         <span .separator>
         <span>
             stack #

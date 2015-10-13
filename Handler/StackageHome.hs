@@ -11,13 +11,13 @@ import qualified Data.HashMap.Strict as HashMap
 import Data.These
 import Data.Time (FormatTime)
 import Stackage.Database
-import Stackage.Database.Types (isLts, previousSnapName)
+import Stackage.Database.Types (isLts)
 import Stackage.Snapshot.Diff
 
 getStackageHomeR :: SnapName -> Handler Html
 getStackageHomeR name = do
     Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
-    snapNames <- map (snapshotName . entityVal) . snd <$> getSnapshots 0 0
+    previousSnapName <- fromMaybe name . map snd <$> snapshotBefore (snapshotName snapshot)
     let hoogleForm =
             let queryText = "" :: Text
                 exact = False

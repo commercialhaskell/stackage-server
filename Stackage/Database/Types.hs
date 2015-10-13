@@ -2,7 +2,6 @@ module Stackage.Database.Types
     ( SnapName (..)
     , isLts
     , isNightly
-    , previousSnapName
     ) where
 
 import ClassyPrelude.Conduit
@@ -22,10 +21,6 @@ isLts SNNightly{} = False
 isNightly :: SnapName -> Bool
 isNightly SNLts{}     = False
 isNightly SNNightly{} = True
-
-previousSnapName :: [SnapName] -> SnapName -> SnapName
-previousSnapName ns n =
-  fromMaybe n $ maximumMay $ filter (< n) $ filter ((isLts n ==) . isLts) ns
 
 instance PersistField SnapName where
     toPersistValue = toPersistValue . toPathPiece
