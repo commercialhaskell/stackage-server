@@ -1,6 +1,7 @@
 module Handler.Feed
     ( getFeedR
     , getLtsFeedR
+    , getLtsMajorFeedR
     , getNightlyFeedR
     ) where
 
@@ -16,10 +17,14 @@ getFeedR = mkFeed . snd =<< getSnapshots 20 0
 getLtsFeedR :: Handler TypedContent
 getLtsFeedR = mkFeed . snd =<< getLtsSnapshots 20 0
 
+getLtsMajorFeedR :: LtsMajor -> Handler TypedContent
+getLtsMajorFeedR (LtsMajor v) = mkFeed . snd =<< getLtsMajorSnapshots v 20 0
+
 getNightlyFeedR :: Handler TypedContent
 getNightlyFeedR = mkFeed . snd =<< getNightlySnapshots 20 0
 
 mkFeed :: [Entity Snapshot] -> Handler TypedContent
+mkFeed [] = notFound
 mkFeed snaps = do
     entries <- forM snaps $ \(Entity snapid snap) -> do
         content <- getContent snapid snap

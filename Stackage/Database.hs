@@ -34,6 +34,7 @@ module Stackage.Database
     , getSnapshotsForPackage
     , getSnapshots
     , getLtsSnapshots
+    , getLtsMajorSnapshots
     , getNightlySnapshots
     , currentSchema
     , last5Lts5Nightly
@@ -679,6 +680,23 @@ getLtsSnapshots l o = run $ do
             E.on $ lts E.^. LtsSnap E.==. snapshot E.^. SnapshotId
             E.orderBy [ E.desc (lts E.^. LtsMajor)
                       , E.desc (lts E.^. LtsMinor) ]
+            E.limit $ fromIntegral l
+            E.offset $ fromIntegral o
+            return snapshot
+    return (ltsCount, snapshots)
+
+getLtsMajorSnapshots :: GetStackageDatabase m
+                => Int -- ^ Major version
+                -> Int -- ^ limit
+                -> Int -- ^ offset
+                -> m (Int, [Entity Snapshot])
+getLtsMajorSnapshots v l o = run $ do
+    ltsCount <- count ([] :: [Filter Lts])
+    snapshots <- E.select $ E.from $
+        \(lts `E.InnerJoin` snapshot) -> do
+            E.on $ lts E.^. LtsSnap E.==. snapshot E.^. SnapshotId
+            E.orderBy [E.desc (lts E.^. LtsMinor)]
+            E.where_ ((lts E.^. LtsMajor) E.==. (E.val v))
             E.limit $ fromIntegral l
             E.offset $ fromIntegral o
             return snapshot
