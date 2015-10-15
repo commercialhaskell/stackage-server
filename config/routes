@@ -50,3 +50,6 @@
 !/feed/#LtsMajor LtsMajorFeedR GET
 /feed/lts LtsFeedR GET
 /feed/nightly NightlyFeedR GET
+
+/stack DownloadStackListR GET
+/stack/#Text DownloadStackR GET

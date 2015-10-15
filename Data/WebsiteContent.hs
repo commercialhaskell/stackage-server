@@ -1,11 +1,14 @@
 module Data.WebsiteContent
     ( WebsiteContent (..)
+    , StackRelease (..)
     , loadWebsiteContent
     ) where
 
 import ClassyPrelude.Yesod
 import Text.Markdown (markdown, msXssProtect, msAddHeadingId)
 import Data.GhcLinks
+import Data.Aeson (withObject)
+import Data.Yaml
 
 data WebsiteContent = WebsiteContent
     { wcHomepage :: !Html
@@ -13,6 +16,7 @@ data WebsiteContent = WebsiteContent
     , wcInstall  :: !Html
     , wcOlderReleases :: !Html
     , wcGhcLinks :: !GhcLinks
+    , wcStackReleases :: ![StackRelease]
     }
 
 loadWebsiteContent :: FilePath -> IO WebsiteContent
@@ -23,6 +27,8 @@ loadWebsiteContent dir = do
     wcOlderReleases <- readHtml "older-releases.html" `catchIO`
                     \_ -> readMarkdown "older-releases.md"
     wcGhcLinks <- readGhcLinks $ dir </> "stackage-cli"
+    wcStackReleases <- decodeFileEither (dir </> "stack" </> "releases.yaml")
+        >>= either throwIO return
     return WebsiteContent {..}
   where
     readHtml fp = fmap (preEscapedToMarkup . decodeUtf8 :: ByteString -> Html)
@@ -32,3 +38,12 @@ loadWebsiteContent dir = do
                         , msAddHeadingId = True
                         })
                $ readFile $ dir </> fp
+
+data StackRelease = StackRelease
+    { srName :: !Text
+    , srPattern :: !Text
+    }
+instance FromJSON StackRelease where
+    parseJSON = withObject "StackRelease" $ \o -> StackRelease
+        <$> o .: "name"
+        <*> o .: "pattern"

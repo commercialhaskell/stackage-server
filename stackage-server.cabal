@@ -49,6 +49,7 @@ library
                      Handler.Download
                      Handler.OldLinks
                      Handler.Feed
+                     Handler.DownloadStack
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

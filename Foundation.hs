@@ -28,6 +28,8 @@ data App = App
     , genIO :: MWC.GenIO
     , websiteContent :: GitRepo WebsiteContent
     , stackageDatabase :: IO StackageDatabase
+    , latestStackMatcher :: IO (Text -> Maybe Text)
+    -- ^ Give a pattern, get a URL
     }
 
 instance HasGenIO App where

@@ -25,6 +25,7 @@ import           Yesod.Default.Main
 import           Yesod.GitRepo
 import           System.Process (rawSystem)
 import           Stackage.Database.Cron (loadFromS3)
+import           Control.AutoUpdate
 
 import qualified Echo
 
@@ -46,6 +47,7 @@ import           Handler.BuildPlan
 import           Handler.Download
 import           Handler.OldLinks
 import           Handler.Feed
+import           Handler.DownloadStack
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -128,6 +130,12 @@ makeFoundation useEcho conf = do
         handleAny print refreshDB
         handleAny print $ grRefresh websiteContent'
 
+    latestStackMatcher' <- mkAutoUpdate defaultUpdateSettings
+        { updateFreq = 1000 * 1000 * 60 * 30
+        -- ^ update every thirty minutes
+        , updateAction = getLatestMatcher manager
+        }
+
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
             { settings = conf
@@ -137,6 +145,7 @@ makeFoundation useEcho conf = do
             , genIO = gen
             , websiteContent = websiteContent'
             , stackageDatabase = stackageDatabase'
+            , latestStackMatcher = latestStackMatcher'
             }
 
     return foundation
