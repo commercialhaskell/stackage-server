@@ -131,8 +131,7 @@ makeFoundation useEcho conf = do
         handleAny print $ grRefresh websiteContent'
 
     latestStackMatcher' <- mkAutoUpdate defaultUpdateSettings
-        { updateFreq = 1000 * 1000 * 60 * 30
-        -- ^ update every thirty minutes
+        { updateFreq = 1000 * 1000 * 60 * 30 -- update every thirty minutes
         , updateAction = getLatestMatcher manager
         }
 
