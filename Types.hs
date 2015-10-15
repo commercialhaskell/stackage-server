@@ -20,6 +20,19 @@ instance PathPiece LtsMajor where
         Right (x, "") <- Just $ Reader.decimal t1
         Just $ LtsMajor x
 
+data StackageBranch = LtsMajorBranch Int
+                    | LtsBranch
+                    | NightlyBranch
+                    deriving (Eq, Read, Show)
+instance PathPiece StackageBranch where
+    toPathPiece NightlyBranch = "nightly"
+    toPathPiece LtsBranch     = "lts"
+    toPathPiece (LtsMajorBranch x) = toPathPiece $ LtsMajor x
+
+    fromPathPiece "nightly" = Just NightlyBranch
+    fromPathPiece "lts"     = Just LtsBranch
+    fromPathPiece x         = (\(LtsMajor x') -> LtsMajorBranch x') <$> fromPathPiece x
+
 newtype PackageName = PackageName { unPackageName :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
 instance PersistFieldSql PackageName where
