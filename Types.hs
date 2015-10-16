@@ -11,11 +11,11 @@ import qualified Data.Text.Lazy.Builder as Builder
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Read as Reader
 
-data StackageBranch = LtsMajorBranch Int
+data SnapshotBranch = LtsMajorBranch Int
                     | LtsBranch
                     | NightlyBranch
                     deriving (Eq, Read, Show)
-instance PathPiece StackageBranch where
+instance PathPiece SnapshotBranch where
     toPathPiece NightlyBranch = "nightly"
     toPathPiece LtsBranch     = "lts"
     toPathPiece (LtsMajorBranch x) = "lts-" ++ tshow x

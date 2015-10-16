@@ -13,13 +13,13 @@ import Text.Blaze (text)
 getFeedR :: Handler TypedContent
 getFeedR = getBranchFeed Nothing
 
-getBranchFeedR :: StackageBranch -> Handler TypedContent
+getBranchFeedR :: SnapshotBranch -> Handler TypedContent
 getBranchFeedR = getBranchFeed . Just
 
-getBranchFeed :: Maybe StackageBranch -> Handler TypedContent
+getBranchFeed :: Maybe SnapshotBranch -> Handler TypedContent
 getBranchFeed mBranch = mkFeed mBranch =<< getSnapshots mBranch 20 0
 
-mkFeed :: Maybe StackageBranch -> [Entity Snapshot] -> Handler TypedContent
+mkFeed :: Maybe SnapshotBranch -> [Entity Snapshot] -> Handler TypedContent
 mkFeed _ [] = notFound
 mkFeed mBranch snaps = do
     entries <- forM snaps $ \(Entity snapid snap) -> do

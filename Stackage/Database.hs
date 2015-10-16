@@ -69,7 +69,7 @@ import System.IO.Temp
 import qualified Database.Esqueleto as E
 import Data.Yaml (decode)
 import qualified Data.Aeson as A
-import Types (StackageBranch(..))
+import Types (SnapshotBranch(..))
 
 currentSchema :: Int
 currentSchema = 1
@@ -663,16 +663,16 @@ getSnapshotsForPackage pname = run $ do
             Nothing -> Nothing
             Just s -> Just (s, snapshotPackageVersion sp)
 
--- | Count snapshots that belong to a specific StackageBranch
-countSnapshots :: (GetStackageDatabase m) => Maybe StackageBranch -> m Int
+-- | Count snapshots that belong to a specific SnapshotBranch
+countSnapshots :: (GetStackageDatabase m) => Maybe SnapshotBranch -> m Int
 countSnapshots Nothing                   = run $ count ([] :: [Filter Snapshot])
 countSnapshots (Just NightlyBranch)      = run $ count ([] :: [Filter Nightly])
 countSnapshots (Just LtsBranch)          = run $ count ([] :: [Filter Lts])
 countSnapshots (Just (LtsMajorBranch x)) = run $ count [LtsMajor ==. x]
 
--- | Get snapshots that belong to a specific StackageBranch
+-- | Get snapshots that belong to a specific SnapshotBranch
 getSnapshots :: (GetStackageDatabase m)
-             => Maybe StackageBranch
+             => Maybe SnapshotBranch
              -> Int -- ^ limit
              -> Int -- ^ offset
              -> m [Entity Snapshot]

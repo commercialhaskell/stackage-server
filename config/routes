@@ -1,4 +1,4 @@
-!/#StackageBranch/*Texts OldStackageBranchR GET
+!/#SnapshotBranch/*Texts OldSnapshotBranchR GET
 
 /static StaticR Static getStatic
 /reload WebsiteContentR GitRepo-WebsiteContent websiteContent
@@ -44,7 +44,7 @@
 /download/#SupportedArch/#Text DownloadGhcLinksR GET
 
 /feed FeedR GET
-/feed/#StackageBranch BranchFeedR GET
+/feed/#SnapshotBranch BranchFeedR GET
 
 /stack DownloadStackListR GET
 /stack/#Text DownloadStackR GET
