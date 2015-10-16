@@ -4,10 +4,11 @@ module Stackage.Database
     , SnapName (..)
     , SnapshotId ()
     , Snapshot (..)
+    , newestSnapshot
     , newestLTS
     , newestLTSMajor
-    , ltsMajorVersions
     , newestNightly
+    , ltsMajorVersions
     , snapshotBefore
     , nightlyBefore
     , ltsBefore
@@ -400,6 +401,11 @@ run :: GetStackageDatabase m => SqlPersistT IO a -> m a
 run inner = do
     StackageDatabase pool <- getStackageDatabase
     liftIO $ runSqlPool inner pool
+
+newestSnapshot :: GetStackageDatabase m => SnapshotBranch -> m (Maybe SnapName)
+newestSnapshot LtsBranch = map (uncurry SNLts) <$> newestLTS
+newestSnapshot NightlyBranch = map SNNightly <$> newestNightly
+newestSnapshot (LtsMajorBranch x) = map (SNLts x) <$> newestLTSMajor x
 
 newestLTS :: GetStackageDatabase m => m (Maybe (Int, Int))
 newestLTS =
