@@ -1,4 +1,4 @@
-!/#LtsMajor/*Texts OldLtsMajorR GET
+!/#SnapshotBranch/*Texts OldSnapshotBranchR GET
 
 /static StaticR Static getStatic
 /reload WebsiteContentR GitRepo-WebsiteContent websiteContent
@@ -32,9 +32,6 @@
 /package/#PackageName/snapshots PackageSnapshotsR GET
 /package PackageListR GET
 
-/lts/*Texts OldLtsR GET
-/nightly/*Texts OldNightlyR GET
-
 /authors AuthorsR GET
 /install InstallR GET
 /older-releases OlderReleasesR GET
@@ -47,9 +44,7 @@
 /download/#SupportedArch/#Text DownloadGhcLinksR GET
 
 /feed FeedR GET
-!/feed/#LtsMajor LtsMajorFeedR GET
-/feed/lts LtsFeedR GET
-/feed/nightly NightlyFeedR GET
+/feed/#SnapshotBranch BranchFeedR GET
 
 /stack DownloadStackListR GET
 /stack/#Text DownloadStackR GET

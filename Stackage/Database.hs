@@ -34,9 +34,7 @@ module Stackage.Database
     , prettyNameShort
     , getSnapshotsForPackage
     , getSnapshots
-    , getLtsSnapshots
-    , getLtsMajorSnapshots
-    , getNightlySnapshots
+    , countSnapshots
     , currentSchema
     , last5Lts5Nightly
     , snapshotsJSON
@@ -71,6 +69,7 @@ import System.IO.Temp
 import qualified Database.Esqueleto as E
 import Data.Yaml (decode)
 import qualified Data.Aeson as A
+import Types (SnapshotBranch(..))
 
 currentSchema :: Int
 currentSchema = 1
@@ -664,64 +663,44 @@ getSnapshotsForPackage pname = run $ do
             Nothing -> Nothing
             Just s -> Just (s, snapshotPackageVersion sp)
 
-getSnapshots
-    :: GetStackageDatabase m
-    => Int -- ^ limit
-    -> Int -- ^ offset
-    -> m (Int, [Entity Snapshot])
-getSnapshots l o = run $ (,)
-    <$> count ([] :: [Filter Snapshot])
-    <*> selectList
-        []
-        [LimitTo l, OffsetBy o, Desc SnapshotCreated]
+-- | Count snapshots that belong to a specific SnapshotBranch
+countSnapshots :: (GetStackageDatabase m) => Maybe SnapshotBranch -> m Int
+countSnapshots Nothing                   = run $ count ([] :: [Filter Snapshot])
+countSnapshots (Just NightlyBranch)      = run $ count ([] :: [Filter Nightly])
+countSnapshots (Just LtsBranch)          = run $ count ([] :: [Filter Lts])
+countSnapshots (Just (LtsMajorBranch x)) = run $ count [LtsMajor ==. x]
 
-getLtsSnapshots :: GetStackageDatabase m
-                => Int -- ^ limit
-                -> Int -- ^ offset
-                -> m (Int, [Entity Snapshot])
-getLtsSnapshots l o = run $ do
-    ltsCount <- count ([] :: [Filter Lts])
-    snapshots <- E.select $ E.from $
-        \(lts `E.InnerJoin` snapshot) -> do
+-- | Get snapshots that belong to a specific SnapshotBranch
+getSnapshots :: (GetStackageDatabase m)
+             => Maybe SnapshotBranch
+             -> Int -- ^ limit
+             -> Int -- ^ offset
+             -> m [Entity Snapshot]
+getSnapshots mBranch l o = run $ case mBranch of
+    Nothing -> selectList [] [LimitTo l, OffsetBy o, Desc SnapshotCreated]
+    Just NightlyBranch ->
+        E.select $ E.from $ \(nightly `E.InnerJoin` snapshot) -> do
+            E.on $ nightly E.^. NightlySnap E.==. snapshot E.^. SnapshotId
+            E.orderBy [E.desc (nightly E.^. NightlyDay)]
+            E.limit $ fromIntegral l
+            E.offset $ fromIntegral o
+            pure snapshot
+    Just LtsBranch -> do
+        E.select $ E.from $ \(lts `E.InnerJoin` snapshot) -> do
             E.on $ lts E.^. LtsSnap E.==. snapshot E.^. SnapshotId
             E.orderBy [ E.desc (lts E.^. LtsMajor)
                       , E.desc (lts E.^. LtsMinor) ]
             E.limit $ fromIntegral l
             E.offset $ fromIntegral o
-            return snapshot
-    return (ltsCount, snapshots)
-
-getLtsMajorSnapshots :: GetStackageDatabase m
-                => Int -- ^ Major version
-                -> Int -- ^ limit
-                -> Int -- ^ offset
-                -> m (Int, [Entity Snapshot])
-getLtsMajorSnapshots v l o = run $ do
-    ltsCount <- count ([] :: [Filter Lts])
-    snapshots <- E.select $ E.from $
-        \(lts `E.InnerJoin` snapshot) -> do
+            pure snapshot
+    Just (LtsMajorBranch v) -> do
+        E.select $ E.from $ \(lts `E.InnerJoin` snapshot) -> do
             E.on $ lts E.^. LtsSnap E.==. snapshot E.^. SnapshotId
             E.orderBy [E.desc (lts E.^. LtsMinor)]
             E.where_ ((lts E.^. LtsMajor) E.==. (E.val v))
             E.limit $ fromIntegral l
             E.offset $ fromIntegral o
-            return snapshot
-    return (ltsCount, snapshots)
-
-getNightlySnapshots :: GetStackageDatabase m
-                => Int -- ^ limit
-                -> Int -- ^ offset
-                -> m (Int, [Entity Snapshot])
-getNightlySnapshots l o = run $ do
-    nightlyCount <- count ([] :: [Filter Nightly])
-    snapshots <- E.select $ E.from $
-        \(nightly `E.InnerJoin` snapshot) -> do
-            E.on $ nightly E.^. NightlySnap E.==. snapshot E.^. SnapshotId
-            E.orderBy [E.desc (nightly E.^. NightlyDay)]
-            E.limit $ fromIntegral l
-            E.offset $ fromIntegral o
-            return snapshot
-    return (nightlyCount, snapshots)
+            pure snapshot
 
 last5Lts5Nightly :: GetStackageDatabase m => m [SnapName]
 last5Lts5Nightly = run $ do
