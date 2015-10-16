@@ -11,15 +11,6 @@ import qualified Data.Text.Lazy.Builder as Builder
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Read as Reader
 
-newtype LtsMajor = LtsMajor Int
-    deriving (Eq, Read, Show)
-instance PathPiece LtsMajor where
-    toPathPiece (LtsMajor x) = "lts-" ++ tshow x
-    fromPathPiece t0 = do
-        t1 <- stripPrefix "lts-" t0
-        Right (x, "") <- Just $ Reader.decimal t1
-        Just $ LtsMajor x
-
 data StackageBranch = LtsMajorBranch Int
                     | LtsBranch
                     | NightlyBranch
@@ -27,11 +18,14 @@ data StackageBranch = LtsMajorBranch Int
 instance PathPiece StackageBranch where
     toPathPiece NightlyBranch = "nightly"
     toPathPiece LtsBranch     = "lts"
-    toPathPiece (LtsMajorBranch x) = toPathPiece $ LtsMajor x
+    toPathPiece (LtsMajorBranch x) = "lts-" ++ tshow x
 
     fromPathPiece "nightly" = Just NightlyBranch
-    fromPathPiece "lts"     = Just LtsBranch
-    fromPathPiece x         = (\(LtsMajor x') -> LtsMajorBranch x') <$> fromPathPiece x
+    fromPathPiece "lts" = Just LtsBranch
+    fromPathPiece t0 = do
+        t1 <- stripPrefix "lts-" t0
+        Right (x, "") <- Just $ Reader.decimal t1
+        Just $ LtsMajorBranch x
 
 newtype PackageName = PackageName { unPackageName :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
