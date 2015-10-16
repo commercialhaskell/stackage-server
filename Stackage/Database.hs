@@ -37,6 +37,7 @@ module Stackage.Database
     , getLtsSnapshots
     , getLtsMajorSnapshots
     , getNightlySnapshots
+    , getBranchSnapshots
     , currentSchema
     , last5Lts5Nightly
     , snapshotsJSON
@@ -71,6 +72,7 @@ import System.IO.Temp
 import qualified Database.Esqueleto as E
 import Data.Yaml (decode)
 import qualified Data.Aeson as A
+import Types (StackageBranch(..))
 
 currentSchema :: Int
 currentSchema = 1
@@ -674,6 +676,15 @@ getSnapshots l o = run $ (,)
     <*> selectList
         []
         [LimitTo l, OffsetBy o, Desc SnapshotCreated]
+
+getBranchSnapshots :: GetStackageDatabase m
+                   => StackageBranch
+                   -> Int -- ^ limit
+                   -> Int -- ^ offset
+                   -> m (Int, [Entity Snapshot])
+getBranchSnapshots NightlyBranch = getNightlySnapshots
+getBranchSnapshots LtsBranch     = getLtsSnapshots
+getBranchSnapshots (LtsMajorBranch x) = getLtsMajorSnapshots x
 
 getLtsSnapshots :: GetStackageDatabase m
                 => Int -- ^ limit

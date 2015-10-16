@@ -47,9 +47,7 @@
 /download/#SupportedArch/#Text DownloadGhcLinksR GET
 
 /feed FeedR GET
-!/feed/#LtsMajor LtsMajorFeedR GET
-/feed/lts LtsFeedR GET
-/feed/nightly NightlyFeedR GET
+/feed/#StackageBranch BranchFeedR GET
 
 /stack DownloadStackListR GET
 /stack/#Text DownloadStackR GET

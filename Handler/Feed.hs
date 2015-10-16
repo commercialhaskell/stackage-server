@@ -1,8 +1,6 @@
 module Handler.Feed
     ( getFeedR
-    , getLtsFeedR
-    , getLtsMajorFeedR
-    , getNightlyFeedR
+    , getBranchFeedR
     ) where
 
 import Import
@@ -13,21 +11,14 @@ import qualified Data.HashMap.Strict as HashMap
 import Text.Blaze (text)
 
 getFeedR :: Handler TypedContent
-getFeedR = mkFeed "" . snd =<< getSnapshots 20 0
+getFeedR = mkFeed Nothing . snd =<< getSnapshots 20 0
 
-getLtsFeedR :: Handler TypedContent
-getLtsFeedR = mkFeed "LTS" . snd =<< getLtsSnapshots 20 0
+getBranchFeedR :: StackageBranch -> Handler TypedContent
+getBranchFeedR branch = mkFeed (Just branch) . snd =<< getBranchSnapshots branch 20 0
 
-getLtsMajorFeedR :: LtsMajor -> Handler TypedContent
-getLtsMajorFeedR (LtsMajor v) =
-    mkFeed ("LTS-" <> tshow v) . snd =<< getLtsMajorSnapshots v 20 0
-
-getNightlyFeedR :: Handler TypedContent
-getNightlyFeedR = mkFeed "Nightly" . snd =<< getNightlySnapshots 20 0
-
-mkFeed :: Text -> [Entity Snapshot] -> Handler TypedContent
+mkFeed :: Maybe StackageBranch -> [Entity Snapshot] -> Handler TypedContent
 mkFeed _ [] = notFound
-mkFeed branch snaps = do
+mkFeed mBranch snaps = do
     entries <- forM snaps $ \(Entity snapid snap) -> do
         content <- getContent snapid snap
         return FeedEntry
@@ -41,15 +32,20 @@ mkFeed branch snaps = do
             [] -> liftIO getCurrentTime
             x:_ -> return $ feedEntryUpdated x
     newsFeed Feed
-        { feedTitle = "Recent Stackage " <> branch <> " snapshots"
+        { feedTitle = title
         , feedLinkSelf = FeedR
         , feedLinkHome = HomeR
         , feedAuthor = "Stackage Project"
-        , feedDescription = text ("Recent Stackage " <> branch <> " snapshots")
+        , feedDescription = text title
         , feedLanguage = "en"
         , feedUpdated = updated
         , feedEntries = entries
         }
+  where
+    branchTitle NightlyBranch = "Nightly"
+    branchTitle LtsBranch     = "LTS"
+    branchTitle (LtsMajorBranch x) = "LTS-" <> tshow x
+    title = "Recent Stackage " <> maybe "" branchTitle mBranch <> " snapshots"
 
 getContent :: SnapshotId -> Snapshot -> Handler Html
 getContent sid2 snap = do
