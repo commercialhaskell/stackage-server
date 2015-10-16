@@ -1,7 +1,5 @@
 module Handler.OldLinks
-    ( getOldLtsR
-    , getOldLtsMajorR
-    , getOldNightlyR
+    ( getOldStackageBranchR
     , getOldSnapshotR
     ) where
 
@@ -28,8 +26,8 @@ redirectWithQueryText url = do
     req <- waiRequest
     redirect $ url ++ decodeUtf8 (rawQueryString req)
 
-getOldLtsR :: [Text] -> Handler ()
-getOldLtsR pieces = do
+getOldStackageBranchR :: StackageBranch -> [Text] -> Handler ()
+getOldStackageBranchR LtsBranch pieces = do
     (x, y, pieces') <- case pieces of
         t:ts | Just suffix <- parseLtsSuffix t -> do
             (x, y) <- case suffix of
@@ -44,14 +42,12 @@ getOldLtsR pieces = do
     let name = concat ["lts-", tshow x, ".", tshow y]
     redirectWithQueryText $ concatMap (cons '/') $ name : pieces'
 
-getOldLtsMajorR :: LtsMajor -> [Text] -> Handler ()
-getOldLtsMajorR (LtsMajor x) pieces = do
+getOldStackageBranchR (LtsMajorBranch x) pieces = do
     y <- newestLTSMajor x >>= maybe notFound return
     let name = concat ["lts-", tshow x, ".", tshow y]
     redirectWithQueryText $ concatMap (cons '/') $ name : pieces
 
-getOldNightlyR :: [Text] -> Handler ()
-getOldNightlyR pieces = do
+getOldStackageBranchR NightlyBranch pieces = do
     (day, pieces') <- case pieces of
         t:ts | Just day <- fromPathPiece t -> return (day, ts)
         _ -> do

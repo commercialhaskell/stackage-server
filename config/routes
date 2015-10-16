@@ -1,4 +1,4 @@
-!/#LtsMajor/*Texts OldLtsMajorR GET
+!/#StackageBranch/*Texts OldStackageBranchR GET
 
 /static StaticR Static getStatic
 /reload WebsiteContentR GitRepo-WebsiteContent websiteContent
@@ -31,9 +31,6 @@
 /package/#PackageName PackageR GET
 /package/#PackageName/snapshots PackageSnapshotsR GET
 /package PackageListR GET
-
-/lts/*Texts OldLtsR GET
-/nightly/*Texts OldNightlyR GET
 
 /authors AuthorsR GET
 /install InstallR GET

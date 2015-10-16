@@ -11,10 +11,10 @@ getSitemapR :: Handler TypedContent
 getSitemapR = sitemap $ do
     priority 1.0 $ HomeR
 
-    priority 0.9 $ OldLtsR []
+    priority 0.9 $ OldStackageBranchR LtsBranch []
     -- TODO: uncomment when this is presentable
     --priority 0.9 $ DownloadR
-    priority 0.8 $ OldNightlyR []
+    priority 0.8 $ OldStackageBranchR NightlyBranch []
 
     priority 0.7 $ AllSnapshotsR
     priority 0.7 $ PackageListR
