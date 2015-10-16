@@ -24,9 +24,10 @@ getAllSnapshotsR = do
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int
         currentPage = fromMaybe 1 (currentPageMay >>= readMay)
-    (totalCount, map entityVal -> snapshots) <- getSnapshots
-        snapshotsPerPage
-        ((fromIntegral currentPage - 1) * snapshotsPerPage)
+    totalCount <- countSnapshots Nothing
+    (map entityVal -> snapshots) <-
+        getSnapshots Nothing snapshotsPerPage
+                             ((fromIntegral currentPage - 1) * snapshotsPerPage)
     let groups = groupUp now' snapshots
 
     let isFirstPage = currentPage == 1

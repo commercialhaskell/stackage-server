@@ -11,10 +11,13 @@ import qualified Data.HashMap.Strict as HashMap
 import Text.Blaze (text)
 
 getFeedR :: Handler TypedContent
-getFeedR = mkFeed Nothing . snd =<< getSnapshots 20 0
+getFeedR = getBranchFeed Nothing
 
 getBranchFeedR :: StackageBranch -> Handler TypedContent
-getBranchFeedR branch = mkFeed (Just branch) . snd =<< getBranchSnapshots branch 20 0
+getBranchFeedR = getBranchFeed . Just
+
+getBranchFeed :: Maybe StackageBranch -> Handler TypedContent
+getBranchFeed mBranch = mkFeed mBranch =<< getSnapshots mBranch 20 0
 
 mkFeed :: Maybe StackageBranch -> [Entity Snapshot] -> Handler TypedContent
 mkFeed _ [] = notFound
