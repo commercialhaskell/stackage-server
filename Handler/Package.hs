@@ -6,6 +6,7 @@ module Handler.Package
     ( getPackageR
     , getPackageSnapshotsR
     , packagePage
+    , getPackageBadgeR
     ) where
 
 import           Data.Char
@@ -13,14 +14,33 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy as LT
 import           Distribution.Package.ModuleForest
+import           Graphics.Badge.Barrier
+import           Control.Lens
 import           Import
 import qualified Text.Blaze.Html.Renderer.Text as LT
 import           Text.Email.Validate
-import Stackage.Database
+import           Stackage.Database
 
 -- | Page metadata package.
 getPackageR :: PackageName -> Handler Html
 getPackageR = packagePage Nothing
+
+getPackageBadgeR :: PackageName -> SnapshotBranch -> Handler TypedContent
+getPackageBadgeR pname branch = do
+    snapName     <- maybe notFound pure =<< newestSnapshot branch
+    Entity sid _ <- maybe notFound pure =<< lookupSnapshot snapName
+    mVersion <- do mSnapPackage <- lookupSnapshotPackage sid (unPackageName pname)
+                   pure (Version . snapshotPackageVersion . entityVal <$> mSnapPackage)
+    respond typeSvg $ renderStackageBadge snapName mVersion
+
+renderStackageBadge :: SnapName -> Maybe Version -> LByteString
+renderStackageBadge (badgeLabel -> label) = \case
+    Nothing          -> renderBadge (flat & right .~ red) label "not available"
+    Just (Version x) -> renderBadge flat label x
+
+badgeLabel :: SnapName -> Text
+badgeLabel (SNNightly _) = "stackage nightly"
+badgeLabel (SNLts x _)   = "stackage lts-" <> tshow x
 
 packagePage :: Maybe (SnapName, Version)
             -> PackageName

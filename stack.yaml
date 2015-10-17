@@ -1,3 +1,4 @@
 resolver: lts-3.8
 extra-deps:
     - these-0.6.1.0
+    - barrier-0.1.0

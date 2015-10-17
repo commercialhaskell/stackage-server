@@ -30,6 +30,7 @@
 /haddock/#SnapName/*Texts HaddockR GET
 /package/#PackageName PackageR GET
 /package/#PackageName/snapshots PackageSnapshotsR GET
+/package/#PackageName/badge/#SnapshotBranch PackageBadgeR GET
 /package PackageListR GET
 
 /authors AuthorsR GET
