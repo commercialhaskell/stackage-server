@@ -2,7 +2,8 @@
 module Stackage.Snapshot.Diff
   ( getSnapshotDiff
   , snapshotDiff
-  , SnapshotDiff
+  , SnapshotDiff()
+  , toDiffList
   , VersionChange(..)
   ) where
 
@@ -13,10 +14,13 @@ import           ClassyPrelude
 import           Data.These
 import           Stackage.Database (SnapshotId, PackageListingInfo(..),
                                     GetStackageDatabase, getPackages)
-type PackageName = Text
-type Version = Text
+import           Types
 
-type SnapshotDiff = HashMap PackageName VersionChange
+newtype SnapshotDiff
+    = SnapshotDiff { unSnapshotDiff :: HashMap PackageName VersionChange }
+
+toDiffList :: SnapshotDiff -> [(PackageName, VersionChange)]
+toDiffList = sortOn (toCaseFold . unPackageName . fst) . HashMap.toList . unSnapshotDiff
 
 -- | Versions of a package as it occurs in the listings provided to `snapshotDiff`.
 --
@@ -32,6 +36,8 @@ getSnapshotDiff :: GetStackageDatabase m => SnapshotId -> SnapshotId -> m Snapsh
 getSnapshotDiff a b = snapshotDiff <$> getPackages a <*> getPackages b
 
 snapshotDiff :: [PackageListingInfo] -> [PackageListingInfo] -> SnapshotDiff
-snapshotDiff as bs = HashMap.filter changed $ alignWith VersionChange (toMap as) (toMap bs)
+snapshotDiff as bs =
+    SnapshotDiff $ HashMap.filter changed
+                 $ alignWith VersionChange (toMap as) (toMap bs)
   where
-    toMap = HashMap.fromList . map (pliName &&& pliVersion)
+    toMap = HashMap.fromList . map (PackageName . pliName &&& Version . pliVersion)

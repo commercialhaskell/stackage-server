@@ -5,9 +5,8 @@ module Handler.Feed
 
 import Import
 import Stackage.Database
-import           Data.These
+import Data.These
 import Stackage.Snapshot.Diff
-import qualified Data.HashMap.Strict as HashMap
 import Text.Blaze (text)
 
 getFeedR :: Handler TypedContent
@@ -67,17 +66,17 @@ getContent sid2 snap = do
                         <th align=right>Old
                         <th align=left>New
                     <tbody>
-                      $forall (name, VersionChange verChange) <- sortOn (toCaseFold . fst) $ HashMap.toList snapDiff
+                      $forall (PackageName name, VersionChange change) <- toDiffList snapDiff
                         <tr>
                           <th align=right>#{name}
-                          $case verChange
-                            $of This oldVersion
-                              <td align=right>#{oldVersion}
+                          $case change
+                            $of This (Version old)
+                              <td align=right>#{old}
                               <td>
-                            $of That newVersion
+                            $of That (Version new)
                               <td align=right>
-                              <td>#{newVersion}
-                            $of These oldVersion newVersion
-                              <td align=right>#{oldVersion}
-                              <td>#{newVersion}
+                              <td>#{new}
+                            $of These (Version old) (Version new)
+                              <td align=right>#{old}
+                              <td>#{new}
                 |]

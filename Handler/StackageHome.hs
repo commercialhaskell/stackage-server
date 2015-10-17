@@ -7,7 +7,6 @@ module Handler.StackageHome
     ) where
 
 import Import
-import qualified Data.HashMap.Strict as HashMap
 import Data.These
 import Data.Time (FormatTime)
 import Stackage.Database
