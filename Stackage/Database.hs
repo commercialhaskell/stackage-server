@@ -10,8 +10,6 @@ module Stackage.Database
     , newestNightly
     , ltsMajorVersions
     , snapshotBefore
-    , nightlyBefore
-    , ltsBefore
     , lookupSnapshot
     , snapshotTitle
     , PackageListingInfo (..)

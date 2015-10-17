@@ -52,10 +52,7 @@ mkFeed mBranch snaps = do
 
 getContent :: SnapshotId -> Snapshot -> Handler Html
 getContent sid2 snap = do
-    mprev <-
-        case snapshotName snap of
-            SNLts x y -> ltsBefore x y
-            SNNightly day -> nightlyBefore day
+    mprev <- snapshotBefore $ snapshotName snap
     case mprev of
         Nothing -> return "No previous snapshot found for comparison"
         Just (sid1, name1) -> do
