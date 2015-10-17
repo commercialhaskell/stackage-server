@@ -1,7 +1,7 @@
 module Types where
 
 import ClassyPrelude.Yesod
-import Data.Aeson
+import Data.Aeson.Extra
 import Data.Hashable (hashUsing)
 import Text.Blaze (ToMarkup)
 import Database.Persist.Sql (PersistFieldSql (sqlType))
@@ -29,10 +29,16 @@ instance PathPiece SnapshotBranch where
 
 newtype PackageName = PackageName { unPackageName :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField, IsString)
+instance ToJSON PackageName where
+    toJSON = toJSON . unPackageName
+instance ToJSONKey PackageName where
+    toJSONKey = unPackageName
 instance PersistFieldSql PackageName where
     sqlType = sqlType . liftM unPackageName
 newtype Version = Version { unVersion :: Text }
     deriving (Show, Read, Typeable, Eq, Ord, Hashable, PathPiece, ToMarkup, PersistField)
+instance ToJSON Version where
+    toJSON = toJSON . unVersion
 instance PersistFieldSql Version where
     sqlType = sqlType . liftM unVersion
 newtype PackageSetIdent = PackageSetIdent { unPackageSetIdent :: Text }
