@@ -35,7 +35,7 @@ getPackageBadgeR pname branch = do
 
 renderStackageBadge :: SnapName -> Maybe Version -> LByteString
 renderStackageBadge (badgeLabel -> label) = \case
-    Nothing          -> renderBadge (flat & right .~ red) label "not available"
+    Nothing          -> renderBadge (flat & right .~ lightgray) label "not available"
     Just (Version x) -> renderBadge flat label x
 
 badgeLabel :: SnapName -> Text
