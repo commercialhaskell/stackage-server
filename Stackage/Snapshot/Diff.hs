@@ -2,21 +2,39 @@
 module Stackage.Snapshot.Diff
   ( getSnapshotDiff
   , snapshotDiff
-  , SnapshotDiff
+  , SnapshotDiff()
+  , toDiffList
   , VersionChange(..)
+  , WithSnapshotNames(..)
   ) where
 
-import qualified Data.HashMap.Strict as HashMap
 import           Data.Align
+import           Data.Aeson.Extra
+import qualified Data.HashMap.Strict as HashMap
 import           Control.Arrow
 import           ClassyPrelude
 import           Data.These
 import           Stackage.Database (SnapshotId, PackageListingInfo(..),
                                     GetStackageDatabase, getPackages)
-type PackageName = Text
-type Version = Text
+import           Stackage.Database.Types (SnapName)
+import           Types
+import           Web.PathPieces
 
-type SnapshotDiff = HashMap PackageName VersionChange
+data WithSnapshotNames a
+    = WithSnapshotNames SnapName SnapName a
+
+newtype SnapshotDiff
+    = SnapshotDiff { unSnapshotDiff :: HashMap PackageName VersionChange }
+    deriving (Show, Eq, Generic, Typeable)
+
+instance ToJSON (WithSnapshotNames SnapshotDiff) where
+    toJSON (WithSnapshotNames nameA nameB (SnapshotDiff diff)) =
+        object [ "comparing" .= [toPathPiece nameA, toPathPiece nameB]
+               , "diff"      .= Object (toJSONMap (WithSnapshotNames nameA nameB <$> diff))
+               ]
+
+toDiffList :: SnapshotDiff -> [(PackageName, VersionChange)]
+toDiffList = sortOn (toCaseFold . unPackageName . fst) . HashMap.toList . unSnapshotDiff
 
 -- | Versions of a package as it occurs in the listings provided to `snapshotDiff`.
 --
@@ -24,6 +42,14 @@ type SnapshotDiff = HashMap PackageName VersionChange
 --   otherwise it would be `This v1` if the package is present only in the first listing,
 --   or `That v2` if only in the second.
 newtype VersionChange = VersionChange { unVersionChange :: These Version Version }
+                      deriving (Show, Eq, Generic, Typeable)
+
+instance ToJSON (WithSnapshotNames VersionChange) where
+    toJSON (WithSnapshotNames (toJSONKey -> aKey) (toJSONKey -> bKey) change) =
+        case change of
+            VersionChange (This a)    -> object [ aKey .= a ]
+            VersionChange (That b)    -> object [ bKey .= b ]
+            VersionChange (These a b) -> object [ aKey .= a, bKey .= b ]
 
 changed :: VersionChange -> Bool
 changed = these (const True) (const True) (/=) . unVersionChange
@@ -32,6 +58,8 @@ getSnapshotDiff :: GetStackageDatabase m => SnapshotId -> SnapshotId -> m Snapsh
 getSnapshotDiff a b = snapshotDiff <$> getPackages a <*> getPackages b
 
 snapshotDiff :: [PackageListingInfo] -> [PackageListingInfo] -> SnapshotDiff
-snapshotDiff as bs = HashMap.filter changed $ alignWith VersionChange (toMap as) (toMap bs)
+snapshotDiff as bs =
+    SnapshotDiff $ HashMap.filter changed
+                 $ alignWith VersionChange (toMap as) (toMap bs)
   where
-    toMap = HashMap.fromList . map (pliName &&& pliVersion)
+    toMap = HashMap.fromList . map (PackageName . pliName &&& Version . pliVersion)

@@ -7,7 +7,6 @@ module Handler.StackageHome
     ) where
 
 import Import
-import qualified Data.HashMap.Strict as HashMap
 import Data.These
 import Data.Time (FormatTime)
 import Stackage.Database
@@ -28,17 +27,19 @@ getStackageHomeR name = do
         $(widgetFile "stackage-home")
   where strip x = fromMaybe x (stripSuffix "." x)
 
-getStackageDiffR :: SnapName -> SnapName -> Handler Html
+getStackageDiffR :: SnapName -> SnapName -> Handler TypedContent
 getStackageDiffR name1 name2 = do
     Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
     Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
     (map (snapshotName . entityVal) -> snapNames) <- getSnapshots Nothing 0 0
     let (ltsSnaps, nightlySnaps) = partition isLts $ reverse $ sort snapNames
     snapDiff <- getSnapshotDiff sid1 sid2
-    defaultLayout $ do
-        setTitle $ "Compare " ++ toHtml (toPathPiece name1) ++ " with "
-                              ++ toHtml (toPathPiece name2)
-        $(widgetFile "stackage-diff")
+    selectRep $ do
+        provideRep $ defaultLayout $ do
+            setTitle $ "Compare " ++ toHtml (toPathPiece name1) ++ " with "
+                                  ++ toHtml (toPathPiece name2)
+            $(widgetFile "stackage-diff")
+        provideRep $ pure $ toJSON $ WithSnapshotNames name1 name2 snapDiff
 
 getStackageCabalConfigR :: SnapName -> Handler TypedContent
 getStackageCabalConfigR name = do

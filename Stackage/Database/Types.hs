@@ -6,6 +6,7 @@ module Stackage.Database.Types
 
 import ClassyPrelude.Conduit
 import Web.PathPieces
+import Data.Aeson.Extra
 import Data.Text.Read (decimal)
 import Database.Persist
 import Database.Persist.Sql
@@ -21,6 +22,9 @@ isLts SNNightly{} = False
 isNightly :: SnapName -> Bool
 isNightly SNLts{}     = False
 isNightly SNNightly{} = True
+
+instance ToJSONKey SnapName where
+    toJSONKey = toPathPiece
 
 instance PersistField SnapName where
     toPersistValue = toPersistValue . toPathPiece
@@ -45,3 +49,4 @@ instance PathPiece SnapName where
             t3 <- stripPrefix "." t2
             Right (y, "") <- Just $ decimal t3
             return $ SNLts x y
+
