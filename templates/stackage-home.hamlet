@@ -38,7 +38,7 @@ $newline never
     <a href=@{SnapshotR name HoogleDatabaseR}>
       Download this hoogle database
 
-    <h3>Packages
+    <h3>Packages (#{packageCount})
 
     <p>
         <a href=@{SnapshotR name DocsR}>View documentation by modules

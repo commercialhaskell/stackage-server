@@ -37,6 +37,7 @@ module Stackage.Database
     , currentSchema
     , last5Lts5Nightly
     , snapshotsJSON
+    , getPackageCount
     ) where
 
 import Database.Sqlite (SqliteException)
@@ -735,3 +736,8 @@ snapshotsJSON = do
         "lts-" ++ show major ++ "." ++ show minor
 
     printNightly day = "nightly-" ++ tshow day
+
+getPackageCount :: GetStackageDatabase m
+                => SnapshotId
+                -> m Int
+getPackageCount sid = run $ count [SnapshotPackageSnapshot ==. sid]

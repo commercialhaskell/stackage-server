@@ -21,6 +21,7 @@ getStackageHomeR name = do
             let queryText = "" :: Text
                 exact = False
             in $(widgetFile "hoogle-form")
+    packageCount <- getPackageCount sid
     defaultLayout $ do
         setTitle $ toHtml $ snapshotTitle snapshot
         packages <- getPackages sid
