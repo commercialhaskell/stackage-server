@@ -1,0 +1,43 @@
+# Kubernetes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stackage-server
+  labels:
+    app: stackage-server
+spec:
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+  - name: https
+    port: 443
+    targetPort: http
+  type: LoadBalancer
+  selector:
+    app: stackage-server
+---
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: stackage-server
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: stackage-server
+    spec:
+      containers:
+      - name: stackage-server
+        image: snoyberg/stackage-server:latest
+        ports:
+        - name: http
+          containerPort: 3000
+        restartStrategy: always
+        command: ["stackage-server", "development"]
+        workingDir: /app
+        env:
+        - name: APPROOT
+          value: "https://www.stackage.org"
