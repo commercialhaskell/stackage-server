@@ -36,7 +36,7 @@ spec:
         - name: http
           containerPort: 3000
         restartStrategy: always
-        command: ["stackage-server", "development"]
+        command: ["stackage-server", "production"]
         workingDir: /app
         env:
         - name: APPROOT
