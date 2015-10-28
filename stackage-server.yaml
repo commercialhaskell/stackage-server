@@ -23,7 +23,7 @@ kind: ReplicationController
 metadata:
   name: stackage-server
 spec:
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
