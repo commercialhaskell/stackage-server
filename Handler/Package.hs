@@ -31,16 +31,29 @@ getPackageBadgeR pname branch = do
     Entity sid _ <- maybe notFound pure =<< lookupSnapshot snapName
     mVersion <- do mSnapPackage <- lookupSnapshotPackage sid (unPackageName pname)
                    pure (Version . snapshotPackageVersion . entityVal <$> mSnapPackage)
-    respond typeSvg $ renderStackageBadge snapName mVersion
 
-renderStackageBadge :: SnapName -> Maybe Version -> LByteString
-renderStackageBadge (badgeLabel -> label) = \case
-    Nothing          -> renderBadge (flat & right .~ lightgray) label "not available"
-    Just (Version x) -> renderBadge flat label x
+    mLabel <- lookupGetParam "label"
+    mStyle <- lookupGetParam "style"
 
-badgeLabel :: SnapName -> Text
-badgeLabel (SNNightly _) = "stackage nightly"
-badgeLabel (SNLts x _)   = "stackage lts-" <> tshow x
+    respond typeSvg $ case mStyle of
+      Just "plastic"     -> renderStackageBadge plastic    mLabel snapName mVersion
+      Just "flat-square" -> renderStackageBadge flatSquare mLabel snapName mVersion
+      _                  -> renderStackageBadge flat       mLabel snapName mVersion
+
+renderStackageBadge :: (Badge b, HasRightColor b)
+                    => b          -- ^ Style
+                    -> Maybe Text -- ^ Label
+                    -> SnapName
+                    -> Maybe Version
+                    -> LByteString
+renderStackageBadge style mLabel snapName = \case
+    Nothing          -> renderBadge (style & right .~ lightgray) badgeLabel "not available"
+    Just (Version x) -> renderBadge style badgeLabel x
+  where
+    badgeLabel = fromMaybe "stackage" mLabel <> " " <> badgeSnapName snapName
+
+    badgeSnapName (SNNightly _) = "nightly"
+    badgeSnapName (SNLts x _)   = "lts-" <> tshow x
 
 packagePage :: Maybe (SnapName, Version)
             -> PackageName
