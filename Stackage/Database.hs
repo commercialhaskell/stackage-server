@@ -44,7 +44,7 @@ import Database.Sqlite (SqliteException)
 import Web.PathPieces (toPathPiece)
 import qualified Codec.Archive.Tar as Tar
 import Database.Esqueleto.Internal.Language (From)
-import Text.Markdown (Markdown (..))
+import Text.Markdown (markdown, msAddHeadingId, def)
 import System.Directory (removeFile)
 import Stackage.Database.Haddock
 import System.FilePath (takeBaseName, takeExtension)
@@ -330,7 +330,9 @@ addPackage e =
     fp = Tar.entryPath e
     base = takeBaseName fp
 
-    renderContent txt "markdown" = toHtml $ Markdown $ fromStrict txt
+    renderContent txt "markdown" = markdown
+                                    (def { msAddHeadingId = True })
+                                    (fromStrict txt)
     renderContent txt "haddock" = renderHaddock txt
     renderContent txt _ = toHtml $ Textarea txt
 
