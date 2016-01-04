@@ -474,7 +474,7 @@ prettyNameShort name =
 getAllPackages :: GetStackageDatabase m => m [(Text, Text, Text)] -- FIXME add information on whether included in LTS and Nightly
 getAllPackages = liftM (map toPair) $ run $ do
     E.select $ E.from $ \p -> do
-        E.orderBy [E.asc $ p E.^. PackageName]
+        E.orderBy [E.asc $ E.lower_ $ p E.^. PackageName]
         return
             ( p E.^. PackageName
             , p E.^. PackageLatest
@@ -496,7 +496,7 @@ getPackages sid = liftM (map toPLI) $ run $ do
         E.where_ $
             (p E.^. PackageId E.==. sp E.^. SnapshotPackagePackage) E.&&.
             (sp E.^. SnapshotPackageSnapshot E.==. E.val sid)
-        E.orderBy [E.asc $ p E.^. PackageName]
+        E.orderBy [E.asc $ E.lower_ $ p E.^. PackageName]
         return
             ( p E.^. PackageName
             , p E.^. PackageSynopsis
@@ -528,7 +528,7 @@ getSnapshotModules sid = liftM (map toMLI) $ run $ do
             (m E.^. ModulePackage E.==. sp E.^. SnapshotPackageId)
         E.orderBy
             [ E.asc $ m E.^. ModuleName
-            , E.asc $ p E.^. PackageName
+            , E.asc $ E.lower_ $ p E.^. PackageName
             ]
         return
             ( m E.^. ModuleName
