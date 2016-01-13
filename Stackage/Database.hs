@@ -600,22 +600,30 @@ getLatests :: GetStackageDatabase m
            => Text -- ^ package name
            -> m [LatestInfo]
 getLatests pname = run $ do
-    mnightly <- latestHelper pname $ \s ln -> s E.^. SnapshotId E.==. ln E.^. NightlySnap
-    mlts <- latestHelper pname $ \s ln -> s E.^. SnapshotId E.==. ln E.^. LtsSnap
-    return $ concat [mnightly, mlts]
+    mlts <- latestHelper pname
+        (\s ln -> s E.^. SnapshotId E.==. ln E.^. LtsSnap)
+        (\_ ln ->
+            [ E.desc $ ln E.^. LtsMajor
+            , E.desc $ ln E.^. LtsMinor
+            ])
+    mnightly <- latestHelper pname
+        (\s ln -> s E.^. SnapshotId E.==. ln E.^. NightlySnap)
+        (\s _ln -> [E.desc $ s E.^. SnapshotCreated])
+    return $ concat [mlts, mnightly]
 
 latestHelper
     :: (From E.SqlQuery E.SqlExpr SqlBackend t, MonadIO m, Functor m)
     => Text
     -> (E.SqlExpr (Entity Snapshot) -> t -> E.SqlExpr (E.Value Bool))
+    -> (E.SqlExpr (Entity Snapshot) -> t -> [E.SqlExpr E.OrderBy])
     -> ReaderT SqlBackend m [LatestInfo]
-latestHelper pname clause = fmap (fmap toLatest) $ E.select $ E.from $ \(s,ln,p,sp) -> do
+latestHelper pname clause order = fmap (fmap toLatest) $ E.select $ E.from $ \(s,ln,p,sp) -> do
     E.where_ $
         clause s ln E.&&.
         (s E.^. SnapshotId E.==. sp E.^. SnapshotPackageSnapshot) E.&&.
         (p E.^. PackageName E.==. E.val pname) E.&&.
         (p E.^. PackageId E.==. sp E.^. SnapshotPackagePackage)
-    E.orderBy [E.desc $ s E.^. SnapshotCreated]
+    E.orderBy $ order s ln
     E.limit 1
     return
         ( s E.^. SnapshotName
