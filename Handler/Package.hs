@@ -51,7 +51,7 @@ renderStackageBadge style mLabel snapName = \case
     Nothing          -> renderBadge (style & right .~ lightgray) badgeLabel "not available"
     Just (Version x) -> renderBadge style badgeLabel x
   where
-    badgeLabel = fromMaybe "stackage" mLabel <> " " <> badgeSnapName snapName
+    badgeLabel = fromMaybe ("stackage " <> badgeSnapName snapName) mLabel
 
     badgeSnapName (SNNightly _) = "nightly"
     badgeSnapName (SNLts x _)   = "lts-" <> tshow x
