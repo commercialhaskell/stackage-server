@@ -1,7 +1,4 @@
-resolver: lts-3.9
-extra-deps:
-    - these-0.6.1.0
-    - barrier-0.1.0
+resolver: lts-5.1
 image:
     container:
         name: snoyberg/stackage-server
