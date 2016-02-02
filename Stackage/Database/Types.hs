@@ -26,6 +26,9 @@ isNightly SNNightly{} = True
 instance ToJSONKey SnapName where
     toJSONKey = toPathPiece
 
+instance ToJSON SnapName where
+    toJSON = String . toPathPiece
+
 instance PersistField SnapName where
     toPersistValue = toPersistValue . toPathPiece
     fromPersistValue v = do
