@@ -211,14 +211,14 @@ test-suite test
 
     build-depends: base                          >= 4.8         &&   < 4.9
                  , stackage-server
-                 , yesod-test                    >= 1.4         &&   < 1.5
+                 , yesod-test                    >= 1.5         &&   < 1.6
                  , yesod-core                    >= 1.4         &&   < 1.5
                  , yesod                         >= 1.4         &&   < 1.5
                  , persistent                    >= 2.2         &&   < 2.3
                  , resourcet                     >= 1.1.6       &&   < 1.2
                  , monad-logger                  >= 0.3.13      &&   < 0.4
                  , transformers                  >= 0.4         &&   < 0.5
-                 , hspec                         >= 2.1         &&   < 2.2
+                 , hspec                         >= 2.2         &&   < 2.3
                  , classy-prelude-yesod          >= 0.12        &&   < 0.13
                  , mtl                           >= 2.2         &&   < 2.3
                  , mwc-random                    >= 0.13        &&   < 0.14
