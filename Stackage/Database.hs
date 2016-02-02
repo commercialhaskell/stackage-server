@@ -129,6 +129,13 @@ Deprecated
     UniqueDeprecated package
 |]
 
+instance A.ToJSON Snapshot where
+  toJSON Snapshot{..} =
+    A.object [ "name"    A..= snapshotName
+             , "ghc"     A..= snapshotGhc
+             , "created" A..= formatTime defaultTimeLocale "%F" snapshotCreated
+             ]
+
 _hideUnusedWarnings
     :: ( SnapshotPackageId
        , SchemaId
@@ -489,6 +496,14 @@ data PackageListingInfo = PackageListingInfo
     , pliSynopsis :: !Text
     , pliIsCore :: !Bool
     }
+
+instance A.ToJSON PackageListingInfo where
+   toJSON PackageListingInfo{..} =
+       A.object [ "name"     A..= pliName
+                , "version"  A..= pliVersion
+                , "synopsis" A..= pliSynopsis
+                , "isCore"   A..= pliIsCore
+                ]
 
 getPackages :: GetStackageDatabase m => SnapshotId -> m [PackageListingInfo]
 getPackages sid = liftM (map toPLI) $ run $ do
