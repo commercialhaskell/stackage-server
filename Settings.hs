@@ -61,8 +61,11 @@ widgetFile = (if development then widgetFileReload
 data Extra = Extra
     { extraDevDownload :: !Bool
     -- ^ Controls how Git and database resources are downloaded (True means less downloading)
+    , extraForceSsl :: !Bool
     }
     deriving Show
 
 parseExtra :: DefaultEnv -> Object -> Parser Extra
-parseExtra _ o = Extra <$> o .:? "dev-download" .!= False
+parseExtra _ o = Extra
+    <$> o .:? "dev-download" .!= False
+    <*> o .: "force-ssl"

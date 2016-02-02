@@ -2,6 +2,7 @@ Default: &defaults
   host: "*4" # any IPv4 host
   port: 3000
   approot: "http://localhost:3000"
+  force-ssl: false
 
 Development:
   <<: *defaults
@@ -14,5 +15,6 @@ Staging:
   <<: *defaults
 
 Production:
-  approot: "http://www.stackage.org"
+  approot: "https://www.stackage.org"
+  force-ssl: true
   <<: *defaults

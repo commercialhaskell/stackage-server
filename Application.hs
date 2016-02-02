@@ -12,6 +12,7 @@ import           Import hiding (catch)
 import           Language.Haskell.TH.Syntax (Loc(..))
 import           Network.Wai (Middleware, responseLBS)
 import           Network.Wai.Logger (clockDateCacher)
+import           Network.Wai.Middleware.ForceSSL (forceSSL)
 import           Network.Wai.Middleware.RequestLogger
     ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination
     )
@@ -67,7 +68,7 @@ makeApplication echo@True conf = do
        { destination = RequestLogger.Callback (const (return ()))
        }
    Echo.clear
-   return (logWare (defaultMiddlewaresNoLogging app),logFunc)
+   return (forceSSL' conf $ logWare (defaultMiddlewaresNoLogging app),logFunc)
  where logFunc (Loc filename' _pkg _mod (line,_) _) source level str =
            Echo.write (filename',line) (show source ++ ": " ++ show level ++ ": " ++ toStr str)
        toStr = unpack . decodeUtf8 . fromLogStr
@@ -84,8 +85,13 @@ makeApplication echo@False conf = do
     -- Create the WAI application and apply middlewares
     app <- toWaiAppPlain foundation
     let logFunc = messageLoggerSource foundation (appLogger foundation)
-        middleware = nicerExceptions . logWare . defaultMiddlewaresNoLogging
+        middleware = forceSSL' conf . nicerExceptions . logWare . defaultMiddlewaresNoLogging
     return (middleware app, logFunc)
+
+forceSSL' :: AppConfig DefaultEnv Extra -> Middleware
+forceSSL' app
+    | extraForceSsl $ appExtra app = forceSSL
+    | otherwise = id
 
 nicerExceptions :: Middleware
 nicerExceptions app req send = catch (app req send) $ \e -> do
