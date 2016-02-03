@@ -10,7 +10,7 @@ import           Control.Exception (catch)
 import           Data.WebsiteContent
 import           Import hiding (catch)
 import           Language.Haskell.TH.Syntax (Loc(..))
-import           Network.Wai (Middleware, responseLBS)
+import           Network.Wai (Middleware, responseLBS, rawPathInfo)
 import           Network.Wai.Logger (clockDateCacher)
 import           Network.Wai.Middleware.ForceSSL (forceSSL)
 import           Network.Wai.Middleware.RequestLogger
@@ -89,9 +89,14 @@ makeApplication echo@False conf = do
     return (middleware app, logFunc)
 
 forceSSL' :: AppConfig DefaultEnv Extra -> Middleware
-forceSSL' app
-    | extraForceSsl $ appExtra app = forceSSL
-    | otherwise = id
+forceSSL' ac app
+    | extraForceSsl $ appExtra ac = \req send ->
+        -- Don't force SSL for tarballs, to provide 00-index.tar.gz and package
+        -- tarball access for cabal-install
+        if ".tar.gz" `isSuffixOf` rawPathInfo req
+            then app req send
+            else forceSSL app req send
+    | otherwise = app
 
 nicerExceptions :: Middleware
 nicerExceptions app req send = catch (app req send) $ \e -> do
