@@ -13,7 +13,7 @@ import Stackage.Database
 import Stackage.Database.Types (isLts)
 import Stackage.Snapshot.Diff
 
-getStackageHomeR :: SnapName -> Handler Html
+getStackageHomeR :: SnapName -> Handler TypedContent
 getStackageHomeR name = do
     Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
     previousSnapName <- fromMaybe name . map snd <$> snapshotBefore (snapshotName snapshot)
@@ -22,11 +22,25 @@ getStackageHomeR name = do
                 exact = False
             in $(widgetFile "hoogle-form")
     packageCount <- getPackageCount sid
-    defaultLayout $ do
-        setTitle $ toHtml $ snapshotTitle snapshot
-        packages <- getPackages sid
-        $(widgetFile "stackage-home")
+    packages <- getPackages sid
+    selectRep $ do
+      provideRep $ do
+        defaultLayout $ do
+            setTitle $ toHtml $ snapshotTitle snapshot
+            $(widgetFile "stackage-home")
+      provideRep $ pure $ toJSON $ SnapshotInfo snapshot packages
+
+
   where strip x = fromMaybe x (stripSuffix "." x)
+
+data SnapshotInfo
+  = SnapshotInfo { snapshot :: Snapshot
+                 , packages :: [PackageListingInfo]
+                 }
+instance ToJSON SnapshotInfo where
+  toJSON SnapshotInfo{..} = object [ "snapshot" .= snapshot
+                                   , "packages" .= packages
+                                   ]
 
 getStackageDiffR :: SnapName -> SnapName -> Handler TypedContent
 getStackageDiffR name1 name2 = do

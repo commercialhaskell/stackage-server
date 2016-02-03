@@ -28,6 +28,7 @@ mkFeed mBranch snaps = do
             , feedEntryUpdated = UTCTime (snapshotCreated snap) 0
             , feedEntryTitle = prettyName (snapshotName snap) (snapshotGhc snap)
             , feedEntryContent = content
+            , feedEntryEnclosure = Nothing
             }
     updated <-
         case entries of
@@ -42,6 +43,7 @@ mkFeed mBranch snaps = do
         , feedLanguage = "en"
         , feedUpdated = updated
         , feedEntries = entries
+        , feedLogo = Nothing
         }
   where
     branchTitle NightlyBranch = "Nightly"

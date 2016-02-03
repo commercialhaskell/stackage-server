@@ -21,12 +21,15 @@ import Control.Monad.State.Strict (StateT, get, put)
 import Network.HTTP.Types (status200)
 import           Data.Streaming.Network (bindPortTCP)
 import           Network.AWS                   (Credentials (Discover),
-                                                Region (NorthVirginia), getEnv,
-                                                send, sourceFileIO, envManager)
-import           Network.AWS.Data              (toBody)
-import           Network.AWS.S3                (ObjectCannedACL (PublicRead),
-                                                poACL,
-                                                putObject)
+                                                Region (NorthVirginia), newEnv,
+                                                send, chunkedFile, defaultChunkSize,
+                                                envManager, runAWS)
+import           Control.Monad.Trans.AWS       (trying, _Error)
+import           Network.AWS.Data.Body         (toBody)
+import           Network.AWS.S3                (ObjectCannedACL (OPublicRead),
+                                                poACL, putObject,
+                                                BucketName(BucketName),
+                                                ObjectKey(ObjectKey))
 import Control.Lens (set, view)
 import qualified Data.Conduit.Binary as CB
 import           Data.Conduit.Zlib             (WindowBits (WindowBits),
@@ -154,37 +157,37 @@ stackageServerCron = do
     void $ catchIO (bindPortTCP 17834 "127.0.0.1") $ \_ ->
         error $ "cabal loader process already running, exiting"
 
-    env <- getEnv NorthVirginia Discover
-    let upload :: FilePath -> Text -> IO ()
+    env <- newEnv NorthVirginia Discover
+    let upload :: FilePath -> ObjectKey -> IO ()
         upload fp key = do
             let fpgz = fp <.> "gz"
             runResourceT $ sourceFile fp
                         $$ compress 9 (WindowBits 31)
                         =$ CB.sinkFile fpgz
-            body <- sourceFileIO fpgz
+            body <- chunkedFile defaultChunkSize fpgz
             let po =
-                      set poACL (Just PublicRead)
-                   $  putObject body "haddock.stackage.org" key
-            putStrLn $ "Uploading: " ++ key
-            eres <- runResourceT $ send env po
+                      set poACL (Just OPublicRead)
+                   $  putObject "haddock.stackage.org" key body
+            putStrLn $ "Uploading: " ++ tshow key
+            eres <- runResourceT $ runAWS env $ trying _Error $ send po
             case eres of
                 Left e -> error $ show (fp, key, e)
                 Right _ -> putStrLn "Success"
 
     let dbfp = fromText keyName
     createStackageDatabase dbfp
-    upload (encodeString dbfp) keyName
+    upload (encodeString dbfp) (ObjectKey keyName)
 
     db <- openStackageDatabase dbfp
 
     do
         snapshots <- runReaderT snapshotsJSON db
-        let key = "snapshots.json" :: Text
+        let key = ObjectKey "snapshots.json"
             po =
-                  set poACL (Just PublicRead)
-               $  putObject (toBody snapshots) "haddock.stackage.org" key
-        putStrLn $ "Uploading: " ++ key
-        eres <- runResourceT $ send env po
+                  set poACL (Just OPublicRead)
+               $  putObject (BucketName "haddock.stackage.org") key (toBody snapshots)
+        putStrLn $ "Uploading: " ++ tshow key
+        eres <- runResourceT $ runAWS env $ trying _Error $ send po
         case eres of
             Left e -> error $ show (key, e)
             Right _ -> putStrLn "Success"
@@ -199,7 +202,7 @@ stackageServerCron = do
                 mfp' <- createHoogleDB db manager name
                 forM_ mfp' $ \fp -> do
                     let key = hoogleKey name
-                    upload fp key
+                    upload fp (ObjectKey key)
                     let dest = unpack key
                     createTree $ parent (fromString dest)
                     rename (fromString fp) (fromString dest)
