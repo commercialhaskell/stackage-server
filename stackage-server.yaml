@@ -3,31 +3,34 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: stackage-server
+  name: stackage-server-prod
   labels:
-    app: stackage-server
+    app: stackage-server-prod
 spec:
   ports:
   - name: http
     port: 80
+    nodePort: 31419
     targetPort: http
   - name: https
     port: 443
+    nodePort: 30733
     targetPort: http
-  type: LoadBalancer
+  type: NodePort
   selector:
-    app: stackage-server
+    app: stackage-server-prod
 ---
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: stackage-server
+  name: stackage-server-prod-v0
 spec:
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       labels:
-        app: stackage-server
+        app: stackage-server-prod
+        version: v0
     spec:
       containers:
       - name: stackage-server
