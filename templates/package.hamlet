@@ -17,7 +17,8 @@ $newline never
             <h1>
                #{pn} #
                <span .latest-version>
-                 #{displayedVersion} #
+                 <a href="https://hackage.haskell.org/package/#{pn}">
+                   #{displayedVersion}
             <p .synopsis>
                 #{synopsis}
                \ #
@@ -41,12 +42,11 @@ $newline never
         <div .span12>
             <div .authorship>
                 <span .license>
-                    <a href="">
-                        #{packageLicenseName package} licensed #
+                    #{packageLicenseName package} licensed
                     $if null maintainers
                         and maintained #
                 $if not (null authors)
-                   by #
+                   \ by #
                    $forall (i,identity) <- authors
                       <strong .author>
                           $case identity
@@ -126,7 +126,7 @@ $if not (LT.null (LT.renderHtml (packageChangelog package)))
                             #{name}
             $if not $ null revdeps
               <div .reverse-dependencies .expanding #reverse-dependencies>
-                Used by
+                Used by #{length revdeps} packages:
                 <div .dep-list>
                     $forall (i,(name, range)) <- revdeps
                         $if i /= 0
