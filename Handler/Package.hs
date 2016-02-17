@@ -16,7 +16,7 @@ import qualified Data.Text.Lazy as LT
 import           Distribution.Package.ModuleForest
 import           Graphics.Badge.Barrier
 import           Control.Lens
-import           Import
+import           Import hiding (empty)
 import qualified Text.Blaze.Html.Renderer.Text as LT
 import           Text.Email.Validate
 import           Stackage.Database
