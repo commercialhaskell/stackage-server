@@ -26,11 +26,11 @@ $newline never
                    <a href="#{url}">
                        #{url}
 
-            $forall (idx, li) <- enumerate latests
-                 $if idx /= 0
-                    , #
-                 <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
-                    #{prettyName (liSnapName li) (liGhc li)} (#{liVersion li})
+            $forall li <- latests
+                 <div>
+                   <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
+                      #{prettyName (liSnapName li) (liGhc li)}
+                   \: #{liVersion li}
 
             $if null latests
                 <p .add-to-nightly>
