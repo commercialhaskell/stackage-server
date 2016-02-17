@@ -16,7 +16,7 @@ import qualified Data.Text.Lazy as LT
 import           Distribution.Package.ModuleForest
 import           Graphics.Badge.Barrier
 import           Control.Lens
-import           Import hiding (empty)
+import           Import
 import qualified Text.Blaze.Html.Renderer.Text as LT
 import           Text.Email.Validate
 import           Stackage.Database
@@ -161,13 +161,13 @@ data Identifier
 --
 parseIdentitiesLiberally :: Text -> [Identifier]
 parseIdentitiesLiberally =
-  filter (not . empty) .
+  filter (not . emptyPlainText) .
   map strip .
   concatPlains .
   map parseChunk .
   T.split (== ',')
-  where empty (PlainText e) = T.null e
-        empty _ = False
+  where emptyPlainText (PlainText e) = T.null e
+        emptyPlainText _ = False
         strip (PlainText t) = PlainText (T.strip t)
         strip x = x
         concatPlains = go
