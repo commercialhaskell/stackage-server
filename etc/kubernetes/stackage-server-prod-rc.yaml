@@ -1,26 +1,6 @@
 # Kubernetes
 ---
 apiVersion: v1
-kind: Service
-metadata:
-  name: stackage-server-prod
-  labels:
-    app: stackage-server-prod
-spec:
-  ports:
-  - name: http
-    port: 80
-    nodePort: 31419
-    targetPort: http
-  - name: https
-    port: 443
-    nodePort: 30733
-    targetPort: http
-  type: NodePort
-  selector:
-    app: stackage-server-prod
----
-apiVersion: v1
 kind: ReplicationController
 metadata:
   name: stackage-server-prod-v0
@@ -34,7 +14,8 @@ spec:
     spec:
       containers:
       - name: stackage-server
-        image: snoyberg/stackage-server:latest
+        image: fpco/stackage-server:prod
+        imagePullPolicy: Always
         ports:
         - name: http
           containerPort: 3000
