@@ -1,7 +1,7 @@
 resolver: lts-5.1
 image:
     container:
-        name: snoyberg/stackage-server
+        name: fpco/stackage-server
         base: fpco/stack-run
         add:
             config: /app/config
