@@ -42,11 +42,11 @@ $newline never
         <div .span12>
             <div .authorship>
                 <span .license>
-                    #{packageLicenseName package} licensed
+                    #{packageLicenseName package} licensed #
                     $if null maintainers
                         and maintained #
                 $if not (null authors)
-                   \ by #
+                   by #
                    $forall (i,identity) <- authors
                       <strong .author>
                           $case identity
