@@ -15,10 +15,7 @@ $newline never
                       <a href="@{PackageR $ PackageName pn}">
                         #{pn}
             <h1>
-               #{pn} #
-               <span .latest-version>
-                 <a href="https://hackage.haskell.org/package/#{pn}">
-                   #{displayedVersion}
+               #{pn}
             <p .synopsis>
                 #{synopsis}
                \ #
@@ -30,7 +27,15 @@ $newline never
                  <div>
                    <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
                       #{prettyName (liSnapName li) (liGhc li)}
-                   \: #{liVersion li}
+                   \: #
+                   <span .version>
+                      #{liVersion li}
+            <div>
+              <a href="https://hackage.haskell.org/package/#{pn}">
+                 Hackage
+              \: #
+              <span .version>
+                 #{displayedVersion} #
 
             $if null latests
                 <p .add-to-nightly>
