@@ -7,6 +7,7 @@ module Handler.Package
     , getPackageSnapshotsR
     , packagePage
     , getPackageBadgeR
+    , renderNoPackages
     ) where
 
 import           Data.Char
@@ -226,3 +227,7 @@ getPackageSnapshotsR pn =
            $(combineStylesheets 'StaticR
                                 [css_font_awesome_min_css])
            $(widgetFile "package-snapshots"))
+
+renderNoPackages :: Int -> Text
+renderNoPackages n =
+  T.pack $ show n ++ " package" ++ (if n == 1 then "" else "s")

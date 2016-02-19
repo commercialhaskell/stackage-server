@@ -122,7 +122,7 @@ $if not (LT.null (LT.renderHtml (packageChangelog package)))
     <div .row>
         <div .span12>
             <div .dependencies #dependencies>
-                Depends on
+                Depends on:
                 <div .dep-list>
                     $forall (i,(name, range)) <- deps
                         $if i /= 0
@@ -131,7 +131,7 @@ $if not (LT.null (LT.renderHtml (packageChangelog package)))
                             #{name}
             $if not $ null revdeps
               <div .reverse-dependencies .expanding #reverse-dependencies>
-                Used by #{length revdeps} packages:
+                Used by #{renderNoPackages $ length revdeps}:
                 <div .dep-list>
                     $forall (i,(name, range)) <- revdeps
                         $if i /= 0
