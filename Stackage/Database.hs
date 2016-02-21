@@ -470,7 +470,7 @@ snapshotTitle :: Snapshot -> Text
 snapshotTitle s = prettyName (snapshotName s) (snapshotGhc s)
 
 prettyName :: SnapName -> Text -> Text
-prettyName name ghc = concat [prettyNameShort name, " - GHC ", ghc]
+prettyName name ghc = concat [prettyNameShort name, " (ghc-", ghc, ")"]
 
 prettyNameShort :: SnapName -> Text
 prettyNameShort name =

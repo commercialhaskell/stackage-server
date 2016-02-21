@@ -11,9 +11,8 @@ h3 {
   width: auto;
   margin-left: auto;
 }
-.latest-version {
-  color: #777;
-  font-size: 24.5px;
+.version {
+  font-weight: bold;
 }
 #disqus_thread {
   margin-top: 2em;

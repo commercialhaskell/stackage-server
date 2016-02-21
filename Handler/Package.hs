@@ -7,6 +7,7 @@ module Handler.Package
     , getPackageSnapshotsR
     , packagePage
     , getPackageBadgeR
+    , renderNoPackages
     ) where
 
 import           Data.Char
@@ -161,13 +162,13 @@ data Identifier
 --
 parseIdentitiesLiberally :: Text -> [Identifier]
 parseIdentitiesLiberally =
-  filter (not . empty) .
+  filter (not . emptyPlainText) .
   map strip .
   concatPlains .
   map parseChunk .
   T.split (== ',')
-  where empty (PlainText e) = T.null e
-        empty _ = False
+  where emptyPlainText (PlainText e) = T.null e
+        emptyPlainText _ = False
         strip (PlainText t) = PlainText (T.strip t)
         strip x = x
         concatPlains = go
@@ -226,3 +227,7 @@ getPackageSnapshotsR pn =
            $(combineStylesheets 'StaticR
                                 [css_font_awesome_min_css])
            $(widgetFile "package-snapshots"))
+
+renderNoPackages :: Int -> Text
+renderNoPackages n =
+  T.pack $ show n ++ " package" ++ (if n == 1 then "" else "s")

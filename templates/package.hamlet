@@ -15,9 +15,7 @@ $newline never
                       <a href="@{PackageR $ PackageName pn}">
                         #{pn}
             <h1>
-               #{pn} #
-               <span .latest-version>
-                 #{displayedVersion} #
+               #{pn}
             <p .synopsis>
                 #{synopsis}
                \ #
@@ -25,11 +23,19 @@ $newline never
                    <a href="#{url}">
                        #{url}
 
-            $forall (idx, li) <- enumerate latests
-                 $if idx /= 0
-                    , #
-                 <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
-                    #{prettyName (liSnapName li) (liGhc li)} (#{liVersion li})
+            $forall li <- latests
+                 <div>
+                   <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
+                      #{prettyName (liSnapName li) (liGhc li)}
+                   \: #
+                   <span .version>
+                      #{liVersion li}
+            <div>
+              <a href="https://hackage.haskell.org/package/#{pn}">
+                 Hackage
+              \: #
+              <span .version>
+                 #{displayedVersion} #
 
             $if null latests
                 <p .add-to-nightly>
@@ -41,8 +47,7 @@ $newline never
         <div .span12>
             <div .authorship>
                 <span .license>
-                    <a href="">
-                        #{packageLicenseName package} licensed #
+                    #{packageLicenseName package} licensed #
                     $if null maintainers
                         and maintained #
                 $if not (null authors)
@@ -117,7 +122,7 @@ $if not (LT.null (LT.renderHtml (packageChangelog package)))
     <div .row>
         <div .span12>
             <div .dependencies #dependencies>
-                Depends on
+                Depends on:
                 <div .dep-list>
                     $forall (i,(name, range)) <- deps
                         $if i /= 0
@@ -126,7 +131,7 @@ $if not (LT.null (LT.renderHtml (packageChangelog package)))
                             #{name}
             $if not $ null revdeps
               <div .reverse-dependencies .expanding #reverse-dependencies>
-                Used by
+                Used by #{renderNoPackages $ length revdeps}:
                 <div .dep-list>
                     $forall (i,(name, range)) <- revdeps
                         $if i /= 0
