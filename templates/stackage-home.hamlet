@@ -23,7 +23,7 @@ $newline never
 
     <p>
         <b>New to stack?
-        \ Check out <a href="https://github.com/commercialhaskell/stack#readme">the stack homepage</a>
+        \ Check out <a href="http://docs.haskellstack.org">the stack homepage</a>
 
     <p .cabal>
         cabal users can either use the #
