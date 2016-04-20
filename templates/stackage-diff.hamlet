@@ -38,18 +38,18 @@
             $case verChange
               $of This oldVersion
                 <td>
-                  <a href=@{packageUrl name1 pkgname oldVersion}>
+                  <a href=@{packageUrl name1 pkgname oldVersion}#changes}>
                     #{pkgname}-#{oldVersion}
                 <td>
               $of That newVersion
                 <td>
                 <td>
-                  <a href=@{packageUrl name2 pkgname newVersion}>
+                  <a href=@{packageUrl name2 pkgname newVersion}#changes>
                     #{pkgname}-#{newVersion}
               $of These oldVersion newVersion
                 <td>
-                  <a href=@{packageUrl name1 pkgname oldVersion}>
+                  <a href=@{packageUrl name1 pkgname oldVersion}#changes>
                     #{pkgname}-#{oldVersion}
                 <td>
-                  <a href=@{packageUrl name2 pkgname newVersion}>
+                  <a href=@{packageUrl name2 pkgname newVersion}#changes>
                     #{pkgname}-#{newVersion}

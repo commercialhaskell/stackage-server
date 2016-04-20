@@ -111,7 +111,7 @@ $if not (LT.null (LT.renderHtml (packageDescription package)))
                         <i class="fa fa-angle-down">
 
 $if not (LT.null (LT.renderHtml (packageChangelog package)))
-    <div .container .content>
+    <div .container .content id=changes>
        <div .row>
            <div .span12>
                <h2 .changes-title>Changes
