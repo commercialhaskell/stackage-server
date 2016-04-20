@@ -33,15 +33,23 @@
                 $else
                   <option value=@{StackageDiffR name1 name2'}>#{toPathPiece name2'}
       <tbody>
-        $forall (PackageName name, VersionChange verChange) <- toDiffList snapDiff
+        $forall (pkgname, VersionChange verChange) <- toDiffList snapDiff
           <tr>
             $case verChange
-              $of This (Version oldVersion)
-                <td>#{name}-#{oldVersion}
+              $of This oldVersion
                 <td>
-              $of That (Version newVersion)
+                  <a href=@{packageUrl name1 pkgname oldVersion}#changes}>
+                    #{pkgname}-#{oldVersion}
                 <td>
-                <td>#{name}-#{newVersion}
-              $of These (Version oldVersion) (Version newVersion)
-                <td>#{name}-#{oldVersion}
-                <td>#{name}-#{newVersion}
+              $of That newVersion
+                <td>
+                <td>
+                  <a href=@{packageUrl name2 pkgname newVersion}#changes>
+                    #{pkgname}-#{newVersion}
+              $of These oldVersion newVersion
+                <td>
+                  <a href=@{packageUrl name1 pkgname oldVersion}#changes>
+                    #{pkgname}-#{oldVersion}
+                <td>
+                  <a href=@{packageUrl name2 pkgname newVersion}#changes>
+                    #{pkgname}-#{newVersion}

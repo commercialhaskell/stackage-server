@@ -20,6 +20,11 @@ parseLtsPair t1 = do
     (y, "") <- either (const Nothing) Just $ decimal t3
     Just (x, y)
 
+packageUrl :: SnapName -> PackageName -> Version -> Route App
+packageUrl sname pkgname pkgver = SnapshotR sname sdistR
+  where
+    sdistR = StackageSdistR (PNVNameVersion pkgname pkgver)
+
 haddockUrl :: SnapName
            -> Text -- ^ package-version
            -> Text -- ^ module name
