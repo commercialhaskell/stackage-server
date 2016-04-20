@@ -53,8 +53,7 @@ $newline never
                 $forall pli <- packages
                     <tr>
                         <td>
-                            <a href=@{SnapshotR name $ StackageSdistR $ PNVNameVersion (PackageName $ toPathPiece $ pliName pli) $ Version (pliVersion pli)}>
-                                #{pliName pli}
-                                -#{pliVersion pli}
+                            <a href=@{packageUrl name (PackageName $ pliName pli) (Version $ pliVersion pli)}>
+                                #{pliName pli}-#{pliVersion pli}
                         <td>
                             #{strip $ pliSynopsis pli}
