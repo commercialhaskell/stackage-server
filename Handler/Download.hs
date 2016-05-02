@@ -12,26 +12,6 @@ import Yesod.GitRepo (grContent)
 import Stackage.Database
 import qualified Data.Text as T
 
-executableFor :: SupportedArch -> StackageExecutable
-executableFor Win32 = StackageWindowsExecutable
-executableFor Win64 = StackageWindowsExecutable
-executableFor _ = StackageUnixExecutable
-
--- TODO: link to s3
-executableLink :: SupportedArch -> StackageExecutable -> Text
-executableLink arch exe =
-    "https://s3.amazonaws.com/download.fpcomplete.com/stackage-cli/"
-    <> toPathPiece arch <> "/" <> toPathPiece exe
-
-downloadCandidates :: [(SupportedArch, StackageExecutable)]
-downloadCandidates =
-    map (\arch -> (arch, executableFor arch))
-        [minBound .. maxBound]
-
-currentlySupported :: SupportedArch -> Bool
-currentlySupported Linux64 = True
-currentlySupported _ = False
-
 getDownloadR :: Handler Html
 getDownloadR = redirectWith status301 InstallR
 

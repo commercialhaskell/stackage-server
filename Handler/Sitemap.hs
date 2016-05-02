@@ -2,9 +2,9 @@ module Handler.Sitemap (getSitemapR) where
 
 import Import
 import Yesod.Sitemap
-import Stackage.Database
+--import Stackage.Database
 
-type SitemapFor a = forall m. Monad m => Conduit a m (SitemapUrl (Route App))
+--type SitemapFor a = forall m. Monad m => Conduit a m (SitemapUrl (Route App))
 type Sitemap = forall m. Monad m => Producer m (SitemapUrl (Route App))
 
 getSitemapR :: Handler TypedContent
@@ -56,6 +56,7 @@ ltsSitemap = awaitForever go
         slug = show' (ltsMajor lts) <> "." <> show' (ltsMinor lts)
 -}
 
+{-
 snapshotSitemaps :: SitemapFor Snapshot
 snapshotSitemaps = awaitForever go
   where
@@ -79,18 +80,19 @@ packageMetadataSitemaps = awaitForever go
         url' floc = url $ floc $ PackageName $ packageName m
 
 
-priority :: Double -> Route App -> Sitemap
-priority p loc = yield $ SitemapUrl
-    { sitemapLoc = loc
-    , sitemapLastMod = Nothing
-    , sitemapChangeFreq = Nothing
-    , sitemapPriority = Just p
-    }
-
 url :: Route App -> Sitemap
-url loc = yield $ SitemapUrl
+url loc = yield SitemapUrl
     { sitemapLoc = loc
     , sitemapLastMod = Nothing
     , sitemapChangeFreq = Nothing
     , sitemapPriority = Nothing
+    }
+-}
+
+priority :: Double -> Route App -> Sitemap
+priority p loc = yield SitemapUrl
+    { sitemapLoc = loc
+    , sitemapLastMod = Nothing
+    , sitemapChangeFreq = Nothing
+    , sitemapPriority = Just p
     }
