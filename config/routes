@@ -28,6 +28,7 @@
 
 /system SystemR GET
 /haddock/#SnapName/*Texts HaddockR GET
+!/haddock/*Texts HaddockBackupR GET
 /package/#PackageName PackageR GET
 /package/#PackageName/snapshots PackageSnapshotsR GET
 /package/#PackageName/badge/#SnapshotBranch PackageBadgeR GET

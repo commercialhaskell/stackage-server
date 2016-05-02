@@ -125,6 +125,7 @@ library
                   , shakespeare                   >= 2.0         &&   < 2.1
                   , system-fileio                 >= 0.3         &&   < 0.4
                   , system-filepath               >= 0.4         &&   < 0.5
+                  , tagstream-conduit
                   , tar                           >= 0.5         &&   < 0.6
                   , template-haskell              >= 2.10        &&   < 2.11
                   , temporary-rc                  >= 1.2         &&   < 1.3
