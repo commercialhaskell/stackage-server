@@ -71,6 +71,9 @@ install:
   set -ex
   case "$BUILD" in
     stack)
+      # Avoid an out-of-memory condition
+      stack --no-terminal --install-ghc $ARGS build haskell-src-exts
+
       stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies
       ;;
     cabal)
