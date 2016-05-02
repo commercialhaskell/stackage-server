@@ -5,7 +5,6 @@ module Stackage.Database.Cron
     ) where
 
 import ClassyPrelude.Conduit
-import Control.Concurrent (threadDelay)
 import Stackage.PackageIndex.Conduit
 import Database.Persist (Entity (Entity))
 import Data.Char (isAlpha)

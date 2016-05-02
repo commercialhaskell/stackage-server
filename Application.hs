@@ -5,7 +5,7 @@ module Application
     , makeFoundation
     ) where
 
-import           Control.Concurrent (forkIO, threadDelay)
+import           Control.Concurrent (forkIO)
 import           Control.Exception (catch)
 import           Data.WebsiteContent
 import           Import hiding (catch)
