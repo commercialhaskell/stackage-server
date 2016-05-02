@@ -10,7 +10,7 @@ import Text.HTML.TagStream.ByteString (tokenStream, showToken)
 
 makeURL :: SnapName -> [Text] -> Text
 makeURL slug rest = concat
-    $ "http://haddock.stackage.org/"
+    $ "https://s3.amazonaws.com/haddock.stackage.org/"
     : toPathPiece slug
     : map (cons '/') rest
 
@@ -49,5 +49,5 @@ getHaddockR slug rest
 
 getHaddockBackupR :: [Text] -> Handler ()
 getHaddockBackupR rest = redirect $ concat
-    $ "http://haddock.stackage.org"
+    $ "https://s3.amazonaws.com/haddock.stackage.org"
     : map (cons '/') rest
