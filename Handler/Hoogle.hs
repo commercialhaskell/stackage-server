@@ -37,8 +37,11 @@ getHoogleR name = do
         Just x -> return $ liftIO $ Hoogle.loadDatabase x
         Nothing -> hoogleDatabaseNotAvailableFor name
 
+    -- Avoid concurrent Hoogle queries, see
+    -- https://github.com/fpco/stackage-server/issues/172
+    lock <- appHoogleLock <$> getYesod
     mresults <- case mquery of
-        Just query -> runHoogleQuery heDatabase HoogleQueryInput
+        Just query -> withMVar lock $ const $ runHoogleQuery heDatabase HoogleQueryInput
             { hqiQueryInput = query
             , hqiExactSearch = if exact then Just query else Nothing
             , hqiLimitTo = count'

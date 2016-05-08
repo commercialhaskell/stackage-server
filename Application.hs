@@ -146,6 +146,7 @@ makeFoundation useEcho conf = do
         , updateAction = getLatestMatcher manager
         }
 
+    hoogleLock <- newMVar ()
     let logger = Yesod.Core.Types.Logger loggerSet' getter
         foundation = App
             { settings = conf
@@ -156,6 +157,7 @@ makeFoundation useEcho conf = do
             , websiteContent = websiteContent'
             , stackageDatabase = stackageDatabase'
             , latestStackMatcher = latestStackMatcher'
+            , appHoogleLock = hoogleLock
             }
 
     return foundation
