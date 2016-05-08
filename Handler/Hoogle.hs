@@ -136,7 +136,7 @@ runHoogleQuery heDatabase HoogleQueryInput {..} =
             mcount  = spoon $ limitedLength 0 rawRes
             limitedLength x [] = Just x
             limitedLength x (_:rest)
-                | x >= 100 = Nothing
+                | x >= 20 = Nothing
                 | otherwise = limitedLength (x + 1) rest
             rendered = pack $ Hoogle.showTagHTML $ Hoogle.renderQuery query''
         return $ case (,) <$> mres <*> mcount of
