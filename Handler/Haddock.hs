@@ -14,8 +14,12 @@ makeURL slug rest = concat
     : toPathPiece slug
     : map (cons '/') rest
 
+shouldRedirect :: Bool
+shouldRedirect = True
+
 getHaddockR :: SnapName -> [Text] -> Handler TypedContent
 getHaddockR slug rest
+  | shouldRedirect = redirect $ makeURL slug rest
   | final:_ <- reverse rest, ".html" `isSuffixOf` final = do
       render <- getUrlRender
 
@@ -44,6 +48,7 @@ getHaddockR slug rest
          $ responseBody res
         $= tokenStream
         $= concatMapC addExtra
+        -- FIXME showToken does not encode HTML entities
         $= mapC (Chunk . showToken id)
   | otherwise = redirect $ makeURL slug rest
 
