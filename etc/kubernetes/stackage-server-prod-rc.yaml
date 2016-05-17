@@ -19,7 +19,7 @@ spec:
         ports:
         - name: http
           containerPort: 3000
-        command: ["stackage-server", "production"]
+        command: ["stackage-server"]
         workingDir: /app
         env:
         - name: APPROOT
