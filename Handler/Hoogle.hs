@@ -14,7 +14,7 @@ import qualified Stackage.Database.Cron as Cron
 getHoogleDB :: SnapName -> Handler (Maybe FilePath)
 getHoogleDB name = do
     app <- getYesod
-    liftIO $ Cron.getHoogleDB True (httpManager app) name
+    liftIO $ Cron.getHoogleDB True (appHttpManager app) name
 
 getHoogleR :: SnapName -> Handler Html
 getHoogleR name = do

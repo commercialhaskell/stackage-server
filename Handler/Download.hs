@@ -41,7 +41,7 @@ getDownloadGhcLinksR arch fileName = do
          >=> stripSuffix "-links.yaml"
          >=> ghcMajorVersionFromText
        $ fileName
-  ghcLinks <- getYesod >>= fmap wcGhcLinks . liftIO . grContent . websiteContent
+  ghcLinks <- getYesod >>= fmap wcGhcLinks . liftIO . grContent . appWebsiteContent
   case lookup (arch, ver) (ghcLinksMap ghcLinks) of
     Just text -> return $ TypedContent yamlMimeType $ toContent text
     Nothing -> notFound

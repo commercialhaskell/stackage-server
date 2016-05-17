@@ -1,26 +1,21 @@
-{-# LANGUAGE OverloadedStrings #-}
 module TestImport
-    ( module Yesod.Test
-    , module Model
-    , module Foundation
-    , module Database.Persist
-    , runDB
-    , Spec
-    , Example
+    ( module TestImport
+    , module X
     ) where
 
-import Yesod.Test
-import Database.Persist hiding (get)
-import Database.Persist.Sql (SqlPersistM, runSqlPersistMPool)
-import Control.Monad.IO.Class (liftIO)
+import Application           (makeFoundation, makeLogWare)
+import ClassyPrelude         as X
+import Foundation            as X
+import Test.Hspec            as X
+import Yesod.Default.Config2 (ignoreEnv, loadYamlSettings)
+import Yesod.Test            as X
 
-import Foundation
-import Model
-
-type Spec = YesodSpec App
-type Example = YesodExample App
-
-runDB :: SqlPersistM a -> Example a
-runDB query = do
-    pool <- fmap connPool getTestYesod
-    liftIO $ runSqlPersistMPool query pool
+withApp :: SpecWith (TestApp App) -> Spec
+withApp = before $ do
+    settings <- loadYamlSettings
+        ["config/test-settings.yml", "config/settings.yml"]
+        []
+        ignoreEnv
+    foundation <- makeFoundation settings
+    logWare <- liftIO $ makeLogWare foundation
+    return (foundation, logWare)

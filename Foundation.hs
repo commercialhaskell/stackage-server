@@ -1,45 +1,38 @@
 module Foundation where
 
 import           ClassyPrelude.Yesod
-import           Data.Slug (HasGenIO (getGenIO))
 import           Data.WebsiteContent
-import           Settings (widgetFile, Extra (..))
-import           Settings.Development (development)
+import           Settings
 import           Settings.StaticFiles
-import qualified System.Random.MWC as MWC
 import           Text.Blaze
 import           Text.Hamlet (hamletFile)
 import           Types
 import           Yesod.Core.Types (Logger)
-import           Yesod.Default.Config
 import           Yesod.AtomFeed
 import           Yesod.GitRepo
 import Stackage.Database
+import qualified Yesod.Core.Unsafe as Unsafe
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
 -- starts running, such as database connections. Every handler will have
 -- access to the data present here.
 data App = App
-    { settings :: AppConfig DefaultEnv Extra
-    , getStatic :: Static -- ^ Settings for static file serving.
-    , httpManager :: Manager
+    { appSettings :: AppSettings
+    , appStatic :: Static -- ^ Settings for static file serving.
+    , appHttpManager :: Manager
     , appLogger :: Logger
-    , genIO :: MWC.GenIO
-    , websiteContent :: GitRepo WebsiteContent
-    , stackageDatabase :: IO StackageDatabase
-    , latestStackMatcher :: IO (Text -> Maybe Text)
+    , appWebsiteContent :: GitRepo WebsiteContent
+    , appStackageDatabase :: IO StackageDatabase
+    , appLatestStackMatcher :: IO (Text -> Maybe Text)
     -- ^ Give a pattern, get a URL
     , appHoogleLock :: MVar ()
     -- ^ Avoid concurrent Hoogle queries, see
     -- https://github.com/fpco/stackage-server/issues/172
     }
 
-instance HasGenIO App where
-    getGenIO = genIO
-
 instance HasHttpManager App where
-    getHttpManager = httpManager
+    getHttpManager = appHttpManager
 
 -- This is where we define all of the routes in our application. For a full
 -- explanation of the syntax, please see:
@@ -50,7 +43,8 @@ instance HasHttpManager App where
 -- explanation for this split.
 mkYesodData "App" $(parseRoutesFile "config/routes")
 
-type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
+unsafeHandler :: App -> Handler a -> IO a
+unsafeHandler = Unsafe.fakeHandlerGetLogger appLogger
 
 defaultLayoutNoContainer :: Widget -> Handler Html
 defaultLayoutNoContainer = defaultLayoutWithContainer False
@@ -87,13 +81,14 @@ defaultLayoutWithContainer insideContainer widget = do
 -- Please see the documentation for the Yesod typeclass. There are a number
 -- of settings which can be configured by overriding methods here.
 instance Yesod App where
-    approot = ApprootMaster $ appRoot . settings
+    approot = ApprootRequest $ \app req ->
+        case appRoot $ appSettings app of
+            Nothing -> getApprootText guessApproot app req
+            Just root -> root
 
     -- Store session data on the client in encrypted cookies,
     -- default session idle timeout is 120 minutes
-    makeSessionBackend _ = fmap Just $ defaultClientSessionBackend
-        (120 * 60) -- 120 minutes
-        "config/client_session_key.aes"
+    makeSessionBackend _ = return Nothing
 
     defaultLayout = defaultLayoutWithContainer True
 
@@ -130,8 +125,10 @@ instance Yesod App where
     -- What messages should be logged. The following includes all messages when
     -- in development, and warnings and errors in production.
     shouldLog _ "CLEANUP" _ = False
-    shouldLog _ source level =
-        development || level == LevelWarn || level == LevelError || source == "CLEANUP"
+    shouldLog app _source level =
+        appShouldLogAll (appSettings app)
+            || level == LevelWarn
+            || level == LevelError
 
     makeLogger = return . appLogger
 
@@ -148,10 +145,6 @@ instance ToMarkup (Route App) where
 instance RenderMessage App FormMessage where
     renderMessage _ _ = defaultFormMessage
 
--- | Get the 'Extra' value, used to hold data from the settings.yml file.
-getExtra :: Handler Extra
-getExtra = fmap (appExtra . settings) getYesod
-
 -- Note: previous versions of the scaffolding included a deliver function to
 -- send emails. Unfortunately, there are too many different options for us to
 -- give a reasonable default. Instead, the information is available on the
@@ -160,6 +153,6 @@ getExtra = fmap (appExtra . settings) getYesod
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
 
 instance GetStackageDatabase Handler where
-    getStackageDatabase = getYesod >>= liftIO . stackageDatabase
+    getStackageDatabase = getYesod >>= liftIO . appStackageDatabase
 instance GetStackageDatabase (WidgetT App IO) where
-    getStackageDatabase = getYesod >>= liftIO . stackageDatabase
+    getStackageDatabase = getYesod >>= liftIO . appStackageDatabase

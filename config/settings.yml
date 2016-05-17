@@ -1,20 +1,23 @@
-Default: &defaults
-  host: "*4" # any IPv4 host
-  port: 3000
-  approot: "http://localhost:3000"
-  force-ssl: false
+# Values formatted like "_env:ENV_VAR_NAME:default_value" can be overridden by the specified environment variable.
+# See https://github.com/yesodweb/yesod/wiki/Configuration#overriding-configuration-values-with-environment-variables
 
-Development:
-  <<: *defaults
-  dev-download: true
+static-dir:     "_env:STATIC_DIR:static"
+host:           "_env:HOST:*4" # any IPv4 host
+port:           "_env:PORT:3000" # NB: The port `yesod devel` uses is distinct from this value. Set the `yesod devel` port from the command line.
+ip-from-header: "_env:IP_FROM_HEADER:false"
 
-Testing:
-  <<: *defaults
+# Default behavior: determine the application root from the request headers.
+# Uncomment to set an explicit approot
+approot:        "_env:APPROOT:"
 
-Staging:
-  <<: *defaults
-
-Production:
-  approot: "https://www.stackage.org"
-  force-ssl: true
-  <<: *defaults
+# Optional values with the following production defaults.
+# In development, they default to the inverse.
+#
+# development: false
+# detailed-logging: false
+# should-log-all: false
+# reload-templates: false
+# mutable-static: false
+# skip-combining: false
+# force-ssl: true
+# dev-download: false

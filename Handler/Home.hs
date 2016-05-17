@@ -30,7 +30,7 @@ getOlderReleasesR = contentHelper "Older Releases" wcOlderReleases
 
 contentHelper :: Html -> (WebsiteContent -> Html) -> Handler Html
 contentHelper title accessor = do
-    homepage <- getYesod >>= fmap accessor . liftIO . grContent . websiteContent
+    homepage <- getYesod >>= fmap accessor . liftIO . grContent . appWebsiteContent
     defaultLayout $ do
         setTitle title
         toWidget homepage

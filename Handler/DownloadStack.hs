@@ -13,14 +13,14 @@ import Data.Monoid (First (..))
 
 getDownloadStackListR :: Handler Html
 getDownloadStackListR = do
-    releases <- getYesod >>= fmap wcStackReleases . liftIO . grContent . websiteContent
+    releases <- getYesod >>= fmap wcStackReleases . liftIO . grContent . appWebsiteContent
     defaultLayout $ do
         setTitle "Download Stack"
         $(widgetFile "download-stack-list")
 
 getDownloadStackR :: Text -> Handler ()
 getDownloadStackR pattern = do
-    matcher <- getYesod >>= liftIO . latestStackMatcher
+    matcher <- getYesod >>= liftIO . appLatestStackMatcher
     maybe notFound redirect $ matcher pattern
 
 -- | Creates a function which will find the latest release for a given pattern.
