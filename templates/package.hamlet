@@ -24,23 +24,25 @@ $newline never
                        #{url}
 
             <table>
+              $forall displayedVersion <- mdisplayedVersion
+                <tr>
+                  <td align=right>Version on this page:
+                  <td>
+                    <span .version>#{displayedVersion}
               $forall li <- latests
                  <tr>
                    <td align="right">
                      <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
                         #{prettyNameShort (liSnapName li)}
-                     \: #
+                     :
                    <td>
                      <span .version>
-                       #{liVersion li}
+                       <a href=@{SnapshotR (liSnapName li) (StackageSdistR (PNVName pn))}>#{liVersion li}
               <tr>
-                <td align="right">
-                  <a href="https://hackage.haskell.org/package/#{pn}">
-                     Hackage
-                  \: #
+                <td align="right">Latest on Hackage:
                 <td>
-                  <span .version>
-                    #{displayedVersion} #
+                  <a href="https://hackage.haskell.org/package/#{pn}-#{latestVersion}">
+                    <span .version>#{latestVersion}
 
             $if null latests
                 <p .add-to-nightly>

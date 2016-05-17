@@ -81,7 +81,8 @@ packagePage mversion pname = do
                     [] -> return Nothing
 
     let ixInFavourOf = zip [0::Int ..] inFavourOf
-        displayedVersion = maybe (packageLatest package) (toPathPiece . snd) mversion
+        mdisplayedVersion = toPathPiece . snd <$> mversion
+        latestVersion = packageLatest package
 
     let homepage = case T.strip (packageHomepage package) of
                      x | null x -> Nothing
