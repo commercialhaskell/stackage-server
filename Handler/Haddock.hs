@@ -5,8 +5,9 @@ module Handler.Haddock
 
 import Import
 import Stackage.Database
-import Text.HTML.TagStream.Types (Token' (..))
-import Text.HTML.TagStream.ByteString (tokenStream, showToken)
+import Text.HTML.DOM (eventConduit)
+import Text.XML (fromEvents)
+import Data.XML.Types (Event (..), Content (..))
 
 makeURL :: SnapName -> [Text] -> Text
 makeURL slug rest = concat
@@ -15,7 +16,7 @@ makeURL slug rest = concat
     : map (cons '/') rest
 
 shouldRedirect :: Bool
-shouldRedirect = True
+shouldRedirect = False
 
 getHaddockR :: SnapName -> [Text] -> Handler TypedContent
 getHaddockR slug rest
@@ -23,20 +24,20 @@ getHaddockR slug rest
   | final:_ <- reverse rest, ".html" `isSuffixOf` final = do
       render <- getUrlRender
 
-      let stylesheet = encodeUtf8 $ render $ StaticR haddock_style_css
-          script = encodeUtf8 $ render $ StaticR haddock_script_js
+      let stylesheet = render' $ StaticR haddock_style_css
+          script = render' $ StaticR haddock_script_js
+          render' = return . ContentText . render
 
-          addExtra t@(TagClose "head") =
-            [ TagOpen "link"
-                [ ("rel", "stylesheet")
+          addExtra t@(EventEndElement "head") =
+            [ EventBeginElement "link"
+                [ ("rel", [ContentText "stylesheet"])
                 , ("href", stylesheet)
                 ]
-                False
-            , TagOpen "script"
+            , EventEndElement "link"
+            , EventBeginElement "script"
                 [ ("src", script)
                 ]
-                False
-            , TagClose "script"
+            , EventEndElement "script"
             , t
             ]
           addExtra t = [t]
@@ -44,12 +45,13 @@ getHaddockR slug rest
       req <- parseUrl $ unpack $ makeURL slug rest
       (_, res) <- acquireResponse req >>= allocateAcquire
 
-      respondSource typeHtml
-         $ responseBody res
-        $= tokenStream
-        $= concatMapC addExtra
-        -- FIXME showToken does not encode HTML entities
-        $= mapC (Chunk . showToken id)
+      doc <- responseBody res
+          $$ eventConduit
+          =$ concatMapC addExtra
+          =$ mapC (Nothing, )
+          =$ fromEvents
+
+      sendResponse $ toHtml doc
   | otherwise = redirect $ makeURL slug rest
 
 getHaddockBackupR :: [Text] -> Handler ()

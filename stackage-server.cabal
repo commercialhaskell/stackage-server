@@ -132,6 +132,7 @@ library
                   , wai-logger                    >= 2.2         &&   < 2.3
                   , warp                          >= 3.2         &&   < 3.3
                   , xml-conduit                   >= 1.3         &&   < 1.4
+                  , xml-types
                   , yaml                          >= 0.8         &&   < 0.9
                   , yesod                         >= 1.4         &&   < 1.5
                   , yesod-auth                    >= 1.4         &&   < 1.5
