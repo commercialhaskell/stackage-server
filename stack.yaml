@@ -1,4 +1,10 @@
 resolver: lts-5.15
+packages:
+- .
+- location:
+    git: https://github.com/ndmitchell/hoogle.git
+    commit: 779e04ed20a556bbb92789815ea60068fe188891
+  extra-dep: true
 image:
     container:
         name: fpco/stackage-server
