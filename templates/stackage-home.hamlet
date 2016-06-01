@@ -11,10 +11,6 @@ $newline never
         <span>
             stack #
             <code>resolver: #{toPathPiece name}
-        <span .separator>
-        <span>
-            <a href=@{SnapshotR name StackageCabalConfigR}>
-                \cabal.config
     <h3>Setup guide
 
     <p>Edit your stack.yaml and set the following:
@@ -24,14 +20,6 @@ $newline never
     <p>
         <b>New to stack?
         \ Check out <a href="http://docs.haskellstack.org">the stack homepage</a>
-
-    <p .cabal>
-        cabal users can either use the #
-        <a href=@{SnapshotR name StackageCabalConfigR}?download=true>
-            project specific cabal.config
-        \ (placed in your project directory, next to your .cabal file) or #
-        <a href=@{SnapshotR name StackageCabalConfigR}?global=true>
-            follow the global configuration instructions
 
     <h3>Hoogle
     ^{hoogleForm}
