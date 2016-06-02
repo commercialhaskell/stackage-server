@@ -22,7 +22,7 @@
                         $if null docs
                             <p .nodocs>No documentation available.
                         $else
-                            <p .docs>#{docs}
+                            <p .docs>#{preEscapedToHtml docs}
             <p .pagination>
                 $with mpageCount <- fmap getPageCount mtotalCount
                     Page #{page} of #{maybe "many" show mpageCount} #
