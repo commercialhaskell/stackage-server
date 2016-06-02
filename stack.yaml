@@ -3,7 +3,7 @@ packages:
 - .
 - location:
     git: https://github.com/ndmitchell/hoogle.git
-    commit: 779e04ed20a556bbb92789815ea60068fe188891
+    commit: ca42c4ce3af1c1ae7d413de242063ca1f682d3ff
   extra-dep: true
 image:
     container:

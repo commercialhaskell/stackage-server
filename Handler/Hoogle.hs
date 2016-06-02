@@ -1,15 +1,16 @@
+{-# LANGUAGE QuasiQuotes #-}
 module Handler.Hoogle where
 
 import           Control.DeepSeq (NFData(..))
 import           Control.DeepSeq.Generics (genericRnf)
-import           Control.Spoon (spoon)
-import           Data.Data (Data (..))
+import           Data.Data (Data)
 import           Data.Text.Read (decimal)
 import qualified Hoogle
 import           Import
 import           Text.Blaze.Html (preEscapedToHtml)
 import Stackage.Database
 import qualified Stackage.Database.Cron as Cron
+import qualified Data.Text as T
 
 getHoogleDB :: SnapName -> Handler (Maybe FilePath)
 getHoogleDB name = do
@@ -21,7 +22,7 @@ getHoogleR name = do
     Entity _ snapshot <- lookupSnapshot name >>= maybe notFound return
     mquery <- lookupGetParam "q"
     mpage <- lookupGetParam "page"
-    exact <- maybe False (const True) <$> lookupGetParam "exact"
+    exact <- isJust <$> lookupGetParam "exact" -- FIXME remove, Hoogle no longer supports
     mresults' <- lookupGetParam "results"
     let count' =
             case decimal <$> mresults' of
@@ -33,25 +34,30 @@ getHoogleR name = do
                 _ -> 1
         offset = (page - 1) * perPage
     mdatabasePath <- getHoogleDB name
-    heDatabase <- case mdatabasePath of
-        Just x -> return $ liftIO $ Hoogle.loadDatabase x
-        Nothing -> hoogleDatabaseNotAvailableFor name
+    dbPath <- maybe (hoogleDatabaseNotAvailableFor name) return mdatabasePath
 
     -- Avoid concurrent Hoogle queries, see
     -- https://github.com/fpco/stackage-server/issues/172
     lock <- appHoogleLock <$> getYesod
-    mresults <- case mquery of
-        Just query -> withMVar lock $ const $ runHoogleQuery heDatabase HoogleQueryInput
-            { hqiQueryInput = query
-            , hqiExactSearch = if exact then Just query else Nothing
-            , hqiLimitTo = count'
-            , hqiOffsetBy = offset
-            }
-        Nothing -> return $ HoogleQueryOutput "" [] Nothing
+    HoogleQueryOutput results mtotalCount <-
+      case mquery of
+        Just query -> do
+            let input = HoogleQueryInput
+                    { hqiQueryInput = query
+                    , hqiLimitTo = count'
+                    , hqiOffsetBy = offset
+                    }
+
+            liftIO $ withMVar lock
+                   $ const
+                   $ Hoogle.withDatabase dbPath
+                   -- NB! I got a segfault when I didn't force with $!
+                   $ \db -> return $! runHoogleQuery db input
+        Nothing -> return $ HoogleQueryOutput [] Nothing
     let queryText = fromMaybe "" mquery
         pageLink p = (SnapshotR name HoogleR
             , (if exact then (("exact", "true"):) else id)
-            $ (maybe id (\q' -> (("q", q'):)) mquery)
+            $ maybe id (\q' -> (("q", q'):)) mquery
               [("page", tshow p)])
         snapshotLink = SnapshotR name StackageHomeR
         hoogleForm = $(widgetFile "hoogle-form")
@@ -84,15 +90,14 @@ perPage = 10
 
 data HoogleQueryInput = HoogleQueryInput
     { hqiQueryInput  :: Text
-    , hqiExactSearch :: Maybe Text
     , hqiLimitTo     :: Int
     , hqiOffsetBy    :: Int
     }
     deriving (Eq, Read, Show, Data, Typeable, Ord, Generic)
 
-data HoogleQueryOutput = HoogleQueryBad Text
-                       | HoogleQueryOutput Text [HoogleResult] (Maybe Int) -- ^ Text == HTML version of query, Int == total count
-    deriving (Read, Typeable, Data, Show, Eq)
+data HoogleQueryOutput = HoogleQueryOutput [HoogleResult] (Maybe Int) -- ^ Int == total count
+    deriving (Read, Typeable, Data, Show, Eq, Generic)
+instance NFData HoogleQueryOutput
 
 data HoogleResult = HoogleResult
     { hrURL     :: String
@@ -118,56 +123,33 @@ instance NFData HoogleResult where rnf = genericRnf
 instance NFData PackageLink where rnf = genericRnf
 instance NFData ModuleLink where rnf = genericRnf
 
-runHoogleQuery :: Monad m
-               => m Hoogle.Database
-               -> HoogleQueryInput
-               -> m HoogleQueryOutput
-runHoogleQuery heDatabase HoogleQueryInput {..} =
-    runQuery $ Hoogle.parseQuery Hoogle.Haskell query
+runHoogleQuery :: Hoogle.Database -> HoogleQueryInput -> HoogleQueryOutput
+runHoogleQuery hoogledb HoogleQueryInput {..} =
+    HoogleQueryOutput targets mcount
   where
+    allTargets = Hoogle.searchDatabase hoogledb query
+    targets = take (min 100 hqiLimitTo)
+            $ drop hqiOffsetBy
+            $ map fixResult allTargets
     query = unpack hqiQueryInput
 
-    runQuery (Left err) = return $ HoogleQueryBad (tshow err)
-    runQuery (Right query') = do
-        hoogledb <- heDatabase
-        let query'' = Hoogle.queryExact classifier query'
-            rawRes  = concatMap fixResult
-                    $ Hoogle.search hoogledb query''
-            mres    = spoon
-                    $ take (min 100 hqiLimitTo)
-                    $ drop hqiOffsetBy rawRes
-            mcount  = spoon $ limitedLength 0 rawRes
-            limitedLength x [] = Just x
-            limitedLength x (_:rest)
-                | x >= 20 = Nothing
-                | otherwise = limitedLength (x + 1) rest
-            rendered = pack $ Hoogle.showTagHTML $ Hoogle.renderQuery query''
-        return $ case (,) <$> mres <*> mcount of
-            Nothing ->
-                HoogleQueryOutput rendered [] (Just 0)
-            Just (results, mcount') ->
-                HoogleQueryOutput rendered (take hqiLimitTo results) mcount'
+    mcount = limitedLength 0 allTargets
 
-    classifier = maybe Nothing
-        (const (Just Hoogle.UnclassifiedItem))
-        hqiExactSearch
+    limitedLength x [] = Just x
+    limitedLength x (_:rest)
+        | x >= 20 = Nothing
+        | otherwise = limitedLength (x + 1) rest
 
-    fixResult (_, Hoogle.Result locs self docs) = do
-        (loc, _) <- take 1 locs
-        let sources' = unionsWith (++) $
-                mapMaybe (getPkgModPair . snd) locs
-        return HoogleResult
-            { hrURL     = loc
-            , hrSources = mapToList sources'
-            , hrTitle   = Hoogle.showTagHTML self
-            , hrBody    = fromMaybe "Problem loading documentation" $
-                              spoon $ Hoogle.showTagText docs
-            }
-
-    getPkgModPair :: [(String, String)]
-                  -> Maybe (Map PackageLink [ModuleLink])
-    getPkgModPair [(pkg, pkgname), (modu, moduname)] = do
-        let pkg' = PackageLink pkgname pkg
-            modu' = ModuleLink moduname modu
-        return $ asMap $ singletonMap pkg' [modu']
-    getPkgModPair _ = Nothing
+    fixResult Hoogle.Target {..} = HoogleResult
+        { hrURL     = targetURL
+        , hrSources = toList $ do
+            (pname, purl) <- targetPackage
+            (mname, murl) <- targetModule
+            let p = PackageLink pname purl
+                m = ModuleLink mname murl
+            Just (p, [m])
+        , hrTitle   = -- FIXME find out why these replaces are necessary
+                      unpack $ T.replace "<0>" "" $ T.replace "</0>" "" $ pack
+                      targetItem
+        , hrBody    = targetDocs
+        }

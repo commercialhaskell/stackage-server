@@ -7,16 +7,13 @@ module Stackage.Database.Cron
 import ClassyPrelude.Conduit
 import Stackage.PackageIndex.Conduit
 import Database.Persist (Entity (Entity))
-import Data.Char (isAlpha)
 import qualified Codec.Archive.Tar as Tar
 import Stackage.Database
 import Network.HTTP.Client
 import Network.HTTP.Client.Conduit (bodyReaderSource)
-import Filesystem (rename, removeTree, removeFile)
+import Filesystem (rename, removeTree, removeFile, isFile, createTree)
 import Web.PathPieces (toPathPiece)
-import Filesystem (isFile, createTree)
 import Filesystem.Path.CurrentOS (parent, fromText, encodeString)
-import Control.Monad.State.Strict (StateT, get, put)
 import Network.HTTP.Types (status200)
 import           Data.Streaming.Network (bindPortTCP)
 import           Network.AWS                   (Credentials (Discover),
@@ -35,6 +32,7 @@ import           Data.Conduit.Zlib             (WindowBits (WindowBits),
                                                 compress, ungzip)
 import qualified Hoogle
 import System.Directory (doesFileExist)
+import System.IO.Temp (withSystemTempDirectory)
 
 filename' :: Text
 filename' = concat
@@ -208,6 +206,7 @@ stackageServerCron = do
 
 createHoogleDB :: StackageDatabase -> Manager -> SnapName -> IO (Maybe FilePath)
 createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
+    putStrLn $ "Creating Hoogle DB for " ++ toPathPiece name
     req' <- parseUrl $ unpack tarUrl
     let req = req' { decompress = const True }
 
@@ -222,16 +221,27 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     void $ tryIO $ removeFile (fromString outname)
     createTree (fromString bindir)
 
-    dbs <- runResourceT
-        $ sourceTarFile False tarFP
-       $$ evalStateC 1 (mapMC (singleDB db name bindir))
-       =$ sinkList
+    withSystemTempDirectory ("hoogle-" ++ unpack (toPathPiece name)) $ \_tmpdir -> do
+        let tmpdir = "/Users/michael/Desktop/hoo"
+        runResourceT
+            $ sourceTarFile False tarFP
+           $$ mapM_C (liftIO . singleDB db name tmpdir)
 
-    putStrLn "Merging databases..."
-    Hoogle.mergeDatabase (catMaybes dbs) outname
-    putStrLn "Merge done"
+        let args =
+                [ "generate"
+                , "--database=" ++ outname
+                , "--local=" ++ tmpdir
+                ]
+        putStrLn $ concat
+            [ "Merging databases... ("
+            , tshow args
+            , ")"
+            ]
+        Hoogle.hoogle args
 
-    return $ Just outname
+        putStrLn "Merge done"
+
+        return $ Just outname
   where
     root = "hoogle-gen"
     bindir = root </> "bindir"
@@ -243,81 +253,29 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
 
 singleDB :: StackageDatabase
          -> SnapName
-         -> FilePath -- ^ bindir to write to
+         -> FilePath -- ^ temp directory to write .txt files to
          -> Tar.Entry
-         -> StateT Int (ResourceT IO) (Maybe FilePath)
-singleDB db sname bindir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
-    idx <- get
-    put $! idx + 1
-    putStrLn $ "Loading file for Hoogle: " ++ pack (Tar.entryPath e)
+         -> IO ()
+singleDB db sname tmpdir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
+    --putStrLn $ "Loading file for Hoogle: " ++ pack (Tar.entryPath e)
 
     let pkg = pack $ takeWhile (/= '.') $ Tar.entryPath e
     msp <- flip runReaderT db $ do
         Just (Entity sid _) <- lookupSnapshot sname
         lookupSnapshotPackage sid pkg
     case msp of
-        Nothing -> do
-            putStrLn $ "Unknown: " ++ pkg
-            return Nothing
-        Just (Entity _ sp) -> do
-            let ver = snapshotPackageVersion sp
-                pkgver = concat [pkg, "-", ver]
-                out = bindir </> show idx <.> "hoo"
-                src' = unlines
-                     $ haddockHacks (Just $ unpack docsUrl)
-                     $ lines
-                     $ unpack
-                     $ decodeUtf8 lbs
+        Nothing -> putStrLn $ "Unknown: " ++ pkg
+        Just _ -> do
+            let out = tmpdir </> unpack pkg <.> "txt"
+                -- FIXME add @url directive
+            writeFile out lbs
+                {-
                 docsUrl = concat
                     [ "https://www.stackage.org/haddock/"
                     , toPathPiece sname
                     , "/"
                     , pkgver
                     , "/index.html"
-                    ]
+                    ] -}
 
-            _errs <- liftIO $ Hoogle.createDatabase "" Hoogle.Haskell [] src' out
-
-            return $ Just out
-singleDB _ _ _ _ = return Nothing
-
----------------------------------------------------------------------
--- HADDOCK HACKS
--- (Copied from hoogle-4.2.36/src/Recipe/Haddock.hs)
--- Modifications:
--- 1) Some name qualification
--- 2) Explicit type sig due to polymorphic elem
--- 3) Fixed an unused binding warning
-
--- Eliminate @version
--- Change :*: to (:*:), Haddock bug
--- Change !!Int to !Int, Haddock bug
--- Change instance [overlap ok] to instance, Haddock bug
--- Change instance [incoherent] to instance, Haddock bug
--- Change instance [safe] to instance, Haddock bug
--- Change !Int to Int, HSE bug
--- Drop {-# UNPACK #-}, Haddock bug
--- Drop everything after where, Haddock bug
-
-haddockHacks :: Maybe Hoogle.URL -> [String] -> [String]
-haddockHacks loc src = maybe id haddockPackageUrl loc (translate src)
-    where
-        translate :: [String] -> [String]
-        translate = map (unwords . g . map f . words) . filter (not . isPrefixOf "@version ")
-
-        f "::" = "::"
-        f (':':xs) = "(:" ++ xs ++ ")"
-        f ('!':'!':x:xs) | isAlpha x = xs
-        f ('!':x:xs) | isAlpha x || x `elem` ("[(" :: String) = x:xs
-        f x | x `elem` ["[overlap","ok]","[incoherent]","[safe]"] = ""
-        f x | x `elem` ["{-#","UNPACK","#-}"] = ""
-        f x = x
-
-        g ("where":_) = []
-        g (x:xs) = x : g xs
-        g [] = []
-
-haddockPackageUrl :: Hoogle.URL -> [String] -> [String]
-haddockPackageUrl x = concatMap f
-    where f y | "@package " `isPrefixOf` y = ["@url " ++ x, y]
-              | otherwise = [y]
+singleDB _ _ _ _ = return ()
