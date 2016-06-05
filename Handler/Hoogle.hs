@@ -22,7 +22,7 @@ getHoogleR name = do
     Entity _ snapshot <- lookupSnapshot name >>= maybe notFound return
     mquery <- lookupGetParam "q"
     mpage <- lookupGetParam "page"
-    exact <- isJust <$> lookupGetParam "exact" -- FIXME remove, Hoogle no longer supports
+    exact <- isJust <$> lookupGetParam "exact"
     mresults' <- lookupGetParam "results"
     let count' =
             case decimal <$> mresults' of
@@ -46,6 +46,7 @@ getHoogleR name = do
                     { hqiQueryInput = query
                     , hqiLimitTo = count'
                     , hqiOffsetBy = offset
+                    , hqiExact = exact
                     }
 
             liftIO $ withMVar lock
@@ -92,6 +93,7 @@ data HoogleQueryInput = HoogleQueryInput
     { hqiQueryInput  :: Text
     , hqiLimitTo     :: Int
     , hqiOffsetBy    :: Int
+    , hqiExact       :: Bool
     }
     deriving (Eq, Read, Show, Data, Typeable, Ord, Generic)
 
@@ -131,7 +133,7 @@ runHoogleQuery hoogledb HoogleQueryInput {..} =
     targets = take (min 100 hqiLimitTo)
             $ drop hqiOffsetBy
             $ map fixResult allTargets
-    query = unpack hqiQueryInput
+    query = unpack $ hqiQueryInput ++ if hqiExact then " is:exact" else ""
 
     mcount = limitedLength 0 allTargets
 
