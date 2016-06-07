@@ -99,7 +99,7 @@ data HoogleQueryInput = HoogleQueryInput
 
 data HoogleQueryOutput = HoogleQueryOutput [HoogleResult] (Maybe Int) -- ^ Int == total count
     deriving (Read, Typeable, Data, Show, Eq, Generic)
-instance NFData HoogleQueryOutput
+instance NFData HoogleQueryOutput where rnf = genericRnf
 
 data HoogleResult = HoogleResult
     { hrURL     :: String
