@@ -23,8 +23,6 @@ $newline never
 
     <h3>Hoogle
     ^{hoogleForm}
-    <a href=@{SnapshotR name HoogleDatabaseR}>
-      Download this hoogle database
 
     <h3>Packages (#{packageCount})
 
