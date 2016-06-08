@@ -221,8 +221,7 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     void $ tryIO $ removeFile (fromString outname)
     createTree (fromString bindir)
 
-    withSystemTempDirectory ("hoogle-" ++ unpack (toPathPiece name)) $ \_tmpdir -> do
-        let tmpdir = "/Users/michael/Desktop/hoo"
+    withSystemTempDirectory ("hoogle-" ++ unpack (toPathPiece name)) $ \tmpdir -> do
         runResourceT
             $ sourceTarFile False tarFP
            $$ mapM_C (liftIO . singleDB db name tmpdir)
