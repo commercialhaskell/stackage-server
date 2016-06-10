@@ -56,6 +56,10 @@ import           Handler.OldLinks
 import           Handler.Feed
 import           Handler.DownloadStack
 
+import           Network.Wai.Middleware.Prometheus (prometheus)
+import           Prometheus (register)
+import           Prometheus.Metric.GHC (ghcMetrics)
+
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
 -- comments there for more details.
@@ -72,8 +76,11 @@ makeApplication foundation = do
     appPlain <- toWaiAppPlain foundation
 
     let middleware = forceSSL' (appSettings foundation)
+                   . prometheus def
                    . logWare
                    . defaultMiddlewaresNoLogging
+
+    void (register ghcMetrics)
 
     return (middleware appPlain)
 

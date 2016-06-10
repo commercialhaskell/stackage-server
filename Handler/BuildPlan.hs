@@ -7,7 +7,7 @@ import Stackage.BuildPlan
 import Stackage.Database
 
 getBuildPlanR :: SnapName -> Handler TypedContent
-getBuildPlanR slug = do
+getBuildPlanR slug = track "Handler.BuildPlan.getBuildPlanR" $ do
     fullDeps <- (== Just "true") <$> lookupGetParam "full-deps"
     spec <- parseSnapshotSpec $ toPathPiece slug
     let set = setShellCommands simpleCommands

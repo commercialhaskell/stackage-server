@@ -13,13 +13,16 @@ import Stackage.Database
 import qualified Data.Text as T
 
 getDownloadR :: Handler Html
-getDownloadR = redirectWith status301 InstallR
+getDownloadR = track "Hoogle.Download.getDownloadR" $
+    redirectWith status301 InstallR
 
 getDownloadSnapshotsJsonR :: Handler Value
-getDownloadSnapshotsJsonR = getDownloadLtsSnapshotsJsonR
+getDownloadSnapshotsJsonR = track "Hoogle.Download.getDownloadSnapshotsJsonR"
+    getDownloadLtsSnapshotsJsonR
 
 getDownloadLtsSnapshotsJsonR :: Handler Value
-getDownloadLtsSnapshotsJsonR = snapshotsJSON
+getDownloadLtsSnapshotsJsonR = track "Hoogle.Download.getDownloadLtsSnapshotsJsonR"
+    snapshotsJSON
 
 -- Print the ghc major version for the given snapshot.
 ghcMajorVersionText :: Snapshot -> Text
@@ -30,12 +33,12 @@ ghcMajorVersionText =
     getMajorVersion = intercalate "." . take 2 . T.splitOn "."
 
 getGhcMajorVersionR :: SnapName -> Handler Text
-getGhcMajorVersionR name = do
+getGhcMajorVersionR name = track "Hoogle.Download.getGhcMajorVersionR" $ do
     snapshot <- lookupSnapshot name >>= maybe notFound return
     return $ ghcMajorVersionText $ entityVal snapshot
 
 getDownloadGhcLinksR :: SupportedArch -> Text -> Handler TypedContent
-getDownloadGhcLinksR arch fileName = do
+getDownloadGhcLinksR arch fileName = track "Hoogle.Download.getDownloadGhcLinksR" $ do
   ver <- maybe notFound return
        $ stripPrefix "ghc-"
          >=> stripSuffix "-links.yaml"

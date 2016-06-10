@@ -12,12 +12,12 @@ import Stackage.Database
 import qualified Stackage.Database.Cron as Cron
 
 getHoogleDB :: SnapName -> Handler (Maybe FilePath)
-getHoogleDB name = do
+getHoogleDB name = track "Handler.Hoogle.getHoogleDB" $ do
     app <- getYesod
     liftIO $ Cron.getHoogleDB True (appHttpManager app) name
 
 getHoogleR :: SnapName -> Handler Html
-getHoogleR name = do
+getHoogleR name = track "Handler.Hoogle.getHoogleR" $ do
     Entity _ snapshot <- lookupSnapshot name >>= maybe notFound return
     mquery <- lookupGetParam "q"
     mpage <- lookupGetParam "page"
@@ -60,21 +60,22 @@ getHoogleR name = do
         $(widgetFile "hoogle")
 
 getHoogleDatabaseR :: SnapName -> Handler Html
-getHoogleDatabaseR name = do
+getHoogleDatabaseR name = track "Handler.Hoogle.getHoogleDatabaseR" $ do
     mdatabasePath <- getHoogleDB name
     case mdatabasePath of
         Nothing -> hoogleDatabaseNotAvailableFor name
         Just path -> sendFile "application/octet-stream" path
 
 hoogleDatabaseNotAvailableFor :: SnapName -> Handler a
-hoogleDatabaseNotAvailableFor name = (>>= sendResponse) $ defaultLayout $ do
-    setTitle "Hoogle database not available"
-    [whamlet|
-        <div .container>
-            <p>The given Hoogle database is not available.
-            <p>
-                <a href=@{SnapshotR name StackageHomeR}>Return to snapshot homepage
-    |]
+hoogleDatabaseNotAvailableFor name = track "Handler.Hoogle.hoogleDatabaseNotAvailableFor" $ do
+    (>>= sendResponse) $ defaultLayout $ do
+        setTitle "Hoogle database not available"
+        [whamlet|
+            <div .container>
+                <p>The given Hoogle database is not available.
+                <p>
+                    <a href=@{SnapshotR name StackageHomeR}>Return to snapshot homepage
+        |]
 
 getPageCount :: Int -> Int
 getPageCount totalCount = 1 + div totalCount perPage
@@ -118,11 +119,12 @@ instance NFData HoogleResult where rnf = genericRnf
 instance NFData PackageLink where rnf = genericRnf
 instance NFData ModuleLink where rnf = genericRnf
 
-runHoogleQuery :: Monad m
+runHoogleQuery :: MonadIO m
                => m Hoogle.Database
                -> HoogleQueryInput
                -> m HoogleQueryOutput
 runHoogleQuery heDatabase HoogleQueryInput {..} =
+    track "Handler.Hoogle.runHoogleQuery" $
     runQuery $ Hoogle.parseQuery Hoogle.Haskell query
   where
     query = unpack hqiQueryInput
