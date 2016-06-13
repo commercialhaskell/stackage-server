@@ -7,7 +7,7 @@ import Stackage.Database
 import Handler.Package (packagePage)
 
 getStackageSdistR :: SnapName -> PackageNameVersion -> Handler TypedContent
-getStackageSdistR _ (PNVTarball name version) = do
+getStackageSdistR _ (PNVTarball name version) = track "Handler.StackageSdist.getStackageSdistR" $ do
     redirect $ concat
         -- unfortunately using insecure HTTP for cabal's sake
         [ "http://hackage.fpcomplete.com/package/"
@@ -16,10 +16,10 @@ getStackageSdistR _ (PNVTarball name version) = do
         , toPathPiece version
         , ".tar.gz"
         ]
-getStackageSdistR sname (PNVName pname) = do
+getStackageSdistR sname (PNVName pname) = track "Handler.StackageSdist.getStackageSdistR" $ do
     version <- versionHelper sname pname
     redirect $ SnapshotR sname $ StackageSdistR $ PNVNameVersion pname version
-getStackageSdistR sname (PNVNameVersion pname version) = do
+getStackageSdistR sname (PNVNameVersion pname version) = track "Handler.StackageSdist.getStackageSdistR" $ do
     version' <- versionHelper sname pname
     if version == version'
         then packagePage (Just (sname, version)) pname >>= sendResponse

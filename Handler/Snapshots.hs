@@ -19,7 +19,7 @@ snapshotsPerPage = 50
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
 getAllSnapshotsR :: Handler Html
-getAllSnapshotsR = do
+getAllSnapshotsR = track "Handler.Snapshots.getAllSnapshotsR" $ do
     now' <- liftIO getCurrentTime
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int

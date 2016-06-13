@@ -8,7 +8,7 @@ import Yesod.Sitemap
 type Sitemap = forall m. Monad m => Producer m (SitemapUrl (Route App))
 
 getSitemapR :: Handler TypedContent
-getSitemapR = sitemap $ do
+getSitemapR = track "Handler.Sitemap.getSitemapR" $ sitemap $ do
     priority 1.0 $ HomeR
 
     priority 0.9 $ OldSnapshotBranchR LtsBranch []

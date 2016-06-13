@@ -6,8 +6,9 @@ import Stackage.Database
 
 -- FIXME maybe just redirect to the LTS or nightly package list
 getPackageListR :: Handler Html
-getPackageListR = defaultLayout $ do
-    setTitle "Package list"
-    packages <- getAllPackages
-    $(widgetFile "package-list")
+getPackageListR = track "Handler.PackageList.getPackageListR" $ do
+    defaultLayout $ do
+        setTitle "Package list"
+        packages <- getAllPackages
+        $(widgetFile "package-list")
   where strip x = fromMaybe x (stripSuffix "." x)
