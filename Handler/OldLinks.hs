@@ -27,7 +27,7 @@ redirectWithQueryText url = do
     redirect $ url ++ decodeUtf8 (rawQueryString req)
 
 getOldSnapshotBranchR :: SnapshotBranch -> [Text] -> Handler ()
-getOldSnapshotBranchR LtsBranch pieces = do
+getOldSnapshotBranchR LtsBranch pieces = track "Handler.OldLinks.getOldSnapshotBranchR@LtsBranch" $ do
     (x, y, pieces') <- case pieces of
         t:ts | Just suffix <- parseLtsSuffix t -> do
             (x, y) <- case suffix of
@@ -42,12 +42,12 @@ getOldSnapshotBranchR LtsBranch pieces = do
     let name = concat ["lts-", tshow x, ".", tshow y]
     redirectWithQueryText $ concatMap (cons '/') $ name : pieces'
 
-getOldSnapshotBranchR (LtsMajorBranch x) pieces = do
+getOldSnapshotBranchR (LtsMajorBranch x) pieces = track "Handler.OldLinks.getOldSnapshotBranchR@LtsMajorBranch" $ do
     y <- newestLTSMajor x >>= maybe notFound return
     let name = concat ["lts-", tshow x, ".", tshow y]
     redirectWithQueryText $ concatMap (cons '/') $ name : pieces
 
-getOldSnapshotBranchR NightlyBranch pieces = do
+getOldSnapshotBranchR NightlyBranch pieces = track "Handler.OldLinks.getOldSnapshotBranchR@NightlyBranch" $ do
     (day, pieces') <- case pieces of
         t:ts | Just day <- fromPathPiece t -> return (day, ts)
         _ -> do
@@ -57,7 +57,7 @@ getOldSnapshotBranchR NightlyBranch pieces = do
     redirectWithQueryText $ concatMap (cons '/') $ name : pieces'
 
 getOldSnapshotR :: Text -> [Text] -> Handler ()
-getOldSnapshotR t ts =
+getOldSnapshotR t ts = track "Handler.OldLinks.getOldSnapshotR" $
     case fromPathPiece t :: Maybe SnapName of
         Just _ -> redirectWithQueryText $ concatMap (cons '/') $ t : ts
         Nothing -> notFound

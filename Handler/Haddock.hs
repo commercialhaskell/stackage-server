@@ -21,7 +21,7 @@ shouldRedirect = False
 getHaddockR :: SnapName -> [Text] -> Handler TypedContent
 getHaddockR slug rest
   | shouldRedirect = redirect $ makeURL slug rest
-  | final:_ <- reverse rest, ".html" `isSuffixOf` final = do
+  | final:_ <- reverse rest, ".html" `isSuffixOf` final = track "Handler.Haddock.getHaddockR" $ do
       render <- getUrlRender
 
       let stylesheet = render' $ StaticR haddock_style_css
@@ -100,6 +100,6 @@ nav =
                 close = [EventEndElement name]
 
 getHaddockBackupR :: [Text] -> Handler ()
-getHaddockBackupR rest = redirect $ concat
+getHaddockBackupR rest = track "Handler.Haddock.getHaddockBackupR" $ redirect $ concat
     $ "https://s3.amazonaws.com/haddock.stackage.org"
     : map (cons '/') rest

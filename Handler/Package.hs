@@ -24,10 +24,10 @@ import           Stackage.Database
 
 -- | Page metadata package.
 getPackageR :: PackageName -> Handler Html
-getPackageR = packagePage Nothing
+getPackageR = track "Handler.Package.getPackageR" . packagePage Nothing
 
 getPackageBadgeR :: PackageName -> SnapshotBranch -> Handler TypedContent
-getPackageBadgeR pname branch = do
+getPackageBadgeR pname branch = track "Handler.Package.getPackageBadgeR" $ do
     cacheSeconds (3 * 60 * 60)
     snapName     <- maybe notFound pure =<< newestSnapshot branch
     Entity sid _ <- maybe notFound pure =<< lookupSnapshot snapName
@@ -60,7 +60,7 @@ renderStackageBadge style mLabel snapName = \case
 packagePage :: Maybe (SnapName, Version)
             -> PackageName
             -> Handler Html
-packagePage mversion pname = do
+packagePage mversion pname = track "Handler.Package.packagePage" $ do
     let pname' = toPathPiece pname
     (deprecated, inFavourOf) <- getDeprecated pname'
     latests <- getLatests pname'
@@ -221,7 +221,7 @@ renderEmail :: EmailAddress -> Text
 renderEmail = T.decodeUtf8 . toByteString
 
 getPackageSnapshotsR :: PackageName -> Handler Html
-getPackageSnapshotsR pn =
+getPackageSnapshotsR pn = track "Handler.Package.getPackageSnapshotsR" $
   do snapshots <- getSnapshotsForPackage $ toPathPiece pn
      defaultLayout
        (do setTitle ("Packages for " >> toHtml pn)

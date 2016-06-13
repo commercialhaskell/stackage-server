@@ -13,12 +13,12 @@ import qualified Stackage.Database.Cron as Cron
 import qualified Data.Text as T
 
 getHoogleDB :: SnapName -> Handler (Maybe FilePath)
-getHoogleDB name = do
+getHoogleDB name = track "Handler.Hoogle.getHoogleDB" $ do
     app <- getYesod
     liftIO $ Cron.getHoogleDB True (appHttpManager app) name
 
 getHoogleR :: SnapName -> Handler Html
-getHoogleR name = do
+getHoogleR name = track "Handler.Hoogle.getHoogleR" $ do
     Entity _ snapshot <- lookupSnapshot name >>= maybe notFound return
     mquery <- lookupGetParam "q"
     mpage <- lookupGetParam "page"
@@ -67,21 +67,22 @@ getHoogleR name = do
         $(widgetFile "hoogle")
 
 getHoogleDatabaseR :: SnapName -> Handler Html
-getHoogleDatabaseR name = do
+getHoogleDatabaseR name = track "Handler.Hoogle.getHoogleDatabaseR" $ do
     mdatabasePath <- getHoogleDB name
     case mdatabasePath of
         Nothing -> hoogleDatabaseNotAvailableFor name
         Just path -> sendFile "application/octet-stream" path
 
 hoogleDatabaseNotAvailableFor :: SnapName -> Handler a
-hoogleDatabaseNotAvailableFor name = (>>= sendResponse) $ defaultLayout $ do
-    setTitle "Hoogle database not available"
-    [whamlet|
-        <div .container>
-            <p>The given Hoogle database is not available.
-            <p>
-                <a href=@{SnapshotR name StackageHomeR}>Return to snapshot homepage
-    |]
+hoogleDatabaseNotAvailableFor name = track "Handler.Hoogle.hoogleDatabaseNotAvailableFor" $ do
+    (>>= sendResponse) $ defaultLayout $ do
+        setTitle "Hoogle database not available"
+        [whamlet|
+            <div .container>
+                <p>The given Hoogle database is not available.
+                <p>
+                    <a href=@{SnapshotR name StackageHomeR}>Return to snapshot homepage
+        |]
 
 getPageCount :: Int -> Int
 getPageCount totalCount = 1 + div totalCount perPage

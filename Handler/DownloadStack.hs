@@ -12,14 +12,14 @@ import Data.Conduit.Attoparsec (sinkParser)
 import Data.Monoid (First (..))
 
 getDownloadStackListR :: Handler Html
-getDownloadStackListR = do
+getDownloadStackListR = track "Handler.DownloadStack.getDownloadStackListR" $ do
     releases <- getYesod >>= fmap wcStackReleases . liftIO . grContent . appWebsiteContent
     defaultLayout $ do
         setTitle "Download Stack"
         $(widgetFile "download-stack-list")
 
 getDownloadStackR :: Text -> Handler ()
-getDownloadStackR pattern = do
+getDownloadStackR pattern = track "Handler.DownloadStack.getDownloadStackR" $ do
     matcher <- getYesod >>= liftIO . appLatestStackMatcher
     maybe notFound redirect $ matcher pattern
 

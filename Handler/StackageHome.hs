@@ -14,7 +14,7 @@ import Stackage.Database.Types (isLts)
 import Stackage.Snapshot.Diff
 
 getStackageHomeR :: SnapName -> Handler TypedContent
-getStackageHomeR name = do
+getStackageHomeR name = track "Handler.StackageHome.getStackageHomeR" $ do
     Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
     previousSnapName <- fromMaybe name . map snd <$> snapshotBefore (snapshotName snapshot)
     let hoogleForm =
@@ -43,7 +43,7 @@ instance ToJSON SnapshotInfo where
                                    ]
 
 getStackageDiffR :: SnapName -> SnapName -> Handler TypedContent
-getStackageDiffR name1 name2 = do
+getStackageDiffR name1 name2 = track "Handler.StackageHome.getStackageDiffR" $ do
     Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
     Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
     (map (snapshotName . entityVal) -> snapNames) <- getSnapshots Nothing 0 0
@@ -57,7 +57,7 @@ getStackageDiffR name1 name2 = do
         provideRep $ pure $ toJSON $ WithSnapshotNames name1 name2 snapDiff
 
 getStackageCabalConfigR :: SnapName -> Handler TypedContent
-getStackageCabalConfigR name = do
+getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfigR" $ do
     Entity sid _ <- lookupSnapshot name >>= maybe notFound return
     render <- getUrlRender
 
@@ -139,10 +139,11 @@ yearMonthDay :: FormatTime t => t -> String
 yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
 
 getSnapshotPackagesR :: SnapName -> Handler () -- FIXME move to OldLinks?
-getSnapshotPackagesR name = redirect $ SnapshotR name StackageHomeR
+getSnapshotPackagesR name = track "Handler.StackageHome.getSnapshotPackagesR" $
+    redirect $ SnapshotR name StackageHomeR
 
 getDocsR :: SnapName -> Handler Html
-getDocsR name = do
+getDocsR name = track "Handler.StackageHome.getDocsR" $ do
     Entity sid _ <- lookupSnapshot name >>= maybe notFound return
     mlis <- getSnapshotModules sid
     render <- getUrlRender

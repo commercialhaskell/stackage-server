@@ -10,10 +10,10 @@ import Stackage.Snapshot.Diff
 import Text.Blaze (text)
 
 getFeedR :: Handler TypedContent
-getFeedR = getBranchFeed Nothing
+getFeedR = track "Handler.Feed.getBranchFeedR" $ getBranchFeed Nothing
 
 getBranchFeedR :: SnapshotBranch -> Handler TypedContent
-getBranchFeedR = getBranchFeed . Just
+getBranchFeedR = track "Handler.Feed.getBranchFeedR" . getBranchFeed . Just
 
 getBranchFeed :: Maybe SnapshotBranch -> Handler TypedContent
 getBranchFeed mBranch = mkFeed mBranch =<< getSnapshots mBranch 20 0

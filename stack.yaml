@@ -12,3 +12,7 @@ image:
         add:
             config: /app/config
             static: /app/static
+extra-deps:
+    - prometheus-client-0.1.0.1
+    - prometheus-metrics-ghc-0.1.0.1
+    - wai-middleware-prometheus-0.1.0.1
