@@ -39,6 +39,7 @@ getHoogleR name = track "Handler.Hoogle.getHoogleR" $ do
     -- Avoid concurrent Hoogle queries, see
     -- https://github.com/fpco/stackage-server/issues/172
     lock <- appHoogleLock <$> getYesod
+    urlRender <- getUrlRender
     HoogleQueryOutput results mtotalCount <-
       case mquery of
         Just query -> do
@@ -53,7 +54,7 @@ getHoogleR name = track "Handler.Hoogle.getHoogleR" $ do
                    $ const
                    $ Hoogle.withDatabase dbPath
                    -- NB! I got a segfault when I didn't force with $!
-                   $ \db -> return $! runHoogleQuery db input
+                   $ \db -> return $! runHoogleQuery urlRender name db input
         Nothing -> return $ HoogleQueryOutput [] Nothing
     let queryText = fromMaybe "" mquery
         pageLink p = (SnapshotR name HoogleR
@@ -126,8 +127,12 @@ instance NFData HoogleResult where rnf = genericRnf
 instance NFData PackageLink where rnf = genericRnf
 instance NFData ModuleLink where rnf = genericRnf
 
-runHoogleQuery :: Hoogle.Database -> HoogleQueryInput -> HoogleQueryOutput
-runHoogleQuery hoogledb HoogleQueryInput {..} =
+runHoogleQuery :: (Route App -> Text)
+               -> SnapName
+               -> Hoogle.Database
+               -> HoogleQueryInput
+               -> HoogleQueryOutput
+runHoogleQuery renderUrl snapshot hoogledb HoogleQueryInput {..} =
     HoogleQueryOutput targets mcount
   where
     allTargets = Hoogle.searchDatabase hoogledb query
@@ -144,15 +149,30 @@ runHoogleQuery hoogledb HoogleQueryInput {..} =
         | otherwise = limitedLength (x + 1) rest
 
     fixResult Hoogle.Target {..} = HoogleResult
-        { hrURL     = targetURL
-        , hrSources = toList $ do
-            (pname, purl) <- targetPackage
-            (mname, murl) <- targetModule
-            let p = PackageLink pname purl
-                m = ModuleLink mname murl
-            Just (p, [m])
+        { hrURL     = case sources of
+                        [(_,[ModuleLink _ m])] -> m ++ haddockAnchorFromUrl targetURL
+                        _ -> targetURL
+        , hrSources = sources
         , hrTitle   = -- FIXME find out why these replaces are necessary
                       unpack $ T.replace "<0>" "" $ T.replace "</0>" "" $ pack
                       targetItem
         , hrBody    = targetDocs
         }
+      where sources = toList $ do
+              (pname, _) <- targetPackage
+              (mname, _) <- targetModule
+              let p = PackageLink pname (makePackageLink pname)
+                  m = ModuleLink
+                        mname
+                        (T.unpack
+                             (renderUrl
+                                  (haddockUrl
+                                       snapshot
+                                       (T.pack pname)
+                                       (T.pack mname))))
+              Just (p, [m])
+            haddockAnchorFromUrl =
+                ('#':) . reverse . takeWhile (/='#') . reverse
+
+makePackageLink :: String -> String
+makePackageLink pkg = "/package/" ++ pkg
