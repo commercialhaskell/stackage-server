@@ -117,6 +117,6 @@ nav =
                 close = [EventEndElement name]
 
 getHaddockBackupR :: [Text] -> Handler ()
-getHaddockBackupR rest = redirect $ concat
+getHaddockBackupR rest = track "Handler.Haddock.getHaddockBackupR" $  redirect $ concat
     $ "https://s3.amazonaws.com/haddock.stackage.org"
     : map (cons '/') rest
