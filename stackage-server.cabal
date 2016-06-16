@@ -193,7 +193,7 @@ executable         stackage-server
                      , stackage-server
                      , yesod                         >= 1.4         &&   < 1.5
 
-    ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
+    ghc-options:       -threaded -O2 -rtsopts "-with-rtsopts=-N -T"
 
     extensions: TemplateHaskell
                 QuasiQuotes
