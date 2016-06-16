@@ -83,7 +83,7 @@ redirectWithVersion slug rest =
             Entity sid _ <- lookupSnapshot slug >>= maybe notFound return
             mversion <- getPackageVersionBySnapshot sid pkg
             case mversion of
-                Nothing -> error "That package is not part of this snapshot."
+                Nothing -> return Nothing -- error "That package is not part of this snapshot."
                 Just version -> do
                     return (Just (HaddockR slug [pkg <> "-" <> version, file]))
         _ -> return Nothing
