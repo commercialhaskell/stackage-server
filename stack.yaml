@@ -8,7 +8,7 @@ packages:
 image:
     container:
         name: fpco/stackage-server
-        base: fpco/stack-run
+        base: fpco/stack-run:lts-5
         add:
             config: /app/config
             static: /app/static
