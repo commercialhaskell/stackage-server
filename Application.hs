@@ -75,8 +75,8 @@ makeApplication foundation = do
     -- Create the WAI application and apply middlewares
     appPlain <- toWaiAppPlain foundation
 
-    let middleware = forceSSL' (appSettings foundation)
-                   . prometheus def
+    let middleware = prometheus def
+                   . forceSSL' (appSettings foundation)
                    . logWare
                    . defaultMiddlewaresNoLogging
 
