@@ -15,6 +15,7 @@ module Stackage.Database
     , PackageListingInfo (..)
     , getAllPackages
     , getPackages
+    , getPackageVersionBySnapshot
     , createStackageDatabase
     , openStackageDatabase
     , ModuleListingInfo (..)
@@ -525,6 +526,22 @@ getPackages sid = liftM (map toPLI) $ run $ do
         , pliSynopsis = synopsis
         , pliIsCore = isCore
         }
+
+getPackageVersionBySnapshot
+  :: GetStackageDatabase m
+  => SnapshotId -> Text -> m (Maybe Text)
+getPackageVersionBySnapshot sid name = liftM (listToMaybe . map toPLI) $ run $ do
+    E.select $ E.from $ \(p,sp) -> do
+        E.where_ $
+            (p E.^. PackageId E.==. sp E.^. SnapshotPackagePackage) E.&&.
+            (sp E.^. SnapshotPackageSnapshot E.==. E.val sid) E.&&.
+            (E.lower_ (p E.^. PackageName) E.==. E.lower_ (E.val name))
+        E.orderBy [E.asc $ E.lower_ $ p E.^. PackageName]
+        return
+            ( sp E.^. SnapshotPackageVersion
+            )
+  where
+    toPLI (E.Value version) = version
 
 data ModuleListingInfo = ModuleListingInfo
     { mliName :: !Text

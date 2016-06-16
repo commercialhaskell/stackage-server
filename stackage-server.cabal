@@ -161,7 +161,7 @@ library
                   , haddock-library               >= 1.2.0       &&   < 1.3
                   , async                         >= 2.1         &&   < 2.2
                   , yesod-gitrepo                 >= 0.2         &&   < 0.3
-                  , hoogle                        >= 4.2         &&   < 4.3
+                  , hoogle
                   , spoon                         >= 0.3         &&   < 0.4
                   , deepseq                       >= 1.4         &&   < 1.5
                   , deepseq-generics              >= 0.1         &&   < 0.2

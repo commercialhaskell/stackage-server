@@ -3,37 +3,32 @@
         <h1>Hoogle Search
         <p>Within <a href=@{snapshotLink}>#{snapshotTitle snapshot}</a>
         ^{hoogleForm}
-        $case mresults
-            $of HoogleQueryBad err
-                <p>#{err}
-                <p>For information on what queries should look like, see the <a href="http://www.haskell.org/haskellwiki/Hoogle">hoogle user manual</a>.
-            $of HoogleQueryOutput _query results mtotalCount
-                $if null results
-                    <p>Your search produced no results.
-                $else
-                    <ol .search-results>
-                        $forall HoogleResult url sources self docs <- results
-                            <li>
-                                <p .self>
-                                    <a href=#{url}>#{preEscapedToHtml self}
-                                <table .sources>
-                                    $forall (pkg, modus) <- sources
-                                        <tr>
-                                            <th>
-                                                <a href=#{plURL pkg}>#{plName pkg}
-                                            <td>
-                                                $forall ModuleLink name url' <- modus
-                                                    <a href=#{url'}>#{name}
-                                $if null docs
-                                    <p .nodocs>No documentation available.
-                                $else
-                                    <p .docs>#{docs}
-                    <p .pagination>
-                        $with mpageCount <- fmap getPageCount mtotalCount
-                            Page #{page} of #{maybe "many" show mpageCount} #
-                            $if page > 1
-                                |
-                                <a href=@?{pageLink $ page - 1}>Previous
-                            $if maybe True ((<) page) mpageCount
-                                |
-                                <a href=@?{pageLink $ page + 1}>Next
+        $if null results
+            <p>Your search produced no results.
+        $else
+            <ol .search-results>
+                $forall HoogleResult url sources self docs <- results
+                    <li>
+                        <p .self>
+                            <a href=#{url}>#{preEscapedToHtml self}
+                        <table .sources>
+                            $forall (pkg, modus) <- sources
+                                <tr>
+                                    <th>
+                                        <a href=#{plURL pkg}>#{plName pkg}
+                                    <td>
+                                        $forall ModuleLink name url' <- modus
+                                            <a href=#{url'}>#{name}
+                        $if null docs
+                            <p .nodocs>No documentation available.
+                        $else
+                            <p .docs>#{preEscapedToHtml docs}
+            <p .pagination>
+                $with mpageCount <- fmap getPageCount mtotalCount
+                    Page #{page} of #{maybe "many" show mpageCount} #
+                    $if page > 1
+                        |
+                        <a href=@?{pageLink $ page - 1}>Previous
+                    $if maybe True ((<) page) mpageCount
+                        |
+                        <a href=@?{pageLink $ page + 1}>Next

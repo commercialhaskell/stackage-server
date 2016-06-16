@@ -16,13 +16,11 @@ import Data.IORef
 import Foreign.Store
 import Network.Wai.Handler.Warp
 import Yesod
-import Yesod.Static
 
 -- | Start the web server.
 main :: IO (Store (IORef Application))
 main =
-  do s <- static "static"
-     c <- newChan
+  do c <- newChan
      (settings,app) <- getApplicationDev
      ref <- newIORef app
      tid <- forkIO
@@ -46,7 +44,6 @@ update =
          do ref <- readStore store
             c <- readStore (Store 2)
             writeChan c ()
-            s <- static "static"
-            (_settings,app) <- getApplicationDev
+            (_,app) <- getApplicationDev
             writeIORef ref app
             return store
