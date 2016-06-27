@@ -384,3 +384,5 @@ h4.collapser { font-size: 15px; font-weight: bold }
 }
 
 .doc.empty { display: none; }
+
+a.selflink { float right; padding-right: 0.5em }
