@@ -288,6 +288,13 @@ code .diff              { color:#555 }
 .src .def, .src .def:hover, .src a { color:#4F4371; text-decoration: none;}
 .src a[href]:hover { text-decoration: underline; }
 
+.top > .src > .selflink {
+  padding-right: 0.5em;
+  float: right;
+  font-family: "Open Sans", sans-serif;
+  color: #428bca;
+}
+
 .top > .src > .link {
   float: right;
   font-family: "Open Sans", sans-serif;
@@ -384,5 +391,3 @@ h4.collapser { font-size: 15px; font-weight: bold }
 }
 
 .doc.empty { display: none; }
-
-a.selflink { float right; padding-right: 0.5em }
