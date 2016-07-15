@@ -5,13 +5,6 @@ packages:
     git: https://github.com/snoyberg/hoogle.git
     commit: 765bd653d687e8569cd989be1637de86dcb20d56
   extra-dep: true
-image:
-    container:
-        name: fpco/stackage-server
-        base: fpco/stack-run:lts-5
-        add:
-            config: /app/config
-            static: /app/static
 extra-deps:
     - prometheus-client-0.1.0.1
     - prometheus-metrics-ghc-0.1.0.1
