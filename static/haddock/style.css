@@ -600,7 +600,7 @@ body { font-family: "Open Sans", ubuntu, sans-serif; font-size: 14px }
   background-position: left;
   padding: 5px 5px 5px 30px;
 }
-a {
+a[href] {
   color: #005b89 !important
 }
 
