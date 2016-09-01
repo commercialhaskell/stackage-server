@@ -32,17 +32,9 @@ getHaddockR slug rest
         Just route -> redirect route
         Nothing -> do
             let stylesheet = render' $ StaticR haddock_style_css
-                script = render' $ StaticR haddock_script_js
-                bootstrap = render' $ StaticR haddock_bootstrap_css
-                jquery = render' $ StaticR haddock_jquery_js
                 render' = return . ContentText . render
                 addExtra t@(EventEndElement "head") =
                   [ EventBeginElement "link"
-                      [ ("rel", [ContentText "stylesheet"])
-                      , ("href", bootstrap)
-                      ]
-                  , EventEndElement "link"
-                  , EventBeginElement "link"
                        [ ("rel", [ContentText "stylesheet"])
                        , ("href", [ContentText "https://fonts.googleapis.com/css?family=Open+Sans"])
                        ]
@@ -52,17 +44,9 @@ getHaddockR slug rest
                        , ("href", stylesheet)
                        ]
                   , EventEndElement "link"
-                  , EventBeginElement "script"
-                      [ ("src", jquery)
-                      ]
-                  , EventEndElement "script"
-                  , EventBeginElement "script"
-                      [ ("src", script)
-                      ]
-                  , EventEndElement "script"
                   , t
                   ]
-                addExtra t@(EventBeginElement "body" _) = [t] ++ nav
+                addExtra t@(EventBeginElement "body" _) = [t]
                 addExtra t = [t]
             req <- parseUrl $ unpack $ makeURL slug rest
             (_, res) <- acquireResponse req >>= allocateAcquire
@@ -87,34 +71,6 @@ redirectWithVersion slug rest =
                 Just version -> do
                     return (Just (HaddockR slug [pkg <> "-" <> version, file]))
         _ -> return Nothing
-
-nav :: [Event]
-nav =
-  el "nav"
-     [("class","navbar navbar-default")]
-     (el "div"
-         [("class","container")]
-         (el "div"
-             [("class","navbar-header")]
-             (el "a"
-                 [("href","https://haskell-lang.org/packages")
-                 ,("class","navbar-brand")]
-                 (el "span" [("class","logo")] [] ++ text "Haskell")) ++
-          el "div"
-             [("class","navbar-collapse")]
-             (el "ul"
-                 [("id","bootstrap-nav"),
-                  ("class","nav navbar-nav")]
-                 (concat [el "li" [] (el "a" [] (text "Source"))
-                         ,el "li" [] (el "a" [] (text "Contents"))
-                         ,el "li" [] (el "a" [] (text "Index"))
-                         ]))))
-  where text x = [EventContent (ContentText x)]
-        el name props inner = open ++ inner ++ close
-          where open =
-                  [EventBeginElement name
-                                     (map (\(k,v) -> (k,[ContentText v])) props)]
-                close = [EventEndElement name]
 
 getHaddockBackupR :: [Text] -> Handler ()
 getHaddockBackupR rest = track "Handler.Haddock.getHaddockBackupR" $  redirect $ concat
