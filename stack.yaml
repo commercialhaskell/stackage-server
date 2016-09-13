@@ -5,6 +5,10 @@ packages:
     git: https://github.com/snoyberg/hoogle.git
     commit: 765bd653d687e8569cd989be1637de86dcb20d56
   extra-dep: true
+- location:
+    git: https://github.com/chrisdone/tagstream-conduit.git
+    commit: bacd7444596b2391b0ac302ad649b994b258d271
+  extra-dep: true
 extra-deps:
     - prometheus-client-0.1.0.1
     - prometheus-metrics-ghc-0.1.0.1
