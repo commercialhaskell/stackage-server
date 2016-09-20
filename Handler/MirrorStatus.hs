@@ -23,14 +23,18 @@ mkUpdateMirrorStatus = mkAutoUpdate defaultUpdateSettings
     }
   where
     go = do
-        hackageTime <- getHackageRecent
+        -- Ignore updates in the past hour, to give the mirrors a
+        -- chance to process them.
         now <- getCurrentTime
+        let oneHourAgo = addUTCTime (negate $ 60 * 60) now
 
-        -- Allow for a grace period between an upload on Hackage and
-        -- mirroring, by taking the minimum value between the most
-        -- recent Hackage update and one hour ago
-        let delayedTime = min hackageTime $ addUTCTime (negate $ 60 * 60) now
+        mhackageTime <- getHackageRecent oneHourAgo
 
+        case mhackageTime of
+            Nothing -> return (status500, "No Hackage time found, could just be a lot of recent uploads")
+            Just hackageTime -> goHT hackageTime
+
+    goHT hackageTime = do
         gitMods <- mapM (\(x, y, z) -> getLastModifiedGit x y z)
             [ ("commercialhaskell", "all-cabal-files", "current-hackage")
             , ("commercialhaskell", "all-cabal-hashes", "current-hackage")
@@ -43,7 +47,7 @@ mkUpdateMirrorStatus = mkAutoUpdate defaultUpdateSettings
         let nonHackageMods = gitMods ++ tarballMods
             allMods = ("Hackage", hackageTime) : nonHackageMods
             biggestDiff = Prelude.maximum $ map
-                (\(_, other) -> diffUTCTime delayedTime other)
+                (\(_, other) -> diffUTCTime hackageTime other)
                 nonHackageMods
             showLag x =
                 case compare x 0 of
@@ -68,7 +72,6 @@ mkUpdateMirrorStatus = mkAutoUpdate defaultUpdateSettings
                 setTitle "Mirror Status"
                 [whamlet|
                     <h1>Mirror Status
-                    <p>Comparing against delayed update time of: #{tshow delayedTime}
                     <table border=1 cellpadding=1>
                         <tr>
                             <th>Name
@@ -78,7 +81,7 @@ mkUpdateMirrorStatus = mkAutoUpdate defaultUpdateSettings
                             <tr>
                                 <td>#{name}
                                 <td>#{tshow date}
-                                <td>#{showLag (diffUTCTime delayedTime date)}
+                                <td>#{showLag (diffUTCTime hackageTime date)}
                     $if biggestDiff > 0
                         <p>
                             Biggest lag: #{showLag biggestDiff}
@@ -147,12 +150,15 @@ textJ :: MonadThrow m => Value -> m Text
 textJ (String t) = return t
 textJ v = error $ "Invalid value for textJ: " ++ show v
 
-getHackageRecent :: IO UTCTime
-getHackageRecent =
+getHackageRecent :: UTCTime -- ^ latest time to continue
+                 -> IO (Maybe UTCTime)
+getHackageRecent latestTime =
     httpSink "https://hackage.haskell.org/packages/recent" sink
   where
-    sink _ = parseBytes def =$= concatMapC getDate =$=
-      (headC >>= maybe (error "No date found on Hackage recents") return)
+    sink _ = parseBytes def
+         =$= concatMapC getDate
+         =$= filterC (<= latestTime)
+         =$= headC
 
     getDate :: Event -> Maybe UTCTime
     getDate (EventContent (ContentText t)) = parseTimeM
