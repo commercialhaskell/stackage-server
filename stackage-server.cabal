@@ -46,6 +46,7 @@ library
                      Handler.OldLinks
                      Handler.Feed
                      Handler.DownloadStack
+                     Handler.MirrorStatus
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
