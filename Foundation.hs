@@ -29,6 +29,7 @@ data App = App
     , appHoogleLock :: MVar ()
     -- ^ Avoid concurrent Hoogle queries, see
     -- https://github.com/fpco/stackage-server/issues/172
+    , appMirrorStatus :: IO (Status, WidgetT App IO ())
     }
 
 instance HasHttpManager App where

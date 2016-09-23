@@ -1,4 +1,4 @@
-resolver: lts-5.15
+resolver: lts-6.17
 packages:
 - .
 - location:

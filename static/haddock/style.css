@@ -616,7 +616,7 @@ a[href] {
 }
 .caption { color: #6e618d!important }
 pre{ background: #f8f8f8; padding: 1em; }
-pre, pre * {  font-family: "ubuntu mono", "Monaco"  !important; font-size: 13px !important; }
+pre, pre * {  font-family: "ubuntu mono", "Monaco", monospace  !important; font-size: 13px !important; }
 #table-of-contents {
   background: #f8f8f8;
   border: 1px solid #eee;

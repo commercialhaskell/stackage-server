@@ -50,3 +50,5 @@
 
 /stack DownloadStackListR GET
 /stack/#Text DownloadStackR GET
+
+/status/mirror MirrorStatusR GET

@@ -55,6 +55,7 @@ import           Handler.Download
 import           Handler.OldLinks
 import           Handler.Feed
 import           Handler.DownloadStack
+import           Handler.MirrorStatus
 
 import           Network.Wai.Middleware.Prometheus (prometheus)
 import           Prometheus (register)
@@ -133,6 +134,8 @@ makeFoundation appSettings = do
         }
 
     appHoogleLock <- newMVar ()
+
+    appMirrorStatus <- mkUpdateMirrorStatus
 
     return App {..}
 
