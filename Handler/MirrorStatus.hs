@@ -19,7 +19,7 @@ getMirrorStatusR = do
 mkUpdateMirrorStatus :: IO (IO (Status, Widget))
 mkUpdateMirrorStatus = mkAutoUpdate defaultUpdateSettings
     { updateAction = go
-    , updateFreq = 1000 * 1000 * 60
+    , updateFreq = 1000 * 1000 * 60 * 10 -- every 10 minutes
     }
   where
     go = do
