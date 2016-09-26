@@ -579,10 +579,10 @@ body { font-family: "Open Sans", ubuntu, sans-serif; font-size: 14px }
 
 
 #synopsis > .show > *,#synopsis > .show {
-  background: inherit;
+  /*background: inherit;*/
 }
 #synopsis ul, #synopsis ul li.src {
-  background: inherit;
+  /*background: inherit;*/
 }
 
 #package-header {
