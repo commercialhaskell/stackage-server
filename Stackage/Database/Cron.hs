@@ -23,7 +23,7 @@ import           Network.AWS                   (Credentials (Discover),
 import           Control.Monad.Trans.AWS       (trying, _Error)
 import           Network.AWS.Data.Body         (toBody)
 import           Network.AWS.S3                (ObjectCannedACL (OPublicRead),
-                                                poACL, putObject,
+                                                poACL, poContentType, putObject,
                                                 BucketName(BucketName),
                                                 ObjectKey(ObjectKey))
 import Control.Lens (set, view)
@@ -182,6 +182,7 @@ stackageServerCron = do
         let key = ObjectKey "snapshots.json"
             po =
                   set poACL (Just OPublicRead)
+               $  set poContentType (Just "application/json")
                $  putObject (BucketName "haddock.stackage.org") key (toBody snapshots)
         putStrLn $ "Uploading: " ++ tshow key
         eres <- runResourceT $ runAWS env $ trying _Error $ send po
