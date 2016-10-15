@@ -2,6 +2,8 @@ module Stackage.Database.Cron
     ( stackageServerCron
     , loadFromS3
     , getHoogleDB
+    , HoogleLocker
+    , newHoogleLocker
     ) where
 
 import ClassyPrelude.Conduit
@@ -122,37 +124,73 @@ hoogleUrl n = concat
     , hoogleKey n
     ]
 
-getHoogleDB :: Bool -- ^ print exceptions?
+newtype HoogleLocker = HoogleLocker (TVar (Map FilePath (MVar ())))
+
+newHoogleLocker :: IO HoogleLocker
+newHoogleLocker = HoogleLocker <$> newTVarIO mempty
+
+data Finished a = Finished a | TryAgain
+
+getHoogleDB :: HoogleLocker
+            -> Bool -- ^ print exceptions?
             -> Manager -> SnapName -> IO (Maybe FilePath)
-getHoogleDB toPrint man name = do
+getHoogleDB (HoogleLocker locker) toPrint man name = do
     let fp = fromText $ hoogleKey name
         fptmp = encodeString fp <.> "tmp"
-    exists <- isFile fp
-    if exists
-        then return $ Just (encodeString fp)
-        else do
-            req' <- parseUrl $ unpack $ hoogleUrl name
-            let req = req'
-                    { checkStatus = \_ _ _ -> Nothing
-                    , decompress = const False
-                    }
-            withResponse req man $ \res -> if responseStatus res == status200
-                then do
-                    createTree $ parent (fromString fptmp)
-                    runResourceT $ bodyReaderSource (responseBody res)
-                                $= ungzip
-                                $$ sinkFile fptmp
-                    rename (fromString fptmp) fp
-                    return $ Just $ encodeString fp
+
+    baton <- newMVar ()
+
+    let go :: IO (Finished (Maybe FilePath))
+        go = withMVar baton $ \() -> bracket acquire fst snd
+
+        acquire :: IO (IO (), IO (Finished (Maybe FilePath)))
+        acquire = atomically $ do
+            m <- readTVar locker
+            case lookup (encodeString fp) m of
+                Just baton' -> return (return (), readMVar baton' $> TryAgain)
+                Nothing -> do
+                    modifyTVar locker $ insertMap (encodeString fp) baton
+                    let cleanup = modifyTVar locker $ deleteMap (encodeString fp)
+                    return (atomically $ cleanup, Finished <$> inner)
+
+
+        inner = do
+            exists <- isFile fp
+            if exists
+                then return $ Just (encodeString fp)
                 else do
-                    when toPrint $ mapM brRead res >>= print
-                    return Nothing
+                    req' <- parseUrl $ unpack $ hoogleUrl name
+                    let req = req'
+                            { checkStatus = \_ _ _ -> Nothing
+                            , decompress = const False
+                            }
+                    withResponse req man $ \res -> if responseStatus res == status200
+                        then do
+                            createTree $ parent (fromString fptmp)
+                            runResourceT $ bodyReaderSource (responseBody res)
+                                        $= ungzip
+                                        $$ sinkFile fptmp
+                            rename (fromString fptmp) fp
+                            return $ Just $ encodeString fp
+                        else do
+                            when toPrint $ mapM brRead res >>= print
+                            return Nothing
+
+        loop :: IO (Maybe FilePath)
+        loop = do
+            mres <- go
+            case mres of
+                TryAgain -> loop
+                Finished res -> return res
+    loop
 
 stackageServerCron :: IO ()
 stackageServerCron = do
     -- Hacky approach instead of PID files
     void $ catchIO (bindPortTCP 17834 "127.0.0.1") $ \_ ->
         error $ "cabal loader process already running, exiting"
+
+    locker <- newHoogleLocker
 
     env <- newEnv NorthVirginia Discover
     let upload :: FilePath -> ObjectKey -> IO ()
@@ -193,7 +231,7 @@ stackageServerCron = do
     names <- runReaderT last5Lts5Nightly db
     let manager = view envManager env
     forM_ names $ \name -> do
-        mfp <- getHoogleDB False manager name
+        mfp <- getHoogleDB locker False manager name
         case mfp of
             Just _ -> putStrLn $ "Hoogle database exists for: " ++ toPathPiece name
             Nothing -> do
