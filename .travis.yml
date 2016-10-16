@@ -32,7 +32,9 @@ before_install:
 - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
 
 install:
-# Build dependencies
+# Build dependencies. Start with just haskell-src-exts since it requires a lot
+# of memory and we want it to build by itself.
+- stack --no-terminal --install-ghc haskell-src-exts
 - stack --no-terminal --install-ghc test --only-dependencies
 
 script:
