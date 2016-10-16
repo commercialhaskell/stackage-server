@@ -15,7 +15,7 @@ import qualified Data.Text as T
 getHoogleDB :: SnapName -> Handler (Maybe FilePath)
 getHoogleDB name = track "Handler.Hoogle.getHoogleDB" $ do
     app <- getYesod
-    liftIO $ Cron.getHoogleDB True (appHttpManager app) name
+    liftIO $ Cron.getHoogleDB (appHoogleLocker app) True (appHttpManager app) name
 
 getHoogleR :: SnapName -> Handler Html
 getHoogleR name = track "Handler.Hoogle.getHoogleR" $ do

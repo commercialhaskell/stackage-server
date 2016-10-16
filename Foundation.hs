@@ -11,6 +11,7 @@ import           Yesod.Core.Types (Logger)
 import           Yesod.AtomFeed
 import           Yesod.GitRepo
 import Stackage.Database
+import Stackage.Database.Cron (HoogleLocker)
 import qualified Yesod.Core.Unsafe as Unsafe
 
 -- | The site argument for your application. This can be a good place to
@@ -30,6 +31,7 @@ data App = App
     -- ^ Avoid concurrent Hoogle queries, see
     -- https://github.com/fpco/stackage-server/issues/172
     , appMirrorStatus :: IO (Status, WidgetT App IO ())
+    , appHoogleLocker :: HoogleLocker
     }
 
 instance HasHttpManager App where
