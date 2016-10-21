@@ -16,6 +16,10 @@ import Prelude
 -- run to generate results. Use 'mkSingleRun' to create this value.
 data SingleRun k v = SingleRun
     { srVar :: MVar [(k, MVar (Res v))]
+    -- ^ Keys and the variables containing their blocked
+    -- computations. More ideal would be to use a Map, but we're
+    -- avoiding dependencies outside of base in case this moves into
+    -- auto-update.
     , srFunc :: k -> IO v
     }
 
@@ -50,27 +54,51 @@ toRes se =
 -- will retry.
 singleRun :: Eq k => SingleRun k v -> k -> IO v
 singleRun sr@(SingleRun var f) k =
+    -- Mask all exceptions so that we don't get killed between exiting
+    -- the modifyMVar and entering the join, which could leave an
+    -- empty MVar for a result that will never be filled.
     mask $ \restore ->
     join $ modifyMVar var $ \pairs ->
         case lookup k pairs of
+            -- Another thread is already working on this, grab its result
             Just res -> do
                 let action = restore $ do
                         res' <- readMVar res
                         case res' of
+                            -- Other thread died by sync exception, rethrow
                             SyncException e -> throwIO e
+                            -- Async exception, ignore and try again
                             AsyncException _ -> singleRun sr k
+                            -- Success!
                             Success v -> return v
+                -- Return unmodified pairs
                 return (pairs, action)
+
+            -- No other thread working
             Nothing -> do
+                -- MVar we'll add to pairs to store the result and
+                -- share with other threads
                 resVar <- newEmptyMVar
                 let action = do
+                        -- Run the action and capture all exceptions
                         eres <- try $ restore $ f k
+
+                        -- OK, we're done running, so let other
+                        -- threads run this again.
                         modifyMVar_ var $ return . filter (\(k', _) -> k /= k')
+
                         case eres of
+                            -- Exception occured. We'll rethrow it,
+                            -- and store the exceptional result in the
+                            -- result variable.
                             Left e -> do
                                 putMVar resVar $ toRes e
                                 throwIO e
+                            -- Success! Store in the result variable
+                            -- and return it
                             Right v -> do
                                 putMVar resVar $ Success v
                                 return v
+
+                -- Modify pairs to include this variable.
                 return ((k, resVar) : pairs, action)
