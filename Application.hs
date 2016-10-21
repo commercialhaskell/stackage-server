@@ -33,7 +33,7 @@ import           Yesod.Default.Config2
 import           Yesod.Default.Handlers
 import           Yesod.GitRepo
 import           System.Process (rawSystem)
-import           Stackage.Database.Cron (loadFromS3, newHoogleLocker)
+import           Stackage.Database.Cron (loadFromS3, newHoogleLocker, singleRun)
 import           Control.AutoUpdate
 
 -- Import all relevant handler modules here.
@@ -136,7 +136,8 @@ makeFoundation appSettings = do
     appHoogleLock <- newMVar ()
 
     appMirrorStatus <- mkUpdateMirrorStatus
-    appHoogleLocker <- newHoogleLocker
+    hoogleLocker <- newHoogleLocker True appHttpManager
+    let appGetHoogleDB = singleRun hoogleLocker
 
     return App {..}
 

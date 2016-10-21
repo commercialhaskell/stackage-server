@@ -47,6 +47,7 @@ library
                      Handler.Feed
                      Handler.DownloadStack
                      Handler.MirrorStatus
+                     Control.SingleRun
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
