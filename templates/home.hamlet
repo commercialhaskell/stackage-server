@@ -1,0 +1,61 @@
+<div .container>
+    <div .row .header>
+        <div .span6>
+            <img src=@{StaticR img_logo_png} .logo>
+        <div .span6>
+            <form class="hoogle" action="/lts/hoogle">
+              <div class="input-append hoogle-q">
+                <input class="search span3" type="search" autofocus="" name="q" value="" placeholder="E.g. map, a -> a, etc.">
+                <button class="btn" type="submit">
+                    Search
+                <span class="brws-pkgs">
+                    or
+                    <a href="/lts">
+                        browse packages
+              <label class="checkbox exact-lookup" for="exact" title="Only find identifiers matching your search term precisely">
+                <input type="checkbox" name="exact" id="exact">
+                Exact lookup
+
+    <div .row>
+        <div .span12>
+            <p>
+                Stackage is a stable source of Haskell packages. We guarantee that packages build consistently and pass tests before generating nightly and Long Term Support (LTS) releases.
+
+    <div .row>
+        <div .span6>
+            <h3>
+                Latest releases
+
+            <p>
+                You browse the latest long term support (what are Long
+                Term Support releases?) release, or the latest
+                bleeding-edge nightly release.
+
+            <p>
+                <a href="https://www.stackage.org/lts">
+                    LTS Haskell
+            <p>
+                <a href="https://www.stackage.org/nightly">
+                    Stackage Nightly
+            <h3>
+                Commercial Haskell
+            <p>
+                Stackage is part of an initiative by the commercial Haskell group. More information on the architecture of Stackage can be found here.
+
+            <p>
+                FP Complete offer custom installations for businesses who want to build their development platform upon Stackage. If you're considering this for your business and want to find out more, please email us at: sales@fpcomplete.com
+      <div .span6>
+        <h3>Snapshots
+        $forall stackages <- groups
+            $forall (_, _, uploaded) <- take 1 stackages
+                <h5>
+                    #{uploaded}
+            <ul .snapshots>
+                $forall (ident, title, _uploaded) <- stackages
+                    <li>
+                        <strong>
+                            <a href=@{SnapshotR ident StackageHomeR}>
+                                #{title}
+        <p>
+            <a href=@{AllSnapshotsR}>
+                Snapshots archive
