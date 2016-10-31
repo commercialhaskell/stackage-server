@@ -38,12 +38,14 @@
                 <a href="https://www.stackage.org/nightly">
                     Stackage Nightly
             <h3>
-                Commercial Haskell
+                Related initiatives
             <p>
-                Stackage is part of an initiative by the commercial Haskell group. More information on the architecture of Stackage can be found here.
-
-            <p>
-                FP Complete offer custom installations for businesses who want to build their development platform upon Stackage. If you're considering this for your business and want to find out more, please email us at: sales@fpcomplete.com
+                Get started with using Stackage with our tool called Stack at our
+                <a href="https://haskell-lang.org/get-started">
+                    Getting Started
+                on
+                <a href="https://haskell-lang.org/">
+                  haskell-lang.org
       <div .span6>
         <h3>Snapshots
         $forall stackages <- groups
