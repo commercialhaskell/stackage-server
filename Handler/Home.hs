@@ -1,4 +1,5 @@
 {-# LANGUAGE TupleSections, OverloadedStrings #-}
+
 module Handler.Home
     ( getHomeR
     , getAuthorsR
@@ -6,7 +7,11 @@ module Handler.Home
     , getOlderReleasesR
     ) where
 
-import Import hiding ((=.),on,(||.),(==.))
+import Data.Time.Clock
+import Formatting
+import Formatting.Time
+import Import
+import Stackage.Database
 import Yesod.GitRepo (grContent)
 
 -- This is a handler function for the G request method on the HomeR
@@ -17,7 +22,31 @@ import Yesod.GitRepo (grContent)
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
 getHomeR :: Handler Html
-getHomeR = contentHelper "Stackage Server" wcHomepage
+getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
+    now' <- liftIO getCurrentTime
+    currentPageMay <- lookupGetParam "page"
+    let currentPage :: Int
+        currentPage = fromMaybe 1 (currentPageMay >>= readMay)
+    (map entityVal -> snapshots) <-
+        getSnapshots Nothing snapshotsPerPage
+                             ((fromIntegral currentPage - 1) * snapshotsPerPage)
+    let groups = groupUp now' snapshots
+    defaultLayout $ do
+        setTitle "Stackage Server"
+        $(widgetFile "home")
+  where uncrapify now' snapshot =
+            ( snapshotName snapshot
+            , snapshotTitle snapshot
+            , format (diff True)
+                $ diffUTCTime
+                    (UTCTime (snapshotCreated snapshot) 0)
+                    now'
+            )
+        groupUp now' = groupBy (on (==) (\(_,_,uploaded) -> uploaded))
+                     . map (uncrapify now')
+
+snapshotsPerPage :: Int
+snapshotsPerPage = 8
 
 getAuthorsR :: Handler Html
 getAuthorsR = contentHelper "Library Authors" wcAuthors
