@@ -31,6 +31,7 @@ getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
         getSnapshots Nothing snapshotsPerPage
                              ((fromIntegral currentPage - 1) * snapshotsPerPage)
     let groups = groupUp now' snapshots
+    latestLtsByGhc <- getLatestLtsByGhc
     defaultLayout $ do
         setTitle "Stackage Server"
         $(widgetFile "home")

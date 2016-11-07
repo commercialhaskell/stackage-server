@@ -46,6 +46,13 @@
                 on
                 <a href="https://haskell-lang.org/">
                   haskell-lang.org
+
+            <h3>
+                Latest LTS per GHC version
+            <ul>
+                $forall (major, minor, ghc) <- latestLtsByGhc
+                  <li>
+                    <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for GHC #{ghc}
       <div .span6>
         <h3>Snapshots
         $forall stackages <- groups

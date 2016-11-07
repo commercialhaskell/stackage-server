@@ -39,6 +39,7 @@ module Stackage.Database
     , last5Lts5Nightly
     , snapshotsJSON
     , getPackageCount
+    , getLatestLtsByGhc
     ) where
 
 import Database.Sqlite (SqliteException)
@@ -783,3 +784,15 @@ getPackageCount :: GetStackageDatabase m
                 => SnapshotId
                 -> m Int
 getPackageCount sid = run $ count [SnapshotPackageSnapshot ==. sid]
+
+getLatestLtsByGhc :: GetStackageDatabase m
+                  => m [(Int, Int, Text)]
+getLatestLtsByGhc = run $ fmap (map toTuple) $ do
+    E.select $ E.from $ \(lts `E.InnerJoin` snapshot) -> do
+        E.on $ lts E.^. LtsSnap E.==. snapshot E.^. SnapshotId
+        E.orderBy [E.desc (lts E.^. LtsMajor), E.desc (lts E.^. LtsMinor)]
+        E.groupBy (snapshot E.^. SnapshotGhc)
+        return (lts, snapshot)
+  where
+    toTuple (Entity _ lts, Entity _ snapshot) =
+        (ltsMajor lts, ltsMinor lts, snapshotGhc snapshot)
