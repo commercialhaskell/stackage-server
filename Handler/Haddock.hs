@@ -73,6 +73,10 @@ redirectWithVersion slug rest =
         _ -> return Nothing
 
 getHaddockBackupR :: [Text] -> Handler ()
+getHaddockBackupR (snap':rest)
+  | Just branch <- fromPathPiece snap' = track "Handler.Haddock.getHaddockBackupR" $ do
+      snapName <- newestSnapshot branch >>= maybe notFound pure
+      redirect $ HaddockR snapName rest
 getHaddockBackupR rest = track "Handler.Haddock.getHaddockBackupR" $  redirect $ concat
     $ "https://s3.amazonaws.com/haddock.stackage.org"
     : map (cons '/') rest
