@@ -53,6 +53,12 @@
                 $forall (major, minor, ghc) <- latestLtsByGhc
                   <li>
                     <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for GHC #{ghc}
+            <h3>
+                Package Maintainers
+            <p>
+                <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package">
+                  Add your maintained packages to stackage
+                    
       <div .span6>
         <h3>Snapshots
         $forall stackages <- groups
