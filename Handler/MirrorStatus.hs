@@ -45,9 +45,12 @@ mkUpdateMirrorStatus = mkAutoUpdate defaultUpdateSettings
             , "http://hackage.fpcomplete.com/01-index.tar.gz"
             ]
         otherMods <- mapM getLastModifiedHTTP
+            []
+            {- Dreamhost S3 is far too unstable
             [ "http://objects-us-west-1.dream.io/hackage-mirror/01-index.tar.gz"
             , "http://objects-us-west-1.dream.io/hackage-mirror/timestamp.json"
             ]
+            -}
         let nonHackageMods = gitMods ++ tarballMods
             allMods = ("Hackage", hackageTime) : nonHackageMods ++ otherMods
             biggestDiff = Prelude.maximum $ map
