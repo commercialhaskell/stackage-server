@@ -52,8 +52,8 @@ snapshotsPerPage = 8
 getAuthorsR :: Handler Html
 getAuthorsR = contentHelper "Library Authors" wcAuthors
 
-getInstallR :: Handler Html
-getInstallR = contentHelper "Haskell Installation Instructions" wcInstall
+getInstallR :: Handler ()
+getInstallR = redirect ("https://haskell-lang.org/get-started" :: Text)
 
 getOlderReleasesR :: Handler Html
 getOlderReleasesR = contentHelper "Older Releases" wcOlderReleases
