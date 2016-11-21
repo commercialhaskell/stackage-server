@@ -101,6 +101,7 @@ $newline never
                     $if null modules
                         <p>There are no documented modules for this package.
                     $else
+                        ^{hoogleForm sname}
                         ^{renderModules sname (toPkgVer pname' version) modules}
 
 $if not (LT.null (LT.renderHtml (packageDescription package)))

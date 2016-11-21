@@ -106,6 +106,11 @@ packagePage mversion pname = track "Handler.Package.packagePage" $ do
             ])
         let pn = pname
             toPkgVer x y = concat [x, "-", y]
+            hoogleForm name =
+              let exact = False
+                  mPackageName = Just pname
+                  queryText = "" :: Text
+               in $(widgetFile "hoogle-form")
         $(widgetFile "package")
   where enumerate = zip [0::Int ..]
         renderModules sname version = renderForest [] . moduleForest . map moduleName

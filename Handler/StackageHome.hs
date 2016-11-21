@@ -20,6 +20,7 @@ getStackageHomeR name = track "Handler.StackageHome.getStackageHomeR" $ do
     let hoogleForm =
             let queryText = "" :: Text
                 exact = False
+                mPackageName = Nothing :: Maybe Text
             in $(widgetFile "hoogle-form")
     packageCount <- getPackageCount sid
     packages <- getPackages sid

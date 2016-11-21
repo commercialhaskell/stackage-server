@@ -20,6 +20,7 @@ getHoogleR :: SnapName -> Handler Html
 getHoogleR name = track "Handler.Hoogle.getHoogleR" $ do
     Entity _ snapshot <- lookupSnapshot name >>= maybe notFound return
     mquery <- lookupGetParam "q"
+    mPackageName <- lookupGetParam "package"
     mpage <- lookupGetParam "page"
     exact <- isJust <$> lookupGetParam "exact"
     mresults' <- lookupGetParam "results"
@@ -43,7 +44,10 @@ getHoogleR name = track "Handler.Hoogle.getHoogleR" $ do
       case mquery of
         Just query -> do
             let input = HoogleQueryInput
-                    { hqiQueryInput = query
+                    { hqiQueryInput =
+                        case mPackageName of
+                          Nothing -> query
+                          Just pn -> concat ["+", pn, " ", query]
                     , hqiLimitTo = count'
                     , hqiOffsetBy = offset
                     , hqiExact = exact
