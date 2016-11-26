@@ -194,7 +194,7 @@ stackageServerCron = do
             Left e -> error $ show (key, e)
             Right _ -> putStrLn "Success"
 
-    names <- runReaderT last5Lts5Nightly db
+    names <- runReaderT (lastXLts5Nightly 50) db
     let manager = view envManager env
 
     locker <- newHoogleLocker False manager

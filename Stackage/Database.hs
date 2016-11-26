@@ -37,6 +37,7 @@ module Stackage.Database
     , countSnapshots
     , currentSchema
     , last5Lts5Nightly
+    , lastXLts5Nightly
     , snapshotsJSON
     , getPackageCount
     , getLatestLtsByGhc
@@ -751,8 +752,11 @@ getSnapshots mBranch l o = run $ case mBranch of
             pure snapshot
 
 last5Lts5Nightly :: GetStackageDatabase m => m [SnapName]
-last5Lts5Nightly = run $ do
-    ls <- selectList [] [Desc LtsMajor, Desc LtsMinor, LimitTo 5]
+last5Lts5Nightly = lastXLts5Nightly 5
+
+lastXLts5Nightly :: GetStackageDatabase m => Int -> m [SnapName]
+lastXLts5Nightly ltsCount = run $ do
+    ls <- selectList [] [Desc LtsMajor, Desc LtsMinor, LimitTo ltsCount]
     ns <- selectList [] [Desc NightlyDay, LimitTo 5]
     return $ map l ls ++ map n ns
   where
