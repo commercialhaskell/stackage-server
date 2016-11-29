@@ -32,9 +32,12 @@ import qualified Data.Conduit.Binary as CB
 import           Data.Conduit.Zlib             (WindowBits (WindowBits),
                                                 compress, ungzip)
 import qualified Hoogle
-import System.Directory (doesFileExist)
+import System.Directory (doesFileExist, getAppUserDataDirectory)
+import System.IO (withBinaryFile, IOMode (ReadMode))
 import System.IO.Temp (withSystemTempDirectory)
 import Control.SingleRun
+import qualified Data.ByteString.Lazy as L
+import System.FilePath (splitPath)
 
 filename' :: Text
 filename' = concat
@@ -230,9 +233,28 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     createTree (fromString bindir)
 
     withSystemTempDirectory ("hoogle-" ++ unpack (toPathPiece name)) $ \tmpdir -> do
-        runResourceT
+        allPackagePairs <- runResourceT
             $ sourceTarFile False tarFP
-           $$ mapM_C (liftIO . singleDB db name tmpdir)
+           $$ foldMapMC (liftIO . singleDB db name tmpdir)
+
+        stackDir <- getAppUserDataDirectory "stack"
+        let indexTar = stackDir </> "indices" </> "Hackage" </> "00-index.tar"
+        withBinaryFile indexTar ReadMode $ \h -> do
+            let loop Tar.Done = return ()
+                loop (Tar.Fail e) = throwM e
+                loop (Tar.Next e es) = go e >> loop es
+
+                go e =
+                    case (Tar.entryContent e, splitPath $ Tar.entryPath e) of
+                        (Tar.NormalFile cabalLBS _, [pkg', ver', pkgcabal'])
+                          | Just pkg <- stripSuffix "/" (pack pkg')
+                          , Just ver <- stripSuffix "/" (pack ver')
+                          , Just pkg2 <- stripSuffix ".cabal" (pack pkgcabal')
+                          , pkg == pkg2
+                          , lookup pkg allPackagePairs == Just ver ->
+                              writeFile (tmpdir </> unpack pkg <.> "cabal") cabalLBS
+                        _ -> return ()
+            L.hGetContents h >>= loop . Tar.read
 
         let args =
                 [ "generate"
@@ -262,7 +284,7 @@ singleDB :: StackageDatabase
          -> SnapName
          -> FilePath -- ^ temp directory to write .txt files to
          -> Tar.Entry
-         -> IO ()
+         -> IO (Map Text Text)
 singleDB db sname tmpdir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
     --putStrLn $ "Loading file for Hoogle: " ++ pack (Tar.entryPath e)
 
@@ -271,11 +293,14 @@ singleDB db sname tmpdir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
         Just (Entity sid _) <- lookupSnapshot sname
         lookupSnapshotPackage sid pkg
     case msp of
-        Nothing -> putStrLn $ "Unknown: " ++ pkg
-        Just _ -> do
+        Nothing -> do
+            putStrLn $ "Unknown: " ++ pkg
+            return mempty
+        Just (Entity _ sp)  -> do
             let out = tmpdir </> unpack pkg <.> "txt"
                 -- FIXME add @url directive
             writeFile out lbs
+            return $ singletonMap pkg (snapshotPackageVersion sp)
                 {-
                 docsUrl = concat
                     [ "https://www.stackage.org/haddock/"
@@ -285,4 +310,4 @@ singleDB db sname tmpdir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
                     , "/index.html"
                     ] -}
 
-singleDB _ _ _ _ = return ()
+singleDB _ _ _ _ = return mempty
