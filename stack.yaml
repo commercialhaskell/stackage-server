@@ -9,5 +9,5 @@ extra-deps:
     - prometheus-client-0.1.0.1
     - prometheus-metrics-ghc-0.1.0.1
     - wai-middleware-prometheus-0.1.0.1
-    - hoogle-5.0.5
+    - hoogle-5.0.6
     - haskell-src-exts-1.19.0
