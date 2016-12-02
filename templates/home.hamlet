@@ -27,8 +27,9 @@
                 Latest releases
 
             <p>
-                You browse the latest long term support (what are Long
-                Term Support releases?) release, or the latest
+                You browse the latest long term support (#
+                <a href="https://github.com/fpco/lts-haskell#readme">what are Long Term Support releases?#
+                ) release, or the latest
                 bleeding-edge nightly release.
 
             <p>
