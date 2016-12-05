@@ -10,6 +10,8 @@ import           Import
 import           Text.Blaze.Html (preEscapedToHtml)
 import Stackage.Database
 import qualified Data.Text as T
+import qualified Text.HTML.DOM
+import Text.XML.Cursor (fromDocument, ($//), content)
 
 getHoogleDB :: SnapName -> Handler (Maybe FilePath)
 getHoogleDB name = track "Handler.Hoogle.getHoogleDB" $ do
@@ -154,7 +156,7 @@ runHoogleQuery renderUrl snapshot hoogledb HoogleQueryInput {..} =
     fixResult Hoogle.Target {..} = HoogleResult
         { hrURL     = case sources of
                         [(_,[ModuleLink _ m])] -> m ++ haddockAnchorFromUrl targetURL
-                        _ -> targetURL
+                        _ -> fromMaybe targetURL moduleLink
         , hrSources = sources
         , hrTitle   = -- FIXME find out why these replaces are necessary
                       unpack $ T.replace "<0>" "" $ T.replace "</0>" "" $ pack
@@ -174,6 +176,16 @@ runHoogleQuery renderUrl snapshot hoogledb HoogleQueryInput {..} =
                                        (T.pack pname)
                                        (T.pack mname))))
               Just (p, [m])
+
+            moduleLink = do
+              (pname, _) <- targetPackage
+              "module" <- Just targetType
+              let doc = Text.HTML.DOM.parseLBS $ encodeUtf8 $ pack targetItem
+                  cursor = fromDocument doc
+                  item = T.concat $ cursor $// content
+              mname <- T.stripPrefix "module " item
+              return $ T.unpack $ renderUrl $ haddockUrl snapshot (T.pack pname) mname
+
             haddockAnchorFromUrl =
                 ('#':) . reverse . takeWhile (/='#') . reverse
 
