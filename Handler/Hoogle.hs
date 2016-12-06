@@ -156,7 +156,10 @@ runHoogleQuery renderUrl snapshot hoogledb HoogleQueryInput {..} =
     fixResult Hoogle.Target {..} = HoogleResult
         { hrURL     = case sources of
                         [(_,[ModuleLink _ m])] -> m ++ haddockAnchorFromUrl targetURL
-                        _ -> fromMaybe targetURL moduleLink
+                        _ -> fromMaybe targetURL $ asum
+                                [ moduleLink
+                                , packageLink
+                                ]
         , hrSources = sources
         , hrTitle   = -- FIXME find out why these replaces are necessary
                       unpack $ T.replace "<0>" "" $ T.replace "</0>" "" $ pack
@@ -185,6 +188,15 @@ runHoogleQuery renderUrl snapshot hoogledb HoogleQueryInput {..} =
                   item = T.concat $ cursor $// content
               mname <- T.stripPrefix "module " item
               return $ T.unpack $ renderUrl $ haddockUrl snapshot (T.pack pname) mname
+
+            packageLink = do
+              Nothing <- Just targetPackage
+              "package" <- Just targetType
+              let doc = Text.HTML.DOM.parseLBS $ encodeUtf8 $ pack targetItem
+                  cursor = fromDocument doc
+                  item = T.concat $ cursor $// content
+              pname <- T.stripPrefix "package " item
+              return $ T.unpack $ renderUrl $ SnapshotR snapshot $ StackageSdistR $ PNVName $ PackageName pname
 
             haddockAnchorFromUrl =
                 ('#':) . reverse . takeWhile (/='#') . reverse
