@@ -791,12 +791,17 @@ getPackageCount sid = run $ count [SnapshotPackageSnapshot ==. sid]
 
 getLatestLtsByGhc :: GetStackageDatabase m
                   => m [(Int, Int, Text)]
-getLatestLtsByGhc = run $ fmap (map toTuple) $ do
+getLatestLtsByGhc = run $ fmap (dedupe . map toTuple) $ do
     E.select $ E.from $ \(lts `E.InnerJoin` snapshot) -> do
         E.on $ lts E.^. LtsSnap E.==. snapshot E.^. SnapshotId
         E.orderBy [E.desc (lts E.^. LtsMajor), E.desc (lts E.^. LtsMinor)]
-        E.groupBy (snapshot E.^. SnapshotGhc)
+        E.groupBy (snapshot E.^. SnapshotGhc, lts E.^. LtsMajor, lts E.^. LtsMinor)
         return (lts, snapshot)
   where
     toTuple (Entity _ lts, Entity _ snapshot) =
         (ltsMajor lts, ltsMinor lts, snapshotGhc snapshot)
+
+    dedupe [] = []
+    dedupe (x:xs) = x : dedupe (dropWhile (\y -> thd x == thd y) xs)
+
+    thd (_, _, x) = x
