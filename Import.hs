@@ -13,6 +13,8 @@ import Data.Text.Read (decimal)
 import Data.Time.Clock (diffUTCTime)
 import qualified Prometheus as P
 import Stackage.Database (SnapName)
+import Formatting (format)
+import Formatting.Time (diff)
 
 parseLtsPair :: Text -> Maybe (Int, Int)
 parseLtsPair t1 = do
@@ -60,3 +62,12 @@ track name inner = do
                            "stackage_server_fn"
                            "Stackage Server function call (duration in microseconds).")
                       P.defaultQuantiles))
+
+dateDiff :: UTCTime -- ^ now
+         -> Day -- ^ target
+         -> LText
+dateDiff (UTCTime now' _) target
+    | now' == target = "today"
+    | otherwise = format (diff True) $ diffUTCTime
+        (UTCTime target 0)
+        (UTCTime now' 0)

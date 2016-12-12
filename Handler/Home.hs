@@ -8,8 +8,6 @@ module Handler.Home
     ) where
 
 import Data.Time.Clock
-import Formatting
-import Formatting.Time
 import Import
 import Stackage.Database
 import Yesod.GitRepo (grContent)
@@ -38,10 +36,7 @@ getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
   where uncrapify now' snapshot =
             ( snapshotName snapshot
             , snapshotTitle snapshot
-            , format (diff True)
-                $ diffUTCTime
-                    (UTCTime (snapshotCreated snapshot) 0)
-                    now'
+            , dateDiff now' (snapshotCreated snapshot)
             )
         groupUp now' = groupBy (on (==) (\(_,_,uploaded) -> uploaded))
                      . map (uncrapify now')
