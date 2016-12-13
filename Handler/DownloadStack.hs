@@ -35,7 +35,7 @@ getLatestMatcher man = do
         let pattern' = pattern ++ "."
         Object top <- return val
         Array assets <- lookup "assets" top
-        getFirst $ fold $ map (First . findMatch pattern') assets
+        headMay $ preferZip $ catMaybes $ map (findMatch pattern') assets
   where
     findMatch pattern' (Object o) = do
         String name <- lookup "name" o
@@ -44,3 +44,6 @@ getLatestMatcher man = do
         String url <- lookup "browser_download_url" o
         Just url
     findMatch _ _ = Nothing
+
+    preferZip = map snd . sortBy (comparing fst) . map
+        (\x -> (if ".zip" `isSuffixOf` x then 0 else 1 :: Int, x))
