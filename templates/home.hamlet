@@ -33,11 +33,16 @@
                 bleeding-edge nightly release.
 
             <p>
-                <a href="https://www.stackage.org/lts">
+                <a href="/lts">
                     LTS Haskell
             <p>
-                <a href="https://www.stackage.org/nightly">
+                <a href="/nightly">
                     Stackage Nightly
+
+            <p>
+                Have more questions? We have a #
+                <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github
+                .
             <h3>
                 Related initiatives
             <p>
@@ -51,9 +56,10 @@
             <h3>
                 Latest LTS per GHC version
             <ul>
-                $forall (major, minor, ghc) <- latestLtsByGhc
+                $forall (major, minor, ghc, date) <- latestLtsByGhc
                   <li>
-                    <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for GHC #{ghc}
+                    <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for GHC #{ghc}#
+                    \, published #{dateDiff now' date}
             <h3>
                 Package Maintainers
             <p>
