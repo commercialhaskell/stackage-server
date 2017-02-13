@@ -106,6 +106,7 @@ loadFromS3 develMode man = do
                     -- give existing users a chance to clean up
                     threadDelay $ 1000000 * 30
                     void $ tryIO $ removeFile (fromString fp)
+                    closeStackageDatabase db
                 return oldKill
 
     update
