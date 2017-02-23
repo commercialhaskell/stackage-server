@@ -4,6 +4,7 @@ module Stackage.Database
     , SnapName (..)
     , SnapshotId ()
     , Snapshot (..)
+    , closeStackageDatabase
     , newestSnapshot
     , newestLTS
     , newestLTSMajor
@@ -73,6 +74,7 @@ import qualified Database.Esqueleto as E
 import Data.Yaml (decode)
 import qualified Data.Aeson as A
 import Types (SnapshotBranch(..))
+import Data.Pool (destroyAllResources)
 
 currentSchema :: Int
 currentSchema = 1
@@ -152,6 +154,9 @@ _hideUnusedWarnings
 _hideUnusedWarnings _ = ()
 
 newtype StackageDatabase = StackageDatabase ConnectionPool
+
+closeStackageDatabase :: StackageDatabase -> IO ()
+closeStackageDatabase (StackageDatabase pool) = destroyAllResources pool
 
 class MonadIO m => GetStackageDatabase m where
     getStackageDatabase :: m StackageDatabase
