@@ -9,7 +9,7 @@ module Stackage.Snapshot.Diff
   ) where
 
 import           Data.Align
-import           Data.Aeson.Extra
+import           Data.Aeson
 import qualified Data.HashMap.Strict as HashMap
 import           Control.Arrow
 import           ClassyPrelude
@@ -30,7 +30,7 @@ newtype SnapshotDiff
 instance ToJSON (WithSnapshotNames SnapshotDiff) where
     toJSON (WithSnapshotNames nameA nameB (SnapshotDiff diff)) =
         object [ "comparing" .= [toPathPiece nameA, toPathPiece nameB]
-               , "diff"      .= Object (toJSONMap (WithSnapshotNames nameA nameB <$> diff))
+               , "diff"      .= toJSON (WithSnapshotNames nameA nameB <$> diff)
                ]
 
 toDiffList :: SnapshotDiff -> [(PackageName, VersionChange)]
@@ -45,7 +45,7 @@ newtype VersionChange = VersionChange { unVersionChange :: These Version Version
                       deriving (Show, Eq, Generic, Typeable)
 
 instance ToJSON (WithSnapshotNames VersionChange) where
-    toJSON (WithSnapshotNames (toJSONKey -> aKey) (toJSONKey -> bKey) change) =
+    toJSON (WithSnapshotNames (toPathPiece -> aKey) (toPathPiece -> bKey) change) =
         case change of
             VersionChange (This a)    -> object [ aKey .= a ]
             VersionChange (That b)    -> object [ bKey .= b ]

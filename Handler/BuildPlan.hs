@@ -3,7 +3,7 @@ module Handler.BuildPlan where
 
 import Import hiding (get, PackageName (..), Version (..), DList)
 import Stackage.Types
-import Stackage.BuildPlan
+import Stackage.ShowBuildPlan
 import Stackage.Database
 
 getBuildPlanR :: SnapName -> Handler TypedContent

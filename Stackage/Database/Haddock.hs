@@ -56,3 +56,5 @@ hToHtml =
         wrapper 4 = H.h4
         wrapper 5 = H.h5
         wrapper _ = H.h6
+    go (DocMathInline x) = H.pre $ H.code $ toHtml x
+    go (DocMathDisplay x) = H.pre $ H.code $ toHtml x

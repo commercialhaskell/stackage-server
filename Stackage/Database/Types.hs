@@ -6,7 +6,7 @@ module Stackage.Database.Types
 
 import ClassyPrelude.Conduit
 import Web.PathPieces
-import Data.Aeson.Extra
+import Data.Aeson
 import Data.Text.Read (decimal)
 import Database.Persist
 import Database.Persist.Sql
@@ -23,8 +23,7 @@ isNightly :: SnapName -> Bool
 isNightly SNLts{}     = False
 isNightly SNNightly{} = True
 
-instance ToJSONKey SnapName where
-    toJSONKey = toPathPiece
+instance ToJSONKey SnapName
 
 instance ToJSON SnapName where
     toJSON = String . toPathPiece

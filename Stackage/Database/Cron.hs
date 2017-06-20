@@ -17,8 +17,7 @@ import Web.PathPieces (toPathPiece)
 import Filesystem.Path.CurrentOS (parent, fromText, encodeString)
 import Network.HTTP.Types (status200)
 import           Data.Streaming.Network (bindPortTCP)
-import           Network.AWS                   (Credentials (Discover),
-                                                Region (NorthVirginia), newEnv,
+import           Network.AWS                   (Credentials (Discover), newEnv,
                                                 send, chunkedFile, defaultChunkSize,
                                                 envManager, runAWS)
 import           Control.Monad.Trans.AWS       (trying, _Error)
@@ -66,7 +65,7 @@ loadFromS3 develMode man = do
     unless develMode $ handleIO print $ removeTree root
     createTree root
 
-    req <- parseUrl $ unpack url
+    req <- parseRequest $ unpack url
     let download = do
             suffix <- atomically $ do
                 x <- readTVar currSuffixVar
@@ -139,11 +138,8 @@ newHoogleLocker toPrint man = mkSingleRun $ \name -> do
     if exists
         then return $ Just (encodeString fp)
         else do
-            req' <- parseUrl $ unpack $ hoogleUrl name
-            let req = req'
-                    { checkStatus = \_ _ _ -> Nothing
-                    , decompress = const False
-                    }
+            req' <- parseRequest $ unpack $ hoogleUrl name
+            let req = req' { decompress = const False }
             withResponse req man $ \res -> if responseStatus res == status200
                 then do
                     createTree $ parent (fromString fptmp)
@@ -162,7 +158,7 @@ stackageServerCron = do
     void $ catchIO (bindPortTCP 17834 "127.0.0.1") $ \_ ->
         error $ "cabal loader process already running, exiting"
 
-    env <- newEnv NorthVirginia Discover
+    env <- newEnv Discover
     let upload :: FilePath -> ObjectKey -> IO ()
         upload fp key = do
             let fpgz = fp <.> "gz"
@@ -219,7 +215,7 @@ stackageServerCron = do
 createHoogleDB :: StackageDatabase -> Manager -> SnapName -> IO (Maybe FilePath)
 createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     putStrLn $ "Creating Hoogle DB for " ++ toPathPiece name
-    req' <- parseUrl $ unpack tarUrl
+    req' <- parseRequest $ unpack tarUrl
     let req = req' { decompress = const True }
 
     unlessM (isFile (fromString tarFP)) $ withResponse req man $ \res -> do
@@ -253,7 +249,9 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
                           , Just pkg2 <- stripSuffix ".cabal" (pack pkgcabal')
                           , pkg == pkg2
                           , lookup pkg allPackagePairs == Just ver ->
-                              writeFile (tmpdir </> unpack pkg <.> "cabal") cabalLBS
+                                  runConduitRes
+                                $ sourceLazy cabalLBS
+                               .| sinkFile (tmpdir </> unpack pkg <.> "cabal")
                         _ -> return ()
             L.hGetContents h >>= loop . Tar.read
 
@@ -300,7 +298,7 @@ singleDB db sname tmpdir e@(Tar.entryContent -> Tar.NormalFile lbs _) = do
         Just (Entity _ sp)  -> do
             let out = tmpdir </> unpack pkg <.> "txt"
                 -- FIXME add @url directive
-            writeFile out lbs
+            runConduitRes $ sourceLazy lbs .| sinkFile out
             return $ singletonMap pkg (snapshotPackageVersion sp)
                 {-
                 docsUrl = concat

@@ -48,7 +48,7 @@ getHaddockR slug rest
                   ]
                 addExtra t@(EventBeginElement "body" _) = [t]
                 addExtra t = [t]
-            req <- parseUrl $ unpack $ makeURL slug rest
+            req <- parseRequest $ unpack $ makeURL slug rest
             (_, res) <- acquireResponse req >>= allocateAcquire
             doc <- responseBody res
                 $$ eventConduit

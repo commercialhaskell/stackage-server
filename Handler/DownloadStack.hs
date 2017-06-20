@@ -9,7 +9,6 @@ import Yesod.GitRepo
 import Data.WebsiteContent
 import Data.Aeson.Parser (json)
 import Data.Conduit.Attoparsec (sinkParser)
-import Data.Monoid (First (..))
 
 getDownloadStackListR :: Handler Html
 getDownloadStackListR = track "Handler.DownloadStack.getDownloadStackListR" $ do

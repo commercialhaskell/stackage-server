@@ -89,7 +89,6 @@ library
     build-depends:
                     base
                   , aeson
-                  , aeson-extra
                   , aws
                   , barrier
                   , base16-bytestring
@@ -168,8 +167,7 @@ library
                   , deepseq
                   , deepseq-generics
                   , auto-update
-                  , stackage-types
-                  , stackage-build-plan
+                  , stackage-curator
                   , yesod-sitemap
                   , streaming-commons
                   , classy-prelude-conduit

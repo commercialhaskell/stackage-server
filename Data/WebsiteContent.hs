@@ -34,7 +34,7 @@ loadWebsiteContent dir = do
     readMarkdown fp = fmap (markdown def
                         { msXssProtect   = False
                         , msAddHeadingId = True
-                        })
+                        } . fromStrict . decodeUtf8)
                $ readFile $ dir </> fp
 
 data StackRelease = StackRelease

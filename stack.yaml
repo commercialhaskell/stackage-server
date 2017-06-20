@@ -1,15 +1,14 @@
-resolver: lts-6.17
+resolver: lts-8.12
 packages:
 - .
 - location:
     git: https://github.com/chrisdone/tagstream-conduit.git
     commit: bacd7444596b2391b0ac302ad649b994b258d271
   extra-dep: true
+- location:
+    git: https://github.com/commercialhaskell/all-cabal-metadata-tool
+    commit: 1a4d8cff4e796ea0049537a38e38ec0a739caf64
+  extra-dep: true
 extra-deps:
-    - prometheus-client-0.1.0.1
-    - prometheus-metrics-ghc-0.1.0.1
-    - wai-middleware-prometheus-0.1.0.1
-    - hoogle-5.0.6
-    - haskell-src-exts-1.19.0
-    - persistent-sqlite-2.2.1.1
-    - yesod-bin-1.5.2.2
+- aws-0.16
+- barrier-0.1.1
