@@ -87,102 +87,102 @@ library
                 LambdaCase
 
     build-depends:
-                    base                          >= 4.8         &&   < 4.9
-                  , aeson                         >= 0.9         &&   < 0.12
-                  , aeson-extra                   >= 0.3         &&   < 0.4
-                  , aws                           >= 0.13        &&   < 0.14
-                  , barrier                       >= 0.1         &&   < 0.2
-                  , base16-bytestring             >= 0.1         &&   < 0.2
-                  , blaze-markup                  >= 0.7         &&   < 0.8
-                  , byteable                      >= 0.1         &&   < 0.2
-                  , bytestring                    >= 0.10        &&   < 0.11
-                  , classy-prelude                >= 0.12        &&   < 0.13
-                  , classy-prelude-yesod          >= 0.12        &&   < 0.13
-                  , conduit                       >= 1.2         &&   < 1.3
-                  , conduit-extra                 >= 1.1         &&   < 1.2
-                  , cryptohash                    >= 0.11        &&   < 0.12
-                  , cryptohash-conduit            >= 0.1.1       &&   < 0.2
-                  , data-default                  >= 0.5         &&   < 0.6
-                  , directory                     >= 1.2         &&   < 1.3
-                  , email-validate                >= 2.2         &&   < 2.3
-                  , esqueleto                     >= 2.4         &&   < 2.5
-                  , exceptions                    >= 0.8         &&   < 0.9
-                  , fast-logger                   >= 2.4         &&   < 2.5
-                  , foreign-store                 >= 0.2         &&   < 0.3
-                  , ghc-prim                      >= 0.4         &&   < 0.5
-                  , hjsmin                        >= 0.1         &&   < 0.3
-                  , html-conduit                  >= 1.2         &&   < 1.3
-                  , http-conduit                  >= 2.1.8       &&   < 2.2
-                  , monad-control                 >= 1.0         &&   < 1.1
-                  , monad-logger                  >= 0.3.13      &&   < 0.4
-                  , mtl                           >= 2.2         &&   < 2.3
-                  , mwc-random                    >= 0.13        &&   < 0.14
+                    base
+                  , aeson
+                  , aeson-extra
+                  , aws
+                  , barrier
+                  , base16-bytestring
+                  , blaze-markup
+                  , byteable
+                  , bytestring
+                  , classy-prelude
+                  , classy-prelude-yesod
+                  , conduit
+                  , conduit-extra
+                  , cryptohash
+                  , cryptohash-conduit
+                  , data-default
+                  , directory
+                  , email-validate
+                  , esqueleto
+                  , exceptions
+                  , fast-logger
+                  , foreign-store
+                  , ghc-prim
+                  , hjsmin
+                  , html-conduit
+                  , http-conduit
+                  , monad-control
+                  , monad-logger
+                  , mtl
+                  , mwc-random
                   , prometheus-client
                   , prometheus-metrics-ghc
-                  , persistent                    >= 2.2         &&   < 2.3
-                  , persistent-template           >= 2.1         &&   < 2.2
-                  , resourcet                     >= 1.1.6       &&   < 1.2
-                  , shakespeare                   >= 2.0         &&   < 2.1
-                  , system-fileio                 >= 0.3         &&   < 0.4
-                  , system-filepath               >= 0.4         &&   < 0.5
+                  , persistent
+                  , persistent-template
+                  , resourcet
+                  , shakespeare
+                  , system-fileio
+                  , system-filepath
                   , tagstream-conduit
-                  , tar                           >= 0.5         &&   < 0.6
-                  , template-haskell              >= 2.10        &&   < 2.11
-                  , temporary-rc                  >= 1.2         &&   < 1.3
-                  , text                          >= 1.2         &&   < 1.3
-                  , these                         >= 0.6         &&   < 0.7
-                  , wai                           >= 3.2         &&   < 3.3
-                  , wai-extra                     >= 3.0         &&   < 3.1
-                  , wai-logger                    >= 2.2         &&   < 2.3
+                  , tar
+                  , template-haskell
+                  , temporary-rc
+                  , text
+                  , these
+                  , wai
+                  , wai-extra
+                  , wai-logger
                   , wai-middleware-prometheus
-                  , warp                          >= 3.2         &&   < 3.3
-                  , xml-conduit                   >= 1.3         &&   < 1.4
+                  , warp
+                  , xml-conduit
                   , xml-types
-                  , yaml                          >= 0.8         &&   < 0.9
-                  , yesod                         >= 1.4         &&   < 1.5
-                  , yesod-auth                    >= 1.4         &&   < 1.5
-                  , yesod-core                    >= 1.4         &&   < 1.5
-                  , yesod-form                    >= 1.4         &&   < 1.5
+                  , yaml
+                  , yesod
+                  , yesod-auth
+                  , yesod-core
+                  , yesod-form
                   , yesod-newsfeed
-                  , yesod-static                  >= 1.5         &&   < 1.6
-                  , zlib                          >= 0.6         &&   < 0.7
-                  , unordered-containers          >= 0.2         &&   < 0.3
-                  , hashable                      >= 1.2         &&   < 1.3
-                  , Cabal                         >= 1.22        &&   < 1.23
-                  , lifted-base                   >= 0.2         &&   < 0.3
-                  , mono-traversable              >= 0.10        &&   < 0.11
-                  , time                          >= 1.5         &&   < 1.6
-                  , process                       >= 1.2         &&   < 1.3
-                  , old-locale                    >= 1.0         &&   < 1.1
-                  , th-lift                       >= 0.7         &&   < 0.8
-                  , mime-types                    >= 0.1         &&   < 0.2
-                  , unix                          >= 2.7         &&   < 2.8
-                  , markdown                      >= 0.1.13      &&   < 0.2
-                  , formatting                    >= 6.2         &&   < 6.3
-                  , blaze-html                    >= 0.8         &&   < 0.9
-                  , haddock-library               >= 1.2.0       &&   < 1.3
-                  , async                         >= 2.1         &&   < 2.2
-                  , yesod-gitrepo                 >= 0.2         &&   < 0.3
+                  , yesod-static
+                  , zlib
+                  , unordered-containers
+                  , hashable
+                  , Cabal
+                  , lifted-base
+                  , mono-traversable
+                  , time
+                  , process
+                  , old-locale
+                  , th-lift
+                  , mime-types
+                  , unix
+                  , markdown
+                  , formatting
+                  , blaze-html
+                  , haddock-library
+                  , async
+                  , yesod-gitrepo
                   , hoogle
-                  , spoon                         >= 0.3         &&   < 0.4
-                  , deepseq                       >= 1.4         &&   < 1.5
-                  , deepseq-generics              >= 0.1         &&   < 0.2
-                  , auto-update                   >= 0.1         &&   < 0.2
-                  , stackage-types                >= 1.2         &&   < 1.3
-                  , stackage-build-plan           >= 0.1.1       &&   < 0.2
-                  , yesod-sitemap                 >= 1.4         &&   < 1.5
-                  , streaming-commons             >= 0.1         &&   < 0.2
-                  , classy-prelude-conduit        >= 0.12        &&   < 0.13
-                  , path-pieces                   >= 0.2         &&   < 0.3
-                  , persistent-sqlite             >= 2.2         &&   < 2.3
-                  , stackage-metadata             >= 0.3         &&   < 0.4
-                  , filepath                      >= 1.4         &&   < 1.5
-                  , http-client                   >= 0.4         &&   < 0.5
-                  , http-types                    >= 0.9         &&   < 0.10
-                  , amazonka                      >= 1.3         &&   < 1.5
-                  , amazonka-core                 >= 1.3         &&   < 1.5
-                  , amazonka-s3                   >= 1.3         &&   < 1.5
-                  , lens                          >= 4.13        &&   < 4.14
+                  , spoon
+                  , deepseq
+                  , deepseq-generics
+                  , auto-update
+                  , stackage-types
+                  , stackage-build-plan
+                  , yesod-sitemap
+                  , streaming-commons
+                  , classy-prelude-conduit
+                  , path-pieces
+                  , persistent-sqlite
+                  , stackage-metadata
+                  , filepath
+                  , http-client
+                  , http-types
+                  , amazonka
+                  , amazonka-core
+                  , amazonka-s3
+                  , lens
                   , file-embed
                   , resource-pool
 
@@ -192,9 +192,9 @@ executable         stackage-server
 
     main-is:           main.hs
     hs-source-dirs:    app
-    build-depends:     base                          >= 4.8         &&   < 4.9
+    build-depends:     base
                      , stackage-server
-                     , yesod                         >= 1.4         &&   < 1.5
+                     , yesod
 
     ghc-options:       -threaded -O2 -rtsopts "-with-rtsopts=-N -T"
 
@@ -277,19 +277,19 @@ test-suite test
     hs-source-dirs:    test
     ghc-options:       -Wall
 
-    build-depends: base                          >= 4.8         &&   < 4.9
+    build-depends: base
                  , stackage-server
-                 , yesod-test                    >= 1.5         &&   < 1.6
-                 , yesod-core                    >= 1.4         &&   < 1.5
-                 , yesod                         >= 1.4         &&   < 1.5
-                 , persistent                    >= 2.2         &&   < 2.3
-                 , resourcet                     >= 1.1.6       &&   < 1.2
-                 , monad-logger                  >= 0.3.13      &&   < 0.4
-                 , transformers                  >= 0.4         &&   < 0.5
-                 , hspec                         >= 2.2         &&   < 2.3
-                 , classy-prelude-yesod          >= 0.12        &&   < 0.13
-                 , mtl                           >= 2.2         &&   < 2.3
-                 , mwc-random                    >= 0.13        &&   < 0.14
+                 , yesod-test
+                 , yesod-core
+                 , yesod
+                 , persistent
+                 , resourcet
+                 , monad-logger
+                 , transformers
+                 , hspec
+                 , classy-prelude-yesod
+                 , mtl
+                 , mwc-random
 
     extensions: TemplateHaskell
                 QuasiQuotes
