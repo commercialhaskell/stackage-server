@@ -16,7 +16,7 @@ snapshotsPerPage = 50
 -- The majority of the code you will write in Yesod lives in these handler
 -- functions. You can spread them across multiple files if you are so
 -- inclined, or create a single monolithic file.
-getAllSnapshotsR :: Handler Html
+getAllSnapshotsR :: Handler TypedContent
 getAllSnapshotsR = track "Handler.Snapshots.getAllSnapshotsR" $ do
     now' <- liftIO getCurrentTime
     currentPageMay <- lookupGetParam "page"
@@ -31,10 +31,14 @@ getAllSnapshotsR = track "Handler.Snapshots.getAllSnapshotsR" $ do
     let isFirstPage = currentPage == 1
         isLastPage = currentPage * snapshotsPerPage >= totalCount
 
-    defaultLayout $ do
+    selectRep $ do
+      provideRep $ defaultLayout $ do
         setTitle "Stackage Server"
         let snapshotsNav = $(widgetFile "snapshots-nav")
         $(widgetFile "all-snapshots")
+        
+      provideRep $ return $ object ["snapshots" .= groups, "totalCount" .= totalCount]
+                
   where uncrapify now' snapshot =
             ( snapshotName snapshot
             , snapshotTitle snapshot
