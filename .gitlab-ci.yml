@@ -85,6 +85,7 @@ deploy_prod:
     url: https://www.stackage.org/
   variables:
     DEPLOYMENT_NAME: "stackage-server-prod"
+    CRON_DEPLOYMENT_NAME: "stackage-server-cron-prod"
     PROD_DEPLOYMENT_IMAGE: "fpco/stackage-server-prod:${CI_BUILD_REF_SLUG}_${CI_PIPELINE_ID}"
   script:
     - export
@@ -99,4 +100,6 @@ deploy_prod:
     - docker tag "$DEPLOYMENT_IMAGE" "fpco/stackage-server-prod:latest"
     - docker push "fpco/stackage-server-prod:latest"
     - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$PROD_DEPLOYMENT_IMAGE"
+    - kubectl set image "deployment/CRON_$DEPLOYMENT_NAME" stackage-server=-cron"$PROD_DEPLOYMENT_IMAGE"
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
+    - kubectl rollout status "deployment/$CRON_DEPLOYMENT_NAME"
