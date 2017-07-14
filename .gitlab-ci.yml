@@ -98,5 +98,5 @@ deploy_prod:
     - docker push "$PROD_DEPLOYMENT_IMAGE"
     - docker tag "$DEPLOYMENT_IMAGE" "fpco/stackage-server-prod:latest"
     - docker push "fpco/stackage-server-prod:latest"
-    - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$PROD_DOCKER_IMAGE"
+    - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$PROD_DEPLOYMENT_IMAGE"
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
