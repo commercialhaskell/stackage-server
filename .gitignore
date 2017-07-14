@@ -18,3 +18,5 @@ TAGS
 /docker/app/
 .stack-work
 /stackage-database/
+*~
+*#
