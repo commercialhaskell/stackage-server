@@ -100,6 +100,6 @@ deploy_prod:
     - docker tag "$DEPLOYMENT_IMAGE" "fpco/stackage-server-prod:latest"
     - docker push "fpco/stackage-server-prod:latest"
     - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$PROD_DEPLOYMENT_IMAGE"
-    - kubectl set image "deployment/CRON_$DEPLOYMENT_NAME" stackage-server=-cron"$PROD_DEPLOYMENT_IMAGE"
+    - kubectl set image "deployment/$CRON_DEPLOYMENT_NAME" stackage-server=-cron"$PROD_DEPLOYMENT_IMAGE"
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
     - kubectl rollout status "deployment/$CRON_DEPLOYMENT_NAME"
