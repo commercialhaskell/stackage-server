@@ -405,14 +405,21 @@ addDocMap name dm = do
     [sid] <- selectKeysList [SnapshotName ==. name] []
     putStrLn $ "Adding doc map: " ++ toPathPiece name
     forM_ (mapToList dm) $ \(pkg, pd) -> do
-        -- TODO determine why _spids is sometimes non-null
-        pid:_pids <- selectKeysList [PackageName ==. pkg] []
-        spid:_spids <- selectKeysList [SnapshotPackageSnapshot ==. sid, SnapshotPackagePackage ==. pid] []
-        forM_ (mapToList $ pdModules pd) $ \(mname, _paths) ->
-            insert_ Module
-                { modulePackage = spid
-                , moduleName = mname
-                }
+        pids <- selectKeysList [PackageName ==. pkg] []
+        pid <-
+          case pids of
+            [pid] -> return pid
+            _ -> error $ "addDocMap (1): " ++ show (name, pkg, pids)
+        spids <- selectKeysList [SnapshotPackageSnapshot ==. sid, SnapshotPackagePackage ==. pid] []
+        case spids of
+          [spid] ->
+            forM_ (mapToList $ pdModules pd) $ \(mname, _paths) ->
+                insert_ Module
+                    { modulePackage = spid
+                    , moduleName = mname
+                    }
+          -- FIXME figure out why this happens for the ghc package with GHC 8.2.1
+          _ -> sayErrString $ "addDocMap (2): " ++ show (name, pkg, pid, spids)
 
 run :: GetStackageDatabase m => SqlPersistT IO a -> m a
 run inner = do
