@@ -405,8 +405,9 @@ addDocMap name dm = do
     [sid] <- selectKeysList [SnapshotName ==. name] []
     putStrLn $ "Adding doc map: " ++ toPathPiece name
     forM_ (mapToList dm) $ \(pkg, pd) -> do
-        [pid] <- selectKeysList [PackageName ==. pkg] []
-        [spid] <- selectKeysList [SnapshotPackageSnapshot ==. sid, SnapshotPackagePackage ==. pid] []
+        -- TODO determine why _spids is sometimes non-null
+        pid:_pids <- selectKeysList [PackageName ==. pkg] []
+        spid:_spids <- selectKeysList [SnapshotPackageSnapshot ==. sid, SnapshotPackagePackage ==. pid] []
         forM_ (mapToList $ pdModules pd) $ \(mname, _paths) ->
             insert_ Module
                 { modulePackage = spid
