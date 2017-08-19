@@ -646,25 +646,27 @@ data LatestInfo = LatestInfo
 getLatests :: GetStackageDatabase m
            => Text -- ^ package name
            -> m [LatestInfo]
-getLatests pname = run $ do
-    mlts <- latestHelper pname
+getLatests pname = run $ fmap concat $ forM [True, False] $ \requireDocs -> do
+    mlts <- latestHelper pname requireDocs
         (\s ln -> s E.^. SnapshotId E.==. ln E.^. LtsSnap)
         (\_ ln ->
             [ E.desc $ ln E.^. LtsMajor
             , E.desc $ ln E.^. LtsMinor
             ])
-    mnightly <- latestHelper pname
+    mnightly <- latestHelper pname requireDocs
         (\s ln -> s E.^. SnapshotId E.==. ln E.^. NightlySnap)
         (\s _ln -> [E.desc $ s E.^. SnapshotCreated])
     return $ concat [mlts, mnightly]
 
 latestHelper
     :: (From E.SqlQuery E.SqlExpr SqlBackend t, MonadIO m, Functor m)
-    => Text
+    => Text -- ^ package name
+    -> Bool -- ^ require docs?
     -> (E.SqlExpr (Entity Snapshot) -> t -> E.SqlExpr (E.Value Bool))
     -> (E.SqlExpr (Entity Snapshot) -> t -> [E.SqlExpr E.OrderBy])
     -> ReaderT SqlBackend m [LatestInfo]
-latestHelper pname clause order = fmap (fmap toLatest) $ E.select $ E.from $ \(s,ln,p,sp) -> do
+latestHelper pname requireDocs clause order = do
+  results <- E.select $ E.from $ \(s,ln,p,sp) -> do
     E.where_ $
         clause s ln E.&&.
         (s E.^. SnapshotId E.==. sp E.^. SnapshotPackageSnapshot) E.&&.
@@ -676,9 +678,18 @@ latestHelper pname clause order = fmap (fmap toLatest) $ E.select $ E.from $ \(s
         ( s E.^. SnapshotName
         , s E.^. SnapshotGhc
         , sp E.^. SnapshotPackageVersion
+        , sp E.^. SnapshotPackageId
         )
+  if requireDocs
+    then
+      case results of
+        tuple@(_, _, _, E.Value spid):_ -> do
+          x <- count [ModulePackage ==. spid]
+          return $ if x > 0 then [toLatest tuple] else []
+        [] -> return []
+    else return $ map toLatest results
   where
-    toLatest (E.Value sname, E.Value ghc, E.Value version) = LatestInfo
+    toLatest (E.Value sname, E.Value ghc, E.Value version, _) = LatestInfo
         { liSnapName = sname
         , liVersion = version
         , liGhc = ghc
