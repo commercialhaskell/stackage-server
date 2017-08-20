@@ -75,6 +75,7 @@ import Data.Yaml (decode)
 import qualified Data.Aeson as A
 import Types (SnapshotBranch(..))
 import Data.Pool (destroyAllResources)
+import Data.List (nub)
 
 currentSchema :: Int
 currentSchema = 1
@@ -641,12 +642,12 @@ data LatestInfo = LatestInfo
     , liVersion :: !Text
     , liGhc :: !Text
     }
-    deriving Show
+    deriving (Show, Eq)
 
 getLatests :: GetStackageDatabase m
            => Text -- ^ package name
            -> m [LatestInfo]
-getLatests pname = run $ fmap concat $ forM [True, False] $ \requireDocs -> do
+getLatests pname = run $ fmap (nub . concat) $ forM [True, False] $ \requireDocs -> do
     mlts <- latestHelper pname requireDocs
         (\s ln -> s E.^. SnapshotId E.==. ln E.^. LtsSnap)
         (\_ ln ->
