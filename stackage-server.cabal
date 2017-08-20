@@ -172,7 +172,7 @@ library
                   , streaming-commons
                   , classy-prelude-conduit
                   , path-pieces
-                  , persistent-sqlite
+                  , persistent-postgresql
                   , stackage-metadata
                   , filepath
                   , http-client

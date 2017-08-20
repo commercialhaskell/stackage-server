@@ -23,7 +23,7 @@ data App = App
     , appHttpManager :: Manager
     , appLogger :: Logger
     , appWebsiteContent :: GitRepo WebsiteContent
-    , appStackageDatabase :: IO StackageDatabase
+    , appStackageDatabase :: StackageDatabase
     , appLatestStackMatcher :: IO (Text -> Maybe Text)
     -- ^ Give a pattern, get a URL
     , appHoogleLock :: MVar ()
@@ -155,6 +155,6 @@ instance RenderMessage App FormMessage where
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
 
 instance GetStackageDatabase Handler where
-    getStackageDatabase = getYesod >>= liftIO . appStackageDatabase
+    getStackageDatabase = appStackageDatabase <$> getYesod
 instance GetStackageDatabase (WidgetT App IO) where
-    getStackageDatabase = getYesod >>= liftIO . appStackageDatabase
+    getStackageDatabase = appStackageDatabase <$> getYesod

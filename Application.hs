@@ -33,7 +33,8 @@ import           Yesod.Default.Config2
 import           Yesod.Default.Handlers
 import           Yesod.GitRepo
 import           System.Process (rawSystem)
-import           Stackage.Database.Cron (loadFromS3, newHoogleLocker, singleRun)
+import           Stackage.Database (openStackageDatabase, PostgresConf (..))
+import           Stackage.Database.Cron (newHoogleLocker, singleRun)
 import           Control.AutoUpdate
 
 -- Import all relevant handler modules here.
@@ -119,13 +120,15 @@ makeFoundation appSettings = do
             "master"
             loadWebsiteContent
 
-    (appStackageDatabase, refreshDB) <- loadFromS3 (appDevDownload appSettings) appHttpManager
+    appStackageDatabase <- openStackageDatabase PostgresConf
+      { pgPoolSize = 7
+      , pgConnStr = encodeUtf8 $ appPostgresString appSettings
+      }
 
     -- Temporary workaround to force content updates regularly, until
     -- distribution of webhooks is handled via consul
     void $ forkIO $ forever $ void $ do
         threadDelay $ 1000 * 1000 * 60 * 5
-        handleAny print refreshDB
         handleAny print $ grRefresh appWebsiteContent
 
     appLatestStackMatcher <- mkAutoUpdate defaultUpdateSettings

@@ -21,3 +21,5 @@ approot:        "_env:APPROOT:"
 # skip-combining: false
 # force-ssl: true
 # dev-download: false
+
+postgres-string: "_env:PGSTRING:host=localhost port=5432 user=stackage dbname=stackage password=stackage"

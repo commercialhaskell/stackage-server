@@ -33,6 +33,8 @@ data AppSettings = AppSettings
     , appIpFromHeader           :: Bool
     -- ^ Get the IP address from the header when logging. Useful when sitting
     -- behind a reverse proxy.
+    , appPostgresString         :: !Text
+    -- ^ PostgreSQL connection string
 
     , appDetailedRequestLogging :: Bool
     -- ^ Use detailed request logging system
@@ -64,6 +66,7 @@ instance FromJSON AppSettings where
         appHost                   <- fromString <$> o .: "host"
         appPort                   <- o .: "port"
         appIpFromHeader           <- o .: "ip-from-header"
+        appPostgresString         <- o .: "postgres-string"
 
         appDetailedRequestLogging <- o .:? "detailed-logging" .!= defaultDev
         appShouldLogAll           <- o .:? "should-log-all"   .!= defaultDev

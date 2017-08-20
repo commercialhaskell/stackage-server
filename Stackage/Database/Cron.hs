@@ -1,6 +1,5 @@
 module Stackage.Database.Cron
     ( stackageServerCron
-    , loadFromS3
     , newHoogleLocker
     , singleRun
     ) where
@@ -31,86 +30,13 @@ import qualified Data.Conduit.Binary as CB
 import           Data.Conduit.Zlib             (WindowBits (WindowBits),
                                                 compress, ungzip)
 import qualified Hoogle
-import System.Directory (doesFileExist, getAppUserDataDirectory)
+import System.Directory (getAppUserDataDirectory)
 import System.IO (withBinaryFile, IOMode (ReadMode))
 import System.IO.Temp (withSystemTempDirectory)
 import Control.SingleRun
 import qualified Data.ByteString.Lazy as L
 import System.FilePath (splitPath)
-
-filename' :: Text
-filename' = concat
-    [ "stackage-database-"
-    , tshow currentSchema
-    , ".sqlite3"
-    ]
-
-keyName :: Text
-keyName = "stackage-database/" ++ filename'
-
-url :: Text
-url = concat
-    [ "https://s3.amazonaws.com/haddock.stackage.org/"
-    , keyName
-    ]
-
--- | Provides an action to be used to refresh the file from S3.
-loadFromS3 :: Bool -- ^ devel mode? if True, won't delete old databases, and won't refresh them either
-           -> Manager -> IO (IO StackageDatabase, IO ())
-loadFromS3 develMode man = do
-    killPrevVar <- newTVarIO $ return ()
-    currSuffixVar <- newTVarIO (1 :: Int)
-
-    let root = "stackage-database"
-    unless develMode $ handleIO print $ removeTree root
-    createTree root
-
-    req <- parseRequest $ unpack url
-    let download = do
-            suffix <- atomically $ do
-                x <- readTVar currSuffixVar
-                writeTVar currSuffixVar $! x + 1
-                return x
-
-            let fp = root </> unpack ("database-download-" ++ tshow suffix)
-                isInitial = suffix == 1
-            toSkip <-
-                if isInitial
-                    then do
-                        putStrLn $ "Checking if database exists: " ++ tshow fp
-                        doesFileExist fp
-                    else return False
-            if toSkip
-                then putStrLn "Skipping initial database download"
-                else do
-                    putStrLn $ "Downloading database to " ++ pack fp
-                    withResponse req man $ \res ->
-                        runResourceT
-                             $ bodyReaderSource (responseBody res)
-                            $= ungzip
-                            $$ sinkFile fp
-            putStrLn "Finished downloading database"
-
-            return fp
-
-    dbvar <- newTVarIO $ error "database not yet loaded"
-
-    let update = do
-            fp <- download
-            db <- openStackageDatabase (fromString fp) `onException` removeFile (fromString fp)
-            void $ tryIO $ join $ atomically $ do
-                writeTVar dbvar db
-                oldKill <- readTVar killPrevVar
-                writeTVar killPrevVar $ do
-                    -- give existing users a chance to clean up
-                    threadDelay $ 1000000 * 30
-                    void $ tryIO $ removeFile (fromString fp)
-                    closeStackageDatabase db
-                return oldKill
-
-    update
-
-    return (readTVarIO dbvar, unless develMode update)
+import System.Environment (getEnv)
 
 hoogleKey :: SnapName -> Text
 hoogleKey name = concat
@@ -175,9 +101,13 @@ stackageServerCron = do
                 Left e -> error $ show (fp, key, e)
                 Right _ -> putStrLn "Success"
 
-    let dbfp = fromText keyName
+    connstr <- getEnv "PGSTRING"
+
+    let dbfp = PostgresConf
+          { pgPoolSize = 5
+          , pgConnStr = encodeUtf8 $ pack connstr
+          }
     createStackageDatabase dbfp
-    upload (encodeString dbfp) (ObjectKey keyName)
 
     db <- openStackageDatabase dbfp
 

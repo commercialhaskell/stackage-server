@@ -1,5 +1,6 @@
 module Stackage.Database
     ( StackageDatabase
+    , PostgresConf (..)
     , GetStackageDatabase (..)
     , SnapName (..)
     , SnapshotId ()
@@ -44,7 +45,6 @@ module Stackage.Database
     , getLatestLtsByGhc
     ) where
 
-import Database.Sqlite (SqliteException)
 import Web.PathPieces (toPathPiece)
 import qualified Codec.Archive.Tar as Tar
 import Database.Esqueleto.Internal.Language (From)
@@ -58,7 +58,7 @@ import Yesod.Form.Fields (Textarea (..))
 import Stackage.Database.Types
 import System.Directory (getAppUserDataDirectory)
 import qualified Filesystem as F
-import Filesystem.Path.CurrentOS (parent, filename, directory, FilePath, encodeString, (</>))
+import Filesystem.Path.CurrentOS (filename, directory, FilePath, encodeString, (</>))
 import Data.Conduit.Process
 import Stackage.Types
 import Stackage.Metadata
@@ -66,7 +66,7 @@ import Stackage.PackageIndex.Conduit
 import Web.PathPieces (fromPathPiece)
 import Data.Yaml (decodeFileEither)
 import Database.Persist
-import Database.Persist.Sqlite
+import Database.Persist.Postgresql
 import Database.Persist.TH
 import Control.Monad.Logger
 import System.IO.Temp
@@ -215,29 +215,28 @@ runIn dir cmd args =
   where
     cp = (proc cmd args) { cwd = Just $ encodeString dir }
 
-openStackageDatabase :: MonadIO m => FilePath -> m StackageDatabase
-openStackageDatabase fp = liftIO $ do
-    F.createTree $ parent fp
-    fmap StackageDatabase $ runNoLoggingT $ createSqlitePool (pack $ encodeString fp) 7
+openStackageDatabase :: MonadIO m => PostgresConf -> m StackageDatabase
+openStackageDatabase pg = liftIO $ do
+    fmap StackageDatabase $ runNoLoggingT $ createPostgresqlPool
+      (pgConnStr pg)
+      (pgPoolSize pg)
 
-getSchema :: FilePath -> IO (Maybe Int)
+getSchema :: PostgresConf -> IO (Maybe Int)
 getSchema fp = do
     StackageDatabase pool <- openStackageDatabase fp
-    eres <- try $ runSqlPool (selectList [] []) pool
+    eres <- tryAny $ runSqlPool (selectList [] []) pool
     putStrLn $ "getSchema result: " ++ tshow eres
-    case eres :: Either SqliteException [Entity Schema] of
+    case eres of
         Right [Entity _ (Schema v)] -> return $ Just v
         _ -> return Nothing
 
-createStackageDatabase :: MonadIO m => FilePath -> m ()
+createStackageDatabase :: MonadIO m => PostgresConf -> m ()
 createStackageDatabase fp = liftIO $ do
     putStrLn "Entering createStackageDatabase"
     actualSchema <- getSchema fp
     let schemaMatch = actualSchema == Just currentSchema
     unless schemaMatch $ do
         putStrLn $ "Current schema does not match actual schema: " ++ tshow (actualSchema, currentSchema)
-        putStrLn $ "Deleting " ++ pack (encodeString fp)
-        void $ tryIO $ removeFile $ encodeString fp
 
     StackageDatabase pool <- openStackageDatabase fp
     flip runSqlPool pool $ do
