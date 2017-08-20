@@ -819,7 +819,7 @@ getLatestLtsByGhc = run $ fmap (dedupe . map toTuple) $ do
     E.select $ E.from $ \(lts `E.InnerJoin` snapshot) -> do
         E.on $ lts E.^. LtsSnap E.==. snapshot E.^. SnapshotId
         E.orderBy [E.desc (lts E.^. LtsMajor), E.desc (lts E.^. LtsMinor)]
-        E.groupBy (snapshot E.^. SnapshotGhc, lts E.^. LtsMajor, lts E.^. LtsMinor)
+        E.groupBy (snapshot E.^. SnapshotGhc, lts E.^. LtsId, lts E.^. LtsMajor, lts E.^. LtsMinor, snapshot E.^. SnapshotId)
         return (lts, snapshot)
   where
     toTuple (Entity _ lts, Entity _ snapshot) =
