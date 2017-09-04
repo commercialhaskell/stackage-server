@@ -43,6 +43,10 @@ build:
         docker tag "${DEPLOYMENT_IMAGE}" "${CI_REGISTRY_IMAGE}:latest"
         docker push "${CI_REGISTRY_IMAGE}:latest"
       fi
+      if [[ "$CI_BUILD_REF_NAME" == "ci-cron" ]]; then
+        docker tag "${DEPLOYMENT_IMAGE}" "${CI_REGISTRY_IMAGE}:ci-cron"
+        docker push "${CI_REGISTRY_IMAGE}:ci-cron"
+      fi
 
 deploy_review:
   stage: deploy
@@ -50,6 +54,7 @@ deploy_review:
     - branches
   except:
     - master
+    - ci-cron
   environment:
     name: stackage-server-review/$CI_BUILD_REF_NAME
     url: https://stackage-server-$CI_BUILD_REF_SLUG.review.fpco-untrusted.fpcomplete.com/
@@ -68,6 +73,7 @@ stop_review:
     - branches
   except:
     - master
+    - ci-cron
   when: manual
   environment:
     name: stackage-server-review/$CI_BUILD_REF_NAME
@@ -102,4 +108,15 @@ deploy_prod:
     - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$PROD_DEPLOYMENT_IMAGE"
     - kubectl set image "deployment/$CRON_DEPLOYMENT_NAME" stackage-server-cron="$PROD_DEPLOYMENT_IMAGE"
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
+    - kubectl rollout status "deployment/$CRON_DEPLOYMENT_NAME"
+
+deploy_ci_cron:
+  stage: deploy
+  only:
+    - ci-cron
+  variables:
+    CRON_DEPLOYMENT_NAME: "stackage-server-cron-ci"
+  script:
+    - *KUBELOGIN
+    - kubectl set image "deployment/$CRON_DEPLOYMENT_NAME" stackage-server-cron="$DEPLOYMENT_IMAGE"
     - kubectl rollout status "deployment/$CRON_DEPLOYMENT_NAME"
