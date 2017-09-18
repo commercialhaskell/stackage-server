@@ -58,8 +58,9 @@ getContent sid2 snap = do
         Nothing -> return "No previous snapshot found for comparison"
         Just (sid1, name1) -> do
             snapDiff <- getSnapshotDiff sid1 sid2
-            return
-                [shamlet|
+            let name2 = snapshotName snap
+            withUrlRenderer
+                [hamlet|
                   <p>Difference between #{prettyNameShort name1} and #{prettyNameShort $ snapshotName snap}
                   <table border=1 cellpadding=5>
                     <thead>
@@ -68,17 +69,25 @@ getContent sid2 snap = do
                         <th align=right>Old
                         <th align=left>New
                     <tbody>
-                      $forall (PackageName name, VersionChange change) <- toDiffList snapDiff
+                      $forall (pkgname@(PackageName name), VersionChange change) <- toDiffList snapDiff
                         <tr>
                           <th align=right>#{name}
                           $case change
-                            $of This (Version old)
-                              <td align=right>#{old}
-                              <td>
-                            $of That (Version new)
+                            $of This old
                               <td align=right>
-                              <td>#{new}
-                            $of These (Version old) (Version new)
-                              <td align=right>#{old}
-                              <td>#{new}
+                                <a href=@{packageUrl name1 pkgname old}#changes>
+                                  #{old}
+                              <td>
+                            $of That new
+                              <td align=right>
+                              <td>
+                                <a href=@{packageUrl name2 pkgname new}#changes>
+                                  #{new}
+                            $of These old new
+                              <td align=right>
+                                <a href=@{packageUrl name1 pkgname old}#changes>
+                                  #{old}
+                              <td>
+                                <a href=@{packageUrl name2 pkgname new}#changes>
+                                  #{new}
                 |]
