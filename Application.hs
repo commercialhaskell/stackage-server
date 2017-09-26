@@ -121,7 +121,7 @@ makeFoundation appSettings = do
             loadWebsiteContent
 
     appStackageDatabase <- openStackageDatabase PostgresConf
-      { pgPoolSize = 7
+      { pgPoolSize = 2
       , pgConnStr = encodeUtf8 $ appPostgresString appSettings
       }
 
