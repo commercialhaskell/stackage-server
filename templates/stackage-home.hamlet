@@ -28,6 +28,7 @@ $newline never
 
     <p>
         <a href=@{SnapshotR name DocsR}>View documentation by modules
+        \ | #
         <a href="https://s3.amazonaws.com/haddock.stackage.org/#{toPathPiece name}/bundle.tar.xz">Download documentation archive
 
 <div .container .content>
