@@ -71,6 +71,17 @@ class HoogleQueries(TaskSet):
     def stop(self):
         self.interrupt()
 
+class Haddock(TaskSet):
+    @task
+    def haddock(self):
+        _snapshot = select_snapshot()
+        _package  = select_package()
+        self.client.get("/haddock/" \
+                        + _snapshot + "/" \
+                        + _package + "/" \
+                        + "doc-index-All.html" \
+                        , name="/haddock/:snapshot/:package/doc-index-All.html")
+
     @task
     def stop(self):
         self.interrupt()
@@ -134,6 +145,7 @@ class TopLevelPages(TaskSet):
 
 class UserBehaviour(TaskSet):
     tasks = {
+        Haddock        : 10,
         HoogleQueries  : 5,
         PackageBrowser : 2,
         Documentation  : 2,
