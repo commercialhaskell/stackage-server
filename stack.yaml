@@ -1,4 +1,4 @@
-resolver: lts-8.12
+resolver: lts-9.13
 packages:
 - .
 - location:
@@ -7,8 +7,8 @@ packages:
   extra-dep: true
 - location:
     git: https://github.com/commercialhaskell/all-cabal-metadata-tool
-    commit: 1a4d8cff4e796ea0049537a38e38ec0a739caf64
+    commit: ea541be73238a5ce14ad26f4e2a94e63981242a4
   extra-dep: true
 extra-deps:
-- aws-0.16
 - barrier-0.1.1
+- spoon-0.3.1
