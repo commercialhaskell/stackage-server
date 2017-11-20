@@ -52,16 +52,16 @@ track name inner = do
     return result
   where
     {-# NOINLINE duration #-}
-    duration :: P.Metric (P.Vector P.Label1 P.Summary)
+    duration :: P.Metric (P.Vector P.Label1 P.Histogram)
     duration =
         P.unsafeRegisterIO
             (P.vector
                  "fn"
-                 (P.summary
+                 (P.histogram
                       (P.Info
                            "stackage_server_fn"
                            "Stackage Server function call (duration in microseconds).")
-                      P.defaultQuantiles))
+                      P.defaultBuckets))
 
 dateDiff :: UTCTime -- ^ now
          -> Day -- ^ target
