@@ -57,6 +57,7 @@ deploy_prod:
     url: https://www.stackage.org/
   variables:
     DEPLOYMENT_NAME: "stackage-server-prod"
+    HOOGLE_DEPLOYMENT_NAME: "stackage-server-hoogle-prod"
     CRON_DEPLOYMENT_NAME: "stackage-server-cron-prod"
     PROD_DEPLOYMENT_IMAGE: "fpco/stackage-server-prod:${CI_BUILD_REF_SLUG}_${CI_PIPELINE_ID}"
   script:
@@ -72,8 +73,10 @@ deploy_prod:
     - docker tag "$DEPLOYMENT_IMAGE" "fpco/stackage-server-prod:latest"
     - docker push "fpco/stackage-server-prod:latest"
     - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$PROD_DEPLOYMENT_IMAGE"
+    - kubectl set image "deployment/$HOOGLE_DEPLOYMENT_NAME" stackage-server-hoogle="$PROD_DEPLOYMENT_IMAGE"
     - kubectl set image "deployment/$CRON_DEPLOYMENT_NAME" stackage-server-cron="$PROD_DEPLOYMENT_IMAGE"
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
+    - kubectl rollout status "deployment/$HOOGLE_DEPLOYMENT_NAME"
     - kubectl rollout status "deployment/$CRON_DEPLOYMENT_NAME"
 
 deploy_ci:
@@ -85,10 +88,13 @@ deploy_ci:
     url: https://ci.stackage.org/
   variables:
     DEPLOYMENT_NAME: "stackage-server-ci"
+    HOOGLE_DEPLOYMENT_NAME: "stackage-server-hoogle-ci"
     CRON_DEPLOYMENT_NAME: "stackage-server-cron-ci"
   script:
     - *KUBELOGIN
     - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$DEPLOYMENT_IMAGE"
+    - kubectl set image "deployment/$HOOGLE_DEPLOYMENT_NAME" stackage-server-hoogle="$DEPLOYMENT_IMAGE"
     - kubectl set image "deployment/$CRON_DEPLOYMENT_NAME" stackage-server-cron="$DEPLOYMENT_IMAGE"
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
+    - kubectl rollout status "deployment/$HOOGLE_DEPLOYMENT_NAME"
     - kubectl rollout status "deployment/$CRON_DEPLOYMENT_NAME"
