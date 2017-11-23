@@ -93,7 +93,7 @@ deploy_ci:
   script:
     - *KUBELOGIN
     - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$DEPLOYMENT_IMAGE"
-    - kubectl set image "deployment/$HOOGLE_DEPLOYMENT_NAME" stackage-server-hoogle="$PROD_DEPLOYMENT_IMAGE"
+    - kubectl set image "deployment/$HOOGLE_DEPLOYMENT_NAME" stackage-server-hoogle="$DEPLOYMENT_IMAGE"
     - kubectl set image "deployment/$CRON_DEPLOYMENT_NAME" stackage-server-cron="$DEPLOYMENT_IMAGE"
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
     - kubectl rollout status "deployment/$HOOGLE_DEPLOYMENT_NAME"
