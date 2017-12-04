@@ -19,6 +19,7 @@ body {
 
 p {
   margin: 0.8em 0;
+  line-height: 1.8;
 }
 
 ul, ol {
@@ -75,6 +76,9 @@ pre, code, kbd, samp, tt, .src {
   font-family:monospace;
   *font-size:108%;
   line-height: 124%;
+  border: 1px solid #eee;
+  padding: 0.1em 0.3em;
+  border-radius: 0.3em;
 }
 
 .links, .link {
@@ -446,7 +450,7 @@ div#style-menu-holder {
 }
 
 .top p.src {
-  border-top: 1px solid #ccc;
+  border-top: 3px solid #ccc;
 }
 
 .subs, .doc {
@@ -601,7 +605,8 @@ body { font-family: "Open Sans", ubuntu, sans-serif; font-size: 14px }
   padding: 5px 5px 5px 30px;
 }
 a[href] {
-  color: #005b89 !important
+  color: #0085c9 !important;
+  font-weight: bold;
 }
 
 #package-header > ul > li > a {
