@@ -6,7 +6,7 @@ module Handler.Haddock
 import Import
 import Stackage.Database
 import Text.HTML.DOM (eventConduit)
-import Text.XML (fromEvents)
+import Text.XML.Stream.Render
 import Data.XML.Types (Event (..), Content (..))
 
 makeURL :: SnapName -> [Text] -> Text
@@ -50,19 +50,23 @@ getHaddockR slug rest
                 addExtra t = [t]
             req <- parseRequest $ unpack $ makeURL slug rest
             (_, res) <- acquireResponse req >>= allocateAcquire
-            -- mstyle <- lookupGetParam "style"
+            mstyle' <- lookupGetParam "style"
             -- TODO: Uncomment line above. Restyling is really slow right now, still need to debug it.
-            let mstyle = Just ("plain" :: Text)
+            let mstyle =
+                  case mstyle' of
+                    Just "pretty" -> Nothing
+                    _ -> Just ("plain" :: Text)
             case mstyle of
               Just "plain" -> respondSource "text/html; charset=utf-8"
                             $ responseBody res .| mapC (Chunk . toBuilder)
-              _ -> do
-                doc <- responseBody res
-                    $$ eventConduit
-                    =$ concatMapC addExtra
-                    =$ mapC (Nothing, )
-                    =$ fromEvents
-                sendResponse $ toHtml doc
+              _ -> respondSource "text/html; charset=utf-8"
+                     $ responseBody res
+                    .| eventConduit
+                    .| concatMapC addExtra
+                    .| renderBuilder def
+                         { rsXMLDeclaration = False
+                         }
+                    .| mapC Chunk
   | otherwise = redirect $ makeURL slug rest
 
 redirectWithVersion
