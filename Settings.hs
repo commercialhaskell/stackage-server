@@ -68,7 +68,7 @@ instance FromJSON AppSettings where
         appIpFromHeader           <- o .: "ip-from-header"
         appPostgresString         <- o .: "postgres-string"
 
-        dev                       <- o .: "development" .!= defaultDev
+        dev                       <- o .:? "development" .!= defaultDev
 
         appDetailedRequestLogging <- o .:? "detailed-logging" .!= dev
         appShouldLogAll           <- o .:? "should-log-all"   .!= dev
