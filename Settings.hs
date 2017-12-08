@@ -68,13 +68,15 @@ instance FromJSON AppSettings where
         appIpFromHeader           <- o .: "ip-from-header"
         appPostgresString         <- o .: "postgres-string"
 
-        appDetailedRequestLogging <- o .:? "detailed-logging" .!= defaultDev
-        appShouldLogAll           <- o .:? "should-log-all"   .!= defaultDev
-        appReloadTemplates        <- o .:? "reload-templates" .!= defaultDev
-        appMutableStatic          <- o .:? "mutable-static"   .!= defaultDev
-        appSkipCombining          <- o .:? "skip-combining"   .!= defaultDev
-        appForceSsl               <- o .:? "force-ssl"        .!= not defaultDev
-        appDevDownload            <- o .:? "dev-download"     .!= defaultDev
+        dev                       <- o .: "development" .!= defaultDev
+
+        appDetailedRequestLogging <- o .:? "detailed-logging" .!= dev
+        appShouldLogAll           <- o .:? "should-log-all"   .!= dev
+        appReloadTemplates        <- o .:? "reload-templates" .!= dev
+        appMutableStatic          <- o .:? "mutable-static"   .!= dev
+        appSkipCombining          <- o .:? "skip-combining"   .!= dev
+        appForceSsl               <- o .:? "force-ssl"        .!= not dev
+        appDevDownload            <- o .:? "dev-download"     .!= dev
 
         return AppSettings {..}
 
