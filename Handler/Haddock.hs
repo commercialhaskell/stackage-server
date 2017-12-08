@@ -50,12 +50,17 @@ getHaddockR slug rest
                 addExtra t = [t]
             req <- parseRequest $ unpack $ makeURL slug rest
             (_, res) <- acquireResponse req >>= allocateAcquire
-            doc <- responseBody res
-                $$ eventConduit
-                =$ concatMapC addExtra
-                =$ mapC (Nothing, )
-                =$ fromEvents
-            sendResponse $ toHtml doc
+            mstyle <- lookupGetParam "style"
+            case mstyle of
+              Just "plain" -> respondSource "text/html; charset=utf-8"
+                            $ responseBody res .| mapC (Chunk . toBuilder)
+              _ -> do
+                doc <- responseBody res
+                    $$ eventConduit
+                    =$ concatMapC addExtra
+                    =$ mapC (Nothing, )
+                    =$ fromEvents
+                sendResponse $ toHtml doc
   | otherwise = redirect $ makeURL slug rest
 
 redirectWithVersion
