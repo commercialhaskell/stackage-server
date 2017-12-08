@@ -9,6 +9,10 @@ packages:
     git: https://github.com/commercialhaskell/all-cabal-metadata-tool
     commit: ea541be73238a5ce14ad26f4e2a94e63981242a4
   extra-dep: true
+- location:
+    git: https://github.com/snoyberg/gitrev.git
+    commit: 6a1a639f493ac08959eb5ddf540ca1937baaaaf9
+  extra-dep: true
 extra-deps:
 - barrier-0.1.1
 - spoon-0.3.1
