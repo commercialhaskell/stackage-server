@@ -5,9 +5,6 @@ module Handler.Haddock
 
 import Import
 import Stackage.Database
-import Text.HTML.DOM (eventConduit)
-import Text.XML.Stream.Render
-import Data.XML.Types (Event (..), Content (..))
 
 makeURL :: SnapName -> [Text] -> Text
 makeURL slug rest = concat
@@ -31,23 +28,12 @@ getHaddockR slug rest
       case result of
         Just route -> redirect route
         Nothing -> do
-            let stylesheet = render' $ StaticR haddock_style_css
-                render' = return . ContentText . render
-                addExtra t@(EventEndElement "head") =
-                  [ EventBeginElement "link"
-                       [ ("rel", [ContentText "stylesheet"])
-                       , ("href", [ContentText "https://fonts.googleapis.com/css?family=Open+Sans"])
-                       ]
-                  , EventEndElement "link"
-                  , EventBeginElement "link"
-                       [ ("rel", [ContentText "stylesheet"])
-                       , ("href", stylesheet)
-                       ]
-                  , EventEndElement "link"
-                  , t
+            let extra = concat
+                  [ "<link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Open+Sans'>"
+                  , "<link rel='stylesheet' href='"
+                  , render $ StaticR haddock_style_css
+                  , "'>"
                   ]
-                addExtra t@(EventBeginElement "body" _) = [t]
-                addExtra t = [t]
             req <- parseRequest $ unpack $ makeURL slug rest
             (_, res) <- acquireResponse req >>= allocateAcquire
             mstyle' <- lookupGetParam "style"
@@ -59,15 +45,52 @@ getHaddockR slug rest
             case mstyle of
               Just "plain" -> respondSource "text/html; charset=utf-8"
                             $ responseBody res .| mapC (Chunk . toBuilder)
-              _ -> respondSource "text/html; charset=utf-8"
-                     $ responseBody res
-                    .| eventConduit
-                    .| concatMapC addExtra
-                    .| renderBuilder def
-                         { rsXMLDeclaration = False
-                         }
-                    .| mapC Chunk
+              _ -> respondSource "text/html; charset=utf-8" $ responseBody res .| (do
+                    takeUntilChunk "</head>"
+                    peekC >>= maybe (return ()) (const $ yield $ encodeUtf8 extra)
+                    mapC id) .| mapC (Chunk . toBuilder)
   | otherwise = redirect $ makeURL slug rest
+
+takeUntilChunk :: Monad m => ByteString -> ConduitM ByteString ByteString m ()
+takeUntilChunk fullNeedle =
+    start
+  where
+    start = await >>= mapM_ start'
+
+    start' bs =
+      case checkNeedle fullNeedle bs of
+        CNNotFound -> yield bs >> start
+        CNFound before after -> yield before >> leftover after
+        CNPartial before after newNeedle -> yield before >> loop (after:) newNeedle
+
+    loop front needle =
+        await >>= mapM_ loop'
+      where
+        loop' bs =
+          if needle `isPrefixOf` bs
+            then leftover $ concat $ front [bs]
+            else
+              case stripPrefix bs needle of
+                Just needle' -> loop (front . (bs:)) needle'
+                Nothing -> yieldMany (front [bs]) >> start
+
+data CheckNeedle = CNNotFound | CNFound !ByteString !ByteString | CNPartial !ByteString !ByteString !ByteString
+
+checkNeedle :: ByteString -> ByteString -> CheckNeedle
+checkNeedle needle bs0 =
+    loop 0
+  where
+    loop idx
+      | idx >= length bs0 = CNNotFound
+      | otherwise =
+          case uncurry checkIndex $ splitAt idx bs0 of
+            CNNotFound -> loop (idx + 1)
+            res -> res
+
+    checkIndex before bs
+      | needle `isPrefixOf` bs = CNFound before bs
+      | Just needle' <- stripPrefix bs needle = CNPartial before bs needle'
+      | otherwise = CNNotFound
 
 redirectWithVersion
   :: (GetStackageDatabase m,MonadHandler m,RedirectUrl (HandlerSite m) (Route App))
