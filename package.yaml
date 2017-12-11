@@ -1,0 +1,180 @@
+name:         stackage-server
+
+flags:
+  library-only:
+    description: Build for use with "yesod devel"
+    manual: false
+    default: false
+  dev:
+    description: Turn on development settings, like auto-reload templates.
+    manual: false
+    default: false
+
+dependencies:
+- base
+- yesod
+- aeson
+- aws
+- barrier
+- base16-bytestring
+- blaze-markup
+- byteable
+- bytestring
+- classy-prelude
+- classy-prelude-yesod
+- conduit
+- conduit-extra
+- cryptohash
+- cryptohash-conduit
+- data-default
+- directory
+- email-validate
+- esqueleto
+- exceptions
+- fast-logger
+- foreign-store
+- ghc-prim
+- hjsmin
+- html-conduit
+- http-conduit
+- monad-control
+- monad-logger
+- mtl
+- mwc-random
+- prometheus-client
+- prometheus-metrics-ghc
+- persistent
+- persistent-template
+- resourcet
+- shakespeare
+- system-fileio
+- system-filepath
+- tagstream-conduit
+- tar
+- template-haskell
+- temporary-rc
+- text
+- these
+- wai
+- wai-extra
+- wai-logger
+- wai-middleware-prometheus
+- warp
+- xml-conduit
+- xml-types
+- yaml
+- yesod-auth
+- yesod-core
+- yesod-form
+- yesod-newsfeed
+- yesod-static
+- zlib
+- unordered-containers
+- hashable
+- Cabal
+- lifted-base
+- mono-traversable
+- time
+- process
+- old-locale
+- th-lift
+- mime-types
+- unix
+- markdown
+- formatting
+- blaze-html
+- haddock-library
+- async
+- yesod-gitrepo
+- hoogle
+- spoon
+- deepseq
+- deepseq-generics
+- auto-update
+- stackage-curator
+- yesod-sitemap
+- streaming-commons
+- classy-prelude-conduit
+- path-pieces
+- persistent-postgresql
+- stackage-metadata
+- filepath
+- http-client
+- http-types
+- amazonka
+- amazonka-core
+- amazonka-s3
+- lens
+- file-embed
+- resource-pool
+
+default-extensions:
+- TemplateHaskell
+- QuasiQuotes
+- OverloadedStrings
+- NoImplicitPrelude
+- CPP
+- MultiParamTypeClasses
+- TypeFamilies
+- GADTs
+- GeneralizedNewtypeDeriving
+- FlexibleContexts
+- EmptyDataDecls
+- NoMonomorphismRestriction
+- DeriveDataTypeable
+- ViewPatterns
+- TypeSynonymInstances
+- FlexibleInstances
+- RankNTypes
+- FunctionalDependencies
+- PatternGuards
+- StandaloneDeriving
+- UndecidableInstances
+- RecordWildCards
+- ScopedTypeVariables
+- BangPatterns
+- TupleSections
+- DeriveGeneric
+- DeriveFunctor
+- DeriveFoldable
+- DeriveTraversable
+- LambdaCase
+
+library:
+  source-dirs: src
+  when:
+  - condition: (flag(dev)) || (flag(library-only))
+    then:
+      ghc-options:
+      - -Wall
+      - -O0
+      cpp-options: -DDEVELOPMENT
+    else:
+      ghc-options:
+      - -Wall
+      - -O2
+
+executables:
+  stackage-server:
+    main: main.hs
+    source-dirs: app
+    ghc-options: -threaded -O2 -rtsopts "-with-rtsopts=-N -T"
+    dependencies:
+    - stackage-server
+    when:
+    - condition: flag(library-only)
+      buildable: false
+
+  stackage-server-cron:
+    main: stackage-server-cron.hs
+    source-dirs: app
+    ghc-options:
+    - -threaded
+    - -O2
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - stackage-server
+    when:
+    - condition: flag(library-only)
+      buildable: false

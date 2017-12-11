@@ -20,3 +20,4 @@ TAGS
 /stackage-database/
 *~
 *#
+/stackage-server.cabal
