@@ -30,6 +30,7 @@ module Stackage.Database
     , getLatests
     , getDeps
     , getRevDeps
+    , getDepsCount
     , Package (..)
     , getPackage
     , prettyName
@@ -695,8 +696,8 @@ latestHelper pname requireDocs clause order = do
         , liGhc = ghc
         }
 
-getDeps :: GetStackageDatabase m => Text -> m [(Text, Text)]
-getDeps pname = run $ do
+getDeps :: GetStackageDatabase m => Text -> Maybe Int -> m [(Text, Text)]
+getDeps pname mcount = run $ do
     mp <- getBy $ UniquePackage pname
     case mp of
         Nothing -> return []
@@ -704,20 +705,32 @@ getDeps pname = run $ do
             E.where_ $
                 (d E.^. DepUser E.==. E.val pid)
             E.orderBy [E.asc $ d E.^. DepUses]
+            forM_ mcount $ E.limit . fromIntegral
             return (d E.^. DepUses, d E.^. DepRange)
   where
     toPair (E.Value x, E.Value y) = (x, y)
 
-getRevDeps :: GetStackageDatabase m => Text -> m [(Text, Text)]
-getRevDeps pname = run $ do
+getRevDeps :: GetStackageDatabase m => Text -> Maybe Int -> m [(Text, Text)]
+getRevDeps pname mcount = run $ do
     fmap (map toPair) $ E.select $ E.from $ \(d,p) -> do
         E.where_ $
             (d E.^. DepUses E.==. E.val pname) E.&&.
             (d E.^. DepUser E.==. p E.^. PackageId)
         E.orderBy [E.asc $ p E.^. PackageName]
+        forM_ mcount $ E.limit . fromIntegral
         return (p E.^. PackageName, d E.^. DepRange)
   where
     toPair (E.Value x, E.Value y) = (x, y)
+
+getDepsCount :: GetStackageDatabase m => Text -> m (Int, Int)
+getDepsCount pname = run $ (,)
+  <$> (do
+          mp <- getBy $ UniquePackage pname
+          case mp of
+            Nothing -> return 0
+            Just (Entity pid _) -> count [DepUser ==. pid]
+      )
+  <*> count [DepUses ==. pname]
 
 getPackage :: GetStackageDatabase m => Text -> m (Maybe (Entity Package))
 getPackage = run . getBy . UniquePackage

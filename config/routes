@@ -17,6 +17,8 @@
     /cabal.config StackageCabalConfigR GET
     /00-index.tar.gz StackageIndexR GET
     /package/#PackageNameVersion StackageSdistR GET
+    /package/#PackageNameVersion/deps SnapshotPackageDepsR GET
+    /package/#PackageNameVersion/revdeps SnapshotPackageRevDepsR GET
     /packages SnapshotPackagesR GET
     /docs DocsR GET
     /hoogle HoogleR GET
@@ -33,6 +35,8 @@
 /package/#PackageName/snapshots PackageSnapshotsR GET
 /package/#PackageName/badge/#SnapshotBranch PackageBadgeR GET
 /package PackageListR GET
+/package/#PackageName/deps PackageDepsR GET
+/package/#PackageName/revdeps PackageRevDepsR GET
 
 /authors AuthorsR GET
 /install InstallR GET

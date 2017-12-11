@@ -129,25 +129,32 @@ $if not (LT.null (LT.renderHtml (packageChangelog package)))
 <div .container #snapshot-home .content>
     <div .row>
         <div .span12>
-            <div .dependencies #dependencies>
-                Depends on:
+            $if depsCount > 0
+              <div .dependencies #dependencies>
+                Depends on #{renderNoPackages depsCount}:
                 <div .dep-list>
                     $forall (i,(name, range)) <- deps
                         $if i /= 0
                             , #
                         <a href=@{PackageR $ PackageName name} title=#{range}>
                             #{name}
-            $if not $ null revdeps
-              <div .reverse-dependencies .expanding #reverse-dependencies>
-                Used by #{renderNoPackages $ length revdeps}:
+                    $if depsCount > maxDisplayedDeps
+                      , #
+                      <a href=@{packageDepsLink}>
+                        <b>and many more
+            $if revdepsCount > 0
+              <div .reverse-dependencies #reverse-dependencies>
+                Used by #{renderNoPackages revdepsCount}:
                 <div .dep-list>
                     $forall (i,(name, range)) <- revdeps
                         $if i /= 0
                             , #
                         <a href=@{PackageR $ PackageName name} title=#{range}>
                             #{name}
-                <div .bottom-gradient>
-                    <i class="fa fa-angle-down">
+                    $if revdepsCount > maxDisplayedDeps
+                      , #
+                      <a href=@{packageRevDepsLink}>
+                        <b>and many more
 
 <div .container .content>
     <div .row>

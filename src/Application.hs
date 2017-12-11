@@ -47,6 +47,7 @@ import           Handler.StackageSdist
 import           Handler.System
 import           Handler.Haddock
 import           Handler.Package
+import           Handler.PackageDeps
 import           Handler.PackageList
 import           Handler.Hoogle
 import           Handler.BuildVersion

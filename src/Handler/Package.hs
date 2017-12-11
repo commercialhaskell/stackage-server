@@ -64,8 +64,9 @@ packagePage mversion pname = track "Handler.Package.packagePage" $ do
     let pname' = toPathPiece pname
     (deprecated, inFavourOf) <- getDeprecated pname'
     latests <- getLatests pname'
-    deps' <- getDeps pname'
-    revdeps' <- getRevDeps pname'
+    deps' <- getDeps pname' $ Just maxDisplayedDeps
+    revdeps' <- getRevDeps pname' $ Just maxDisplayedDeps
+    (depsCount, revdepsCount) <- getDepsCount pname'
     Entity _ package <- getPackage pname' >>= maybe notFound return
 
     mdocs <-
@@ -133,6 +134,16 @@ packagePage mversion pname = track "Handler.Package.packagePage" $ do
                   where
                     pathRev' = component:pathRev
                     path'    = T.intercalate "." $ reverse pathRev'
+
+        maxDisplayedDeps :: Int
+        maxDisplayedDeps = 40
+
+        (packageDepsLink, packageRevDepsLink) =
+          case mversion of
+            Nothing -> (PackageDepsR pname, PackageRevDepsR pname)
+            Just (snap, version) ->
+              let wrap f = SnapshotR snap $ f $ PNVNameVersion pname version
+               in (wrap SnapshotPackageDepsR, wrap SnapshotPackageRevDepsR)
 
 -- | An identifier specified in a package. Because this field has
 -- quite liberal requirements, we often encounter various forms. A
