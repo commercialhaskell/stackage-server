@@ -36,12 +36,7 @@ getHaddockR slug rest
                   ]
             req <- parseRequest $ unpack $ makeURL slug rest
             (_, res) <- acquireResponse req >>= allocateAcquire
-            mstyle' <- lookupGetParam "style"
-            -- TODO: Uncomment line above. Restyling is really slow right now, still need to debug it.
-            let mstyle =
-                  case mstyle' of
-                    Just "pretty" -> Nothing
-                    _ -> Just ("plain" :: Text)
+            mstyle <- lookupGetParam "style"
             case mstyle of
               Just "plain" -> respondSource "text/html; charset=utf-8"
                             $ responseBody res .| mapC (Chunk . toBuilder)
