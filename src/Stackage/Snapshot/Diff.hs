@@ -4,10 +4,12 @@ module Stackage.Snapshot.Diff
   , snapshotDiff
   , SnapshotDiff()
   , toDiffList
+  , toVersionedDiffList
   , VersionChange(..)
   , WithSnapshotNames(..)
   ) where
 
+import qualified Data.Text as T(commonPrefixes)
 import           Data.Align
 import           Data.Aeson
 import qualified Data.HashMap.Strict as HashMap
@@ -35,6 +37,20 @@ instance ToJSON (WithSnapshotNames SnapshotDiff) where
 
 toDiffList :: SnapshotDiff -> [(PackageName, VersionChange)]
 toDiffList = sortOn (toCaseFold . unPackageName . fst) . HashMap.toList . unSnapshotDiff
+
+versionPrefix :: VersionChange -> Maybe (Text,Text,Text)
+versionPrefix vc = case unVersionChange vc of
+        These (Version a) (Version b) -> T.commonPrefixes a b
+        _ -> Nothing
+
+versionedDiffList :: [(PackageName, VersionChange)] -> [(PackageName, VersionChange, Maybe (Text,Text,Text))]
+versionedDiffList = map withPrefixedVersion
+  where
+    withPrefixedVersion (packageName, versionChange) = (packageName, versionChange, versionPrefix versionChange)
+
+
+toVersionedDiffList :: SnapshotDiff -> [(PackageName, VersionChange, Maybe (Text, Text, Text))]
+toVersionedDiffList = versionedDiffList . toDiffList
 
 -- | Versions of a package as it occurs in the listings provided to `snapshotDiff`.
 --
