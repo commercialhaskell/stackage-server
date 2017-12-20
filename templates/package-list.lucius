@@ -2,13 +2,4 @@
   .table th, .table td {
     padding-left: 0;
   }
-
-  .table span.version-removed {
-    background-color: red;
-    text-decoration: line-through;
-  }
-
-  .table span.version-added {
-    background-color: green;
-  }
 }

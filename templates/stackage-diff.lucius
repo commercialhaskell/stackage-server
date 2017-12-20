@@ -1,0 +1,7 @@
+.table span.version-removed {
+  background-color: #fcc;
+}
+
+.table span.version-added {
+  background-color: #cfc;
+}
