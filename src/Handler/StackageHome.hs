@@ -87,7 +87,11 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
         mapC (Chunk . showPackageLocal)
         yield $ Chunk $ toBuilder '\n'
 
+    revisionsWarning =
+        toBuilder (asText "-- NOTE: Due to revisions, this file may not work. See:\n-- https://github.com/fpco/stackage-server/issues/232\n\n")
+
     headerGlobal render = yield $ Chunk $
+        revisionsWarning ++
         toBuilder (asText "-- Stackage snapshot from: ") ++
         toBuilder (oldSnapshotUrl render) ++
         toBuilder (asText "\n-- Please append these contents to the end of your global cabal config file.\n-- To only use tested packages, uncomment the following line\n-- and comment out other remote-repo lines:\n-- remote-repo: stackage-") ++
@@ -97,6 +101,7 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
         toBuilder '\n'
 
     headerLocal render = yield $ Chunk $
+        revisionsWarning ++
         toBuilder (asText "-- Stackage snapshot from: ") ++
         toBuilder (oldSnapshotUrl render) ++
         toBuilder (asText "\n-- Please place this file next to your .cabal file as cabal.config\n-- To only use tested packages, uncomment the following line:\n-- remote-repo: stackage-") ++
