@@ -49,6 +49,9 @@ $newline never
                     This package is not currently in any snapshots. If you're interested in using it, we recommend #
                     <a href="https://github.com/fpco/stackage/#add-your-package">adding it to Stackage Nightly
                     . Doing so will make builds more reliable, and allow stackage.org to host generated Haddocks.
+            $else
+                <p>
+                  <a href=@{PackageSnapshotsR pn}>See all snapshots <code>#{pn}</code> appears in
 
     <div .row>
         <div .span12>

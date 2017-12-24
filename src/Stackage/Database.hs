@@ -741,13 +741,13 @@ getSnapshotsForPackage
     -> m [(Snapshot, Text)] -- version
 getSnapshotsForPackage pname = run $ do
     pid <- getPackageId pname
-    sps <- selectList [SnapshotPackagePackage ==. pid] []
-    fmap catMaybes $ forM sps $ \(Entity _ sp) -> do
-        let sid = snapshotPackageSnapshot sp
-        ms <- get sid
-        return $ case ms of
-            Nothing -> Nothing
-            Just s -> Just (s, snapshotPackageVersion sp)
+    fmap (map go) $ E.select $ E.from $ \(s, sp) -> do
+      E.where_ $ s E.^. SnapshotId E.==. sp E.^. SnapshotPackageSnapshot
+          E.&&. sp E.^. SnapshotPackagePackage E.==. E.val pid
+      E.orderBy [E.desc $ s E.^. SnapshotCreated]
+      return (s, sp E.^. SnapshotPackageVersion)
+  where
+    go (Entity _ snapshot, E.Value version) = (snapshot, version)
 
 -- | Count snapshots that belong to a specific SnapshotBranch
 countSnapshots :: (GetStackageDatabase m) => Maybe SnapshotBranch -> m Int
