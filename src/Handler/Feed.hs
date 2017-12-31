@@ -69,7 +69,7 @@ getContent sid2 snap = do
                         <th align=right>Old
                         <th align=left>New
                     <tbody>
-                      $forall (pkgname@(PackageName name), VersionChange change) <- toDiffList snapDiff
+                      $forall (pkgname@(PackageName name), VersionChange change, versionDiff) <- toVersionedDiffList snapDiff
                         <tr>
                           <th align=right>#{name}
                           $case change
@@ -84,10 +84,20 @@ getContent sid2 snap = do
                                 <a href=@{packageUrl name2 pkgname new}#changes>
                                   #{new}
                             $of These old new
-                              <td align=right>
-                                <a href=@{packageUrl name1 pkgname old}#changes>
-                                  #{old}
-                              <td>
-                                <a href=@{packageUrl name2 pkgname new}#changes>
-                                  #{new}
+                              $maybe (common, left, right) <- versionDiff
+                                <td align=right>
+                                  <a href=@{packageUrl name1 pkgname old}#changes>
+                                    #{common}#
+                                    <span style="background-color: #fcc">#{left}
+                                <td>
+                                  <a href=@{packageUrl name2 pkgname new}#changes>
+                                    #{common}#
+                                    <span style="background-color: #cfc">#{right}
+                              $nothing
+                                <td align=right>
+                                  <a href=@{packageUrl name1 pkgname old}#changes>
+                                    #{old}
+                                <td>
+                                  <a href=@{packageUrl name2 pkgname new}#changes>
+                                    #{new}
                 |]
