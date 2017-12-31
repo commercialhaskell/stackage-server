@@ -88,11 +88,11 @@ getContent sid2 snap = do
                                 <td align=right>
                                   <a href=@{packageUrl name1 pkgname old}#changes>
                                     #{common}#
-                                    <span style="background-color: #fcc">#{left}
+                                    <del style="background-color: #fcc">#{left}
                                 <td>
                                   <a href=@{packageUrl name2 pkgname new}#changes>
                                     #{common}#
-                                    <span style="background-color: #cfc">#{right}
+                                    <ins style="background-color: #cfc">#{right}
                               $nothing
                                 <td align=right>
                                   <a href=@{packageUrl name1 pkgname old}#changes>
