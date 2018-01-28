@@ -10,6 +10,7 @@ import qualified Data.Text.Lazy.Builder.Int as Builder
 import qualified Data.Text.Lazy.Builder as Builder
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Read as Reader
+import Data.Char (ord)
 
 data SnapshotBranch = LtsMajorBranch Int
                     | LtsBranch
@@ -165,3 +166,17 @@ instance PathPiece SupportedArch where
     fromPathPiece "mac32" = Just Mac32
     fromPathPiece "mac64" = Just Mac64
     fromPathPiece _ = Nothing
+
+type Year = Int
+newtype Month = Month Int
+  deriving (Eq, Read, Show, Ord)
+instance PathPiece Month where
+  toPathPiece (Month i)
+    | i < 10 = pack $ '0' : show i
+    | otherwise = tshow i
+  fromPathPiece "10" = Just $ Month 10
+  fromPathPiece "11" = Just $ Month 11
+  fromPathPiece "12" = Just $ Month 12
+  fromPathPiece (unpack -> ['0', c])
+    | '1' <= c && c <= '9' = Just $ Month $ ord c - ord '0'
+  fromPathPiece _ = Nothing

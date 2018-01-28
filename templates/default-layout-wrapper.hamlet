@@ -14,8 +14,10 @@ $newline never
             #{pageTitle pc}
             $if notHome
                 \ :: Stackage Server
-        <meta name="description" content="">
-        <meta name="author" content="">
+
+        <meta name=og:site_name content="Stackage">
+        <meta name=twitter:card content=summary>
+        <meta name=og:title content=#{pageTitle pc}>
 
         <meta name="viewport" content="width=device-width,initial-scale=1">
 

@@ -58,6 +58,7 @@ import           Handler.OldLinks
 import           Handler.Feed
 import           Handler.DownloadStack
 import           Handler.MirrorStatus
+import           Handler.Blog
 
 import           Network.Wai.Middleware.Prometheus (prometheus)
 import           Prometheus (register)
