@@ -1,17 +1,19 @@
-<h1>#{postTitle post}
-<p #author>
-  By #{postAuthor post}, #
-  <abbr title=#{show $ postTime post}>#{dateDiff now (utctDay $ postTime post)}
+<div #blog>
+  <h1>#{postTitle post}
+  <p #author>
+    By #{postAuthor post}, #
+    <abbr title=#{show $ postTime post}>#{dateDiff now (utctDay $ postTime post)}
 
-<article>#{postBody post}
+  <article>#{postBody post}
 
-<section #archive>
+  <section #archive>
 
-  <h2>Archive
+    <h2>Archive
 
-  <ul>
-    $forall post' <- posts
-      <li>
-        <a href=@?{addPreview $ BlogPostR (postYear post') (postMonth post') (postSlug post')}>
-          #{postTitle post'}, #
+    <ul>
+      $forall post' <- posts
+        <li>
+          <a href=@?{addPreview $ BlogPostR (postYear post') (postMonth post') (postSlug post')}>
+            #{postTitle post'}
+          &mdash;
           <abbr title=#{show $ postTime post}>#{dateDiff now (utctDay $ postTime post')}
