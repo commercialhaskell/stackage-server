@@ -87,7 +87,6 @@ dependencies:
 - async
 - yesod-gitrepo
 - hoogle
-- spoon
 - deepseq
 - deepseq-generics
 - auto-update
@@ -97,7 +96,6 @@ dependencies:
 - classy-prelude-conduit
 - path-pieces
 - persistent-postgresql
-- stackage-metadata
 - filepath
 - http-client
 - http-types
@@ -107,6 +105,8 @@ dependencies:
 - lens
 - file-embed
 - resource-pool
+- containers
+- pretty
 
 default-extensions:
 - TemplateHaskell

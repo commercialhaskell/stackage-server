@@ -1,18 +1,15 @@
-resolver: lts-9.13
-packages:
-- .
-- location:
-    git: https://github.com/chrisdone/tagstream-conduit.git
-    commit: bacd7444596b2391b0ac302ad649b994b258d271
-  extra-dep: true
-- location:
-    git: https://github.com/commercialhaskell/all-cabal-metadata-tool
-    commit: ea541be73238a5ce14ad26f4e2a94e63981242a4
-  extra-dep: true
-- location:
-    git: https://github.com/snoyberg/gitrev.git
-    commit: 6a1a639f493ac08959eb5ddf540ca1937baaaaf9
-  extra-dep: true
+resolver: lts-10.5
 extra-deps:
-- barrier-0.1.1
-- spoon-0.3.1
+- archive: https://github.com/chrisdone/tagstream-conduit/archive/bacd7444596b2391b0ac302ad649b994b258d271.tar.gz
+- archive: https://github.com/snoyberg/gitrev/archive/6a1a639f493ac08959eb5ddf540ca1937baaaaf9.tar.gz
+
+- Cabal-2.2.0.0@rev:1
+- cryptohash-conduit-0.1.1@rev:0
+- lens-4.16@rev:3
+- cabal-doctest-1.0.6@rev:1
+- entropy-0.4.1.1@rev:0
+- nonce-1.0.7@rev:0
+- stackage-curator-0.16.0.0@rev:0
+
+# https://github.com/fizruk/http-api-data/issues/72
+- archive: https://github.com/snoyberg/http-api-data/archive/659dc4689355a5881acc2e037090d75391c673bb.tar.gz
