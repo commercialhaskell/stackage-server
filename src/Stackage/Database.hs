@@ -65,7 +65,7 @@ import Stackage.Types
 import Stackage.Metadata
 import Stackage.PackageIndex.Conduit
 import Web.PathPieces (fromPathPiece)
-import Data.Yaml (decodeFileEither)
+import Data.Yaml (decodeFileEither, decodeEither)
 import Database.Persist
 import Database.Persist.Postgresql
 import Database.Persist.TH
@@ -316,7 +316,13 @@ getPackageId x = do
 addPackage :: Tar.Entry -> SqlPersistT (ResourceT IO) ()
 addPackage e =
     case ("packages/" `isPrefixOf` fp && takeExtension fp == ".yaml", Tar.entryContent e) of
-        (True, Tar.NormalFile lbs _) | Just pi <- decode $ toStrict lbs -> do
+        (True, Tar.NormalFile lbs _) ->
+          case decodeEither $ toStrict lbs of
+            Left err -> putStrLn $ "ERROR: Could not parse " ++ tshow fp ++ ": " ++ tshow err
+            Right pi -> onParse pi
+        _ -> return ()
+  where
+    onParse pi = do
             let p = Package
                     { packageName = pack base
                     , packageLatest = display $ piLatest pi
@@ -341,8 +347,7 @@ addPackage e =
                 , depUses = display uses
                 , depRange = display range
                 }
-        _ -> return ()
-  where
+
     fp = Tar.entryPath e
     base = takeBaseName fp
 
