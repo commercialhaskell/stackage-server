@@ -10,6 +10,7 @@ extra-deps:
 - entropy-0.4.1.1@rev:0
 - nonce-1.0.7@rev:0
 - stackage-curator-0.16.0.0@rev:0
+- happy-1.19.9@rev:2
 
 # https://github.com/fizruk/http-api-data/issues/72
 - archive: https://github.com/snoyberg/http-api-data/archive/659dc4689355a5881acc2e037090d75391c673bb.tar.gz
