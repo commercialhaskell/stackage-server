@@ -311,9 +311,10 @@ div#style-menu-holder {
   display: none;
 }
 
-#synopsis {
-  display: none;
-}
+/* Fixes: https://github.com/fpco/stackage-server/issues/222 */
+/* #synopsis { */
+/*   display: none; */
+/* } */
 
 .no-frame #synopsis {
   display: block;
