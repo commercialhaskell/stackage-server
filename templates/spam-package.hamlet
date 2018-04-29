@@ -1,0 +1,14 @@
+<h1>Spam package detected
+
+<p>
+  The package you have requested,
+  <code>#{name}#
+  , has been identified as spam, and therefore will not be displayed.
+
+<p>
+  If you believe this is in error, please
+  <a href="https://github.com/fpco/stackage-content/edit/master/spam-packages.yaml">send a pull request
+  to remove this classification.
+
+<p>
+  <a href=@{HomeR}>Return to homepage
