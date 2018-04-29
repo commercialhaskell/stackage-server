@@ -21,6 +21,7 @@ import           Import
 import qualified Text.Blaze.Html.Renderer.Text as LT
 import           Text.Email.Validate
 import           Stackage.Database
+import           Yesod.GitRepo
 
 -- | Page metadata package.
 getPackageR :: PackageName -> Handler Html
@@ -57,10 +58,19 @@ renderStackageBadge style mLabel snapName = \case
     badgeSnapName (SNNightly _) = "nightly"
     badgeSnapName (SNLts x _)   = "lts-" <> tshow x
 
+checkSpam :: PackageName -> Handler Html -> Handler Html
+checkSpam name inner = do
+    wc <- getYesod >>= liftIO . grContent . appWebsiteContent
+    if name `member` wcSpamPackages wc
+      then defaultLayout $ do
+        setTitle $ "Spam package detected: " <> toHtml name
+        $(widgetFile "spam-package")
+      else inner
+
 packagePage :: Maybe (SnapName, Version)
             -> PackageName
             -> Handler Html
-packagePage mversion pname = track "Handler.Package.packagePage" $ do
+packagePage mversion pname = track "Handler.Package.packagePage" $ checkSpam pname $ do
     let pname' = toPathPiece pname
     (deprecated, inFavourOf) <- getDeprecated pname'
     latests <- getLatests pname'

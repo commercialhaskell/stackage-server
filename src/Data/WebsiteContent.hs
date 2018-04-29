@@ -11,6 +11,7 @@ import Data.GhcLinks
 import Data.Aeson (withObject)
 import Data.Yaml
 import System.FilePath (takeFileName)
+import Types
 
 data WebsiteContent = WebsiteContent
     { wcHomepage :: !Html
@@ -19,6 +20,8 @@ data WebsiteContent = WebsiteContent
     , wcGhcLinks :: !GhcLinks
     , wcStackReleases :: ![StackRelease]
     , wcPosts :: !(Vector Post)
+    , wcSpamPackages :: !(Set PackageName)
+    -- ^ Packages considered spam which should not be displayed.
     }
 
 data Post = Post
@@ -42,6 +45,8 @@ loadWebsiteContent dir = do
     wcPosts <- loadPosts (dir </> "posts") `catchAny` \e -> do
       putStrLn $ "Error loading posts: " ++ tshow e
       return mempty
+    wcSpamPackages <- decodeFileEither (dir </> "spam-packages.yaml")
+                  >>= either throwIO (return . setFromList . map PackageName)
     return WebsiteContent {..}
   where
     readHtml fp = fmap (preEscapedToMarkup . decodeUtf8 :: ByteString -> Html)
