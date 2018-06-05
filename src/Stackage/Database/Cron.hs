@@ -164,6 +164,8 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
             $ sourceTarFile False tarFP
            $$ foldMapMC (liftIO . singleDB db name tmpdir)
 
+        when (null allPackagePairs) $ error $ "No Hoogle .txt files found for " ++ unpack (toPathPiece name)
+
         stackDir <- getAppUserDataDirectory "stack"
         let indexTar = stackDir </> "indices" </> "Hackage" </> "00-index.tar"
         withBinaryFile indexTar ReadMode $ \h -> do
