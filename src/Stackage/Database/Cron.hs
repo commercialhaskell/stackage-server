@@ -11,9 +11,8 @@ import qualified Codec.Archive.Tar as Tar
 import Stackage.Database
 import Network.HTTP.Client
 import Network.HTTP.Client.Conduit (bodyReaderSource)
-import Filesystem (rename, removeTree, removeFile, isFile, createTree)
+import System.Directory
 import Web.PathPieces (toPathPiece)
-import Filesystem.Path.CurrentOS (parent, fromText, encodeString)
 import Network.HTTP.Types (status200)
 import           Data.Streaming.Network (bindPortTCP)
 import           Network.AWS                   (Credentials (Discover), newEnv,
@@ -30,10 +29,9 @@ import qualified Data.Conduit.Binary as CB
 import           Data.Conduit.Zlib             (WindowBits (WindowBits),
                                                 compress, ungzip)
 import qualified Hoogle
-import System.Directory (getAppUserDataDirectory)
 import Control.SingleRun
 import qualified Data.ByteString.Lazy as L
-import System.FilePath (splitPath)
+import System.FilePath (splitPath, takeDirectory)
 import System.Environment (getEnv)
 
 hoogleKey :: SnapName -> Text
@@ -55,24 +53,24 @@ newHoogleLocker :: Bool -- ^ print exceptions?
                 -> Manager
                 -> IO (SingleRun SnapName (Maybe FilePath))
 newHoogleLocker toPrint man = mkSingleRun $ \name -> do
-    let fp = fromText $ hoogleKey name
-        fptmp = encodeString fp <.> "tmp"
+    let fp = unpack $ hoogleKey name
+        fptmp = fp <.> "tmp"
 
-    exists <- isFile fp
+    exists <- doesFileExist fp
     if exists
-        then return $ Just (encodeString fp)
+        then return $ Just fp
         else do
             req' <- parseRequest $ unpack $ hoogleUrl name
             let req = req' { decompress = const False }
             withResponse req man $ \res -> if responseStatus res == status200
                 then do
-                    createTree $ parent (fromString fptmp)
+                    createDirectoryIfMissing True $ takeDirectory fptmp
                     runConduitRes
                        $ bodyReaderSource (responseBody res)
                       .| ungzip
                       .| sinkFile fptmp
-                    rename (fromString fptmp) fp
-                    return $ Just $ encodeString fp
+                    renamePath fptmp fp
+                    return $ Just fp
                 else do
                     when toPrint $ mapM brRead res >>= print
                     return Nothing
@@ -139,8 +137,8 @@ stackageServerCron = do
                     let key = hoogleKey name
                     upload fp (ObjectKey key)
                     let dest = unpack key
-                    createTree $ parent (fromString dest)
-                    rename (fromString fp) (fromString dest)
+                    createDirectoryIfMissing True $ takeDirectory dest
+                    renamePath fp dest
 
 createHoogleDB :: StackageDatabase -> Manager -> SnapName -> IO (Maybe FilePath)
 createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
@@ -148,17 +146,17 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     req' <- parseRequest $ unpack tarUrl
     let req = req' { decompress = const True }
 
-    unlessM (isFile (fromString tarFP)) $ withResponse req man $ \res -> do
+    unlessM (doesFileExist tarFP) $ withResponse req man $ \res -> do
         let tmp = tarFP <.> "tmp"
-        createTree $ parent (fromString tmp)
+        createDirectoryIfMissing True $ takeDirectory tmp
         runConduitRes
            $ bodyReaderSource (responseBody res)
           .| sinkFile tmp
-        rename (fromString tmp) (fromString tarFP)
+        renamePath tmp tarFP
 
-    void $ tryIO $ removeTree (fromString bindir)
-    void $ tryIO $ removeFile (fromString outname)
-    createTree (fromString bindir)
+    void $ tryIO $ removeDirectoryRecursive bindir
+    void $ tryIO $ removeFile outname
+    createDirectoryIfMissing True bindir
 
     withSystemTempDirectory ("hoogle-" ++ unpack (toPathPiece name)) $ \tmpdir -> do
         allPackagePairs <- runConduitRes

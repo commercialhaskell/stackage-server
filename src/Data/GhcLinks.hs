@@ -7,7 +7,7 @@ import ClassyPrelude.Yesod
 import Control.Monad.State.Strict (modify, execStateT)
 import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Yaml as Yaml
-import Filesystem (readTextFile, isFile)
+import System.Directory
 
 import Types
 
@@ -37,7 +37,7 @@ readGhcLinks dir = do
             path = dir
               </> unpack (toPathPiece arch)
               </> unpack fileName
-        whenM (liftIO $ isFile (fromString path)) $ do
-          text <- liftIO $ readTextFile (fromString path)
+        whenM (liftIO $ doesFileExist path) $ do
+          text <- liftIO $ readFileUtf8 path
           modify (HashMap.insert (arch, ver) text)
       return $ GhcLinks hashMap

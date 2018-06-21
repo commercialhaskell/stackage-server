@@ -53,13 +53,12 @@ import CMarkGFM
 import System.Directory (removeFile)
 import Stackage.Database.Haddock
 import System.FilePath (takeBaseName, takeExtension)
-import ClassyPrelude.Conduit hiding (pi, FilePath, (</>))
+import ClassyPrelude.Conduit hiding (pi)
 import Text.Blaze.Html (Html, toHtml, preEscapedToHtml)
 import Yesod.Form.Fields (Textarea (..))
 import Stackage.Database.Types
-import System.Directory (getAppUserDataDirectory)
-import qualified Filesystem as F
-import Filesystem.Path.CurrentOS (filename, directory, FilePath, encodeString, (</>))
+import System.Directory (getAppUserDataDirectory, doesDirectoryExist, createDirectoryIfMissing)
+import System.FilePath (takeFileName, takeDirectory)
 import Data.Conduit.Process
 import Stackage.Types
 import Stackage.Metadata
@@ -182,23 +181,23 @@ sourceBuildPlans :: MonadResource m => FilePath -> ConduitT i (SnapName, FilePat
 sourceBuildPlans root = do
     forM_ ["lts-haskell", "stackage-nightly"] $ \repoName -> do
         dir <- liftIO $ cloneOrUpdate root "fpco" repoName
-        sourceDirectory (encodeString dir) .| concatMapMC (go Left . fromString)
+        sourceDirectory dir .| concatMapMC (go Left . fromString)
         let docdir = dir </> "docs"
-        whenM (liftIO $ F.isDirectory docdir) $
-            sourceDirectory (encodeString docdir) .| concatMapMC (go Right . fromString)
+        whenM (liftIO $ doesDirectoryExist docdir) $
+            sourceDirectory docdir .| concatMapMC (go Right . fromString)
   where
     go wrapper fp | Just name <- nameFromFP fp = liftIO $ do
-        let bp = decodeFileEither (encodeString fp) >>= either throwIO return
+        let bp = decodeFileEither fp >>= either throwIO return
         return $ Just (name, fp, wrapper bp)
     go _ _ = return Nothing
 
     nameFromFP fp = do
-        base <- stripSuffix ".yaml" $ pack $ encodeString $ filename fp
+        base <- stripSuffix ".yaml" $ pack $ takeFileName fp
         fromPathPiece base
 
 cloneOrUpdate :: FilePath -> String -> String -> IO FilePath
 cloneOrUpdate root org name = do
-    exists <- F.isDirectory dest
+    exists <- doesDirectoryExist dest
     if exists
         then do
             let git = runIn dest "git"
@@ -214,7 +213,7 @@ runIn :: FilePath -> String -> [String] -> IO ()
 runIn dir cmd args =
     withCheckedProcess cp $ \ClosedStream Inherited Inherited -> return ()
   where
-    cp = (proc cmd args) { cwd = Just $ encodeString dir }
+    cp = (proc cmd args) { cwd = Just dir }
 
 openStackageDatabase :: MonadIO m => PostgresConf -> m StackageDatabase
 openStackageDatabase pg = liftIO $ do
@@ -244,8 +243,8 @@ createStackageDatabase fp = liftIO $ do
         runMigration migrateAll
         unless schemaMatch $ insert_ $ Schema currentSchema
 
-    root <- liftIO $ fmap (</> fromString "database") $ fmap fromString $ getAppUserDataDirectory "stackage"
-    F.createTree root
+    root <- liftIO $ (</> "database") <$> getAppUserDataDirectory "stackage"
+    createDirectoryIfMissing True root
     runResourceT $ do
         putStrLn "Updating all-cabal-metadata repo"
         flip runSqlPool pool $ runConduit $ sourcePackages root .| getZipSink
@@ -369,9 +368,9 @@ addPlan name fp bp = do
                         [ "log"
                         , "--format=%ad"
                         , "--date=short"
-                        , encodeString $ filename fp
+                        , takeFileName fp
                         ]
-                    cp = cp' { cwd = Just $ encodeString $ directory fp }
+                    cp = cp' { cwd = Just $ takeDirectory fp }
                 t <- withCheckedProcess cp $ \ClosedStream out ClosedStream ->
                     runConduit $ out .| decodeUtf8C .| foldC
                 case readMay $ concat $ take 1 $ words t of

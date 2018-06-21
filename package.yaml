@@ -39,8 +39,6 @@ dependencies:
 - persistent-template
 - resourcet
 - shakespeare
-- system-fileio
-- system-filepath
 - tar
 - template-haskell
 - temporary
