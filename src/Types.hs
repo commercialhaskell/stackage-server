@@ -11,6 +11,7 @@ import qualified Data.Text.Lazy.Builder as Builder
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Read as Reader
 import Data.Char (ord)
+import Control.Monad.Catch (MonadThrow, throwM)
 
 data SnapshotBranch = LtsMajorBranch Int
                     | LtsBranch

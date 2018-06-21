@@ -36,6 +36,7 @@ import           System.Process (rawSystem)
 import           Stackage.Database (openStackageDatabase, PostgresConf (..))
 import           Stackage.Database.Cron (newHoogleLocker, singleRun)
 import           Control.AutoUpdate
+import           Control.Concurrent (threadDelay)
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
@@ -60,9 +61,9 @@ import           Handler.DownloadStack
 import           Handler.MirrorStatus
 import           Handler.Blog
 
-import           Network.Wai.Middleware.Prometheus (prometheus)
-import           Prometheus (register)
-import           Prometheus.Metric.GHC (ghcMetrics)
+--import           Network.Wai.Middleware.Prometheus (prometheus)
+--import           Prometheus (register)
+--import           Prometheus.Metric.GHC (ghcMetrics)
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -79,12 +80,12 @@ makeApplication foundation = do
     -- Create the WAI application and apply middlewares
     appPlain <- toWaiAppPlain foundation
 
-    let middleware = prometheus def
+    let middleware = id -- prometheus def
                    . forceSSL' (appSettings foundation)
                    . logWare
                    . defaultMiddlewaresNoLogging
 
-    void (register ghcMetrics)
+    -- FIXME prometheus void (register ghcMetrics)
 
     return (middleware appPlain)
 

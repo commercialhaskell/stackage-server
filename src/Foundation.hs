@@ -29,7 +29,7 @@ data App = App
     , appHoogleLock :: MVar ()
     -- ^ Avoid concurrent Hoogle queries, see
     -- https://github.com/fpco/stackage-server/issues/172
-    , appMirrorStatus :: IO (Status, WidgetT App IO ())
+    , appMirrorStatus :: IO (Status, WidgetFor App ())
     , appGetHoogleDB :: SnapName -> IO (Maybe FilePath)
     }
 
@@ -94,6 +94,8 @@ instance Yesod App where
 
     defaultLayout = defaultLayoutWithContainer True
 
+    {- MSS 2018-06-21 Not worrying about broken cabal-install anymore
+
     -- Ideally we would just have an approot that always includes https, and
     -- redirect users from non-SSL to SSL connections. However, cabal-install
     -- is broken, and does not support TLS. Therefore, we *don't* force the
@@ -106,6 +108,7 @@ instance Yesod App where
     urlRenderOverride y route@StaticR{} =
         Just $ uncurry (joinPath y "") $ renderRoute route
     urlRenderOverride _ _ = Nothing
+    -}
 
     {- Temporarily disable to allow for horizontal scaling
     -- This function creates static content files in the static folder
@@ -126,8 +129,8 @@ instance Yesod App where
 
     -- What messages should be logged. The following includes all messages when
     -- in development, and warnings and errors in production.
-    shouldLog _ "CLEANUP" _ = False
-    shouldLog app _source level =
+    shouldLogIO _ "CLEANUP" _ = pure False
+    shouldLogIO app _source level = pure $
         appShouldLogAll (appSettings app)
             || level == LevelWarn
             || level == LevelError
@@ -156,5 +159,5 @@ instance RenderMessage App FormMessage where
 
 instance GetStackageDatabase Handler where
     getStackageDatabase = appStackageDatabase <$> getYesod
-instance GetStackageDatabase (WidgetT App IO) where
+instance GetStackageDatabase (WidgetFor App) where
     getStackageDatabase = appStackageDatabase <$> getYesod

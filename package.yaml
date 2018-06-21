@@ -14,7 +14,6 @@ dependencies:
 - base
 - yesod
 - aeson
-- aws
 - barrier
 - base16-bytestring
 - blaze-markup
@@ -24,8 +23,8 @@ dependencies:
 - classy-prelude-yesod
 - conduit
 - conduit-extra
-- cryptohash
-- cryptohash-conduit
+- cryptonite
+- cryptonite-conduit
 - data-default
 - directory
 - email-validate
@@ -41,8 +40,8 @@ dependencies:
 - monad-logger
 - mtl
 - mwc-random
-- prometheus-client
-- prometheus-metrics-ghc
+#- prometheus-client
+#- prometheus-metrics-ghc
 - persistent
 - persistent-template
 - resourcet
@@ -55,10 +54,11 @@ dependencies:
 - temporary-rc
 - text
 - these
+- unliftio
 - wai
 - wai-extra
 - wai-logger
-- wai-middleware-prometheus
+#- wai-middleware-prometheus
 - warp
 - xml-conduit
 - xml-types

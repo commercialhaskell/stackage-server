@@ -188,7 +188,7 @@ sourceBuildPlans root = do
             sourceDirectory (encodeString docdir) =$= concatMapMC (go Right . fromString)
   where
     go wrapper fp | Just name <- nameFromFP fp = liftIO $ do
-        let bp = decodeFileEither (encodeString fp) >>= either throwM return
+        let bp = decodeFileEither (encodeString fp) >>= either throwIO return
         return $ Just (name, fp, wrapper bp)
     go _ _ = return Nothing
 

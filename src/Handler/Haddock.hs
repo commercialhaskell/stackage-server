@@ -35,7 +35,8 @@ getHaddockR slug rest
                   , "'>"
                   ]
             req <- parseRequest $ unpack $ makeURL slug rest
-            (_, res) <- acquireResponse req >>= allocateAcquire
+            man <- getHttpManager <$> getYesod
+            (_, res) <- runReaderT (acquireResponse req >>= allocateAcquire) man
             mstyle <- lookupGetParam "style"
             case mstyle of
               Just "plain" -> respondSource "text/html; charset=utf-8"

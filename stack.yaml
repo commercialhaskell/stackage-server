@@ -1,16 +1,6 @@
-resolver: lts-10.5
+resolver: nightly-2018-06-20
 extra-deps:
 - archive: https://github.com/chrisdone/tagstream-conduit/archive/bacd7444596b2391b0ac302ad649b994b258d271.tar.gz
 - archive: https://github.com/snoyberg/gitrev/archive/6a1a639f493ac08959eb5ddf540ca1937baaaaf9.tar.gz
-
-- Cabal-2.2.0.0@rev:1
-- cryptohash-conduit-0.1.1@rev:0
-- lens-4.16@rev:3
-- cabal-doctest-1.0.6@rev:1
-- entropy-0.4.1.1@rev:0
-- nonce-1.0.7@rev:0
-- stackage-curator-0.16.0.0@rev:0
-- happy-1.19.9@rev:2
-
-# https://github.com/fizruk/http-api-data/issues/72
-- archive: https://github.com/snoyberg/http-api-data/archive/659dc4689355a5881acc2e037090d75391c673bb.tar.gz
+- archive: https://github.com/bitemyapp/esqueleto/archive/b81e0d951e510ebffca03c5a58658ad884cc6fbd.tar.gz
+- archive: https://github.com/fpco/stackage-curator/archive/7635cdc45fcc7c1b733957bce865c40ae8e22b0c.tar.gz

@@ -31,8 +31,6 @@ import           Data.Conduit.Zlib             (WindowBits (WindowBits),
                                                 compress, ungzip)
 import qualified Hoogle
 import System.Directory (getAppUserDataDirectory)
-import System.IO (withBinaryFile, IOMode (ReadMode))
-import System.IO.Temp (withSystemTempDirectory)
 import Control.SingleRun
 import qualified Data.ByteString.Lazy as L
 import System.FilePath (splitPath)
@@ -170,7 +168,7 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
         let indexTar = stackDir </> "indices" </> "Hackage" </> "00-index.tar"
         withBinaryFile indexTar ReadMode $ \h -> do
             let loop Tar.Done = return ()
-                loop (Tar.Fail e) = throwM e
+                loop (Tar.Fail e) = throwIO e
                 loop (Tar.Next e es) = go e >> loop es
 
                 go e =

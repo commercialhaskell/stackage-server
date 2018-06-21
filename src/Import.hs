@@ -11,7 +11,7 @@ import Yesod.Auth as Import
 import Data.WebsiteContent as Import (WebsiteContent (..))
 import Data.Text.Read (decimal)
 import Data.Time.Clock (diffUTCTime)
-import qualified Prometheus as P
+--import qualified Prometheus as P
 import Stackage.Database (SnapName)
 import Formatting (format)
 import Formatting.Time (diff)
@@ -43,6 +43,8 @@ haddockUrl sname pkgver name = HaddockR sname
 track
     :: MonadIO m
     => String -> m a -> m a
+track _ = id
+{- FIXME prometheus isn't in Stackage anymore
 track name inner = do
     start <- liftIO getCurrentTime
     result <- inner
@@ -62,6 +64,7 @@ track name inner = do
                            "stackage_server_fn"
                            "Stackage Server function call (duration in microseconds).")
                       P.defaultBuckets))
+-}
 
 dateDiff :: UTCTime -- ^ now
          -> Day -- ^ target
