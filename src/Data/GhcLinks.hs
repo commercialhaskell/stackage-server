@@ -22,9 +22,9 @@ supportedArches = [minBound .. maxBound]
 readGhcLinks :: FilePath -> IO GhcLinks
 readGhcLinks dir = do
   let ghcMajorVersionsPath = dir </> "supported-ghc-major-versions.yaml"
-  Yaml.decodeFile ghcMajorVersionsPath >>= \case
-    Nothing -> return $ GhcLinks HashMap.empty
-    Just (ghcMajorVersions :: [GhcMajorVersion]) -> do
+  Yaml.decodeFileEither ghcMajorVersionsPath >>= \case
+    Left _ -> return $ GhcLinks HashMap.empty
+    Right (ghcMajorVersions :: [GhcMajorVersion]) -> do
       let opts =
             [ (arch, ver)
             | arch <- supportedArches

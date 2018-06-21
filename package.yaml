@@ -43,6 +43,7 @@ dependencies:
 - system-filepath
 - tar
 - template-haskell
+- temporary
 - text
 - these
 - unliftio

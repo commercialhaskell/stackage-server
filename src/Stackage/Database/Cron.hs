@@ -67,9 +67,10 @@ newHoogleLocker toPrint man = mkSingleRun $ \name -> do
             withResponse req man $ \res -> if responseStatus res == status200
                 then do
                     createTree $ parent (fromString fptmp)
-                    runResourceT $ bodyReaderSource (responseBody res)
-                                $= ungzip
-                                $$ sinkFile fptmp
+                    runConduitRes
+                       $ bodyReaderSource (responseBody res)
+                      .| ungzip
+                      .| sinkFile fptmp
                     rename (fromString fptmp) fp
                     return $ Just $ encodeString fp
                 else do
@@ -86,9 +87,10 @@ stackageServerCron = do
     let upload :: FilePath -> ObjectKey -> IO ()
         upload fp key = do
             let fpgz = fp <.> "gz"
-            runResourceT $ sourceFile fp
-                        $$ compress 9 (WindowBits 31)
-                        =$ CB.sinkFile fpgz
+            runConduitRes
+               $ sourceFile fp
+              .| compress 9 (WindowBits 31)
+              .| CB.sinkFile fpgz
             body <- chunkedFile defaultChunkSize fpgz
             let po =
                       set poACL (Just OPublicRead)
@@ -149,8 +151,9 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     unlessM (isFile (fromString tarFP)) $ withResponse req man $ \res -> do
         let tmp = tarFP <.> "tmp"
         createTree $ parent (fromString tmp)
-        runResourceT $ bodyReaderSource (responseBody res)
-                    $$ sinkFile tmp
+        runConduitRes
+           $ bodyReaderSource (responseBody res)
+          .| sinkFile tmp
         rename (fromString tmp) (fromString tarFP)
 
     void $ tryIO $ removeTree (fromString bindir)
@@ -158,9 +161,9 @@ createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
     createTree (fromString bindir)
 
     withSystemTempDirectory ("hoogle-" ++ unpack (toPathPiece name)) $ \tmpdir -> do
-        allPackagePairs <- runResourceT
+        allPackagePairs <- runConduitRes
             $ sourceTarFile False tarFP
-           $$ foldMapMC (liftIO . singleDB db name tmpdir)
+           .| foldMapMC (liftIO . singleDB db name tmpdir)
 
         when (null allPackagePairs) $ error $ "No Hoogle .txt files found for " ++ unpack (toPathPiece name)
 

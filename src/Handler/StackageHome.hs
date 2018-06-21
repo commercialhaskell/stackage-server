@@ -71,7 +71,7 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
 
     plis <- getPackages sid
 
-    respondSource typePlain $ yieldMany plis $=
+    respondSource typePlain $ yieldMany plis .|
         if isGlobal
             then conduitGlobal render
             else conduitLocal render

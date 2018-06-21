@@ -29,7 +29,7 @@ getLatestMatcher man = do
             { requestHeaders = [("User-Agent", "Stackage Server")]
             }
     val <- flip runReaderT man $ withResponse req
-        $ \res -> responseBody res $$ sinkParser json
+        $ \res -> runConduit $ responseBody res .| sinkParser json
     return $ \pattern -> do
         let pattern' = pattern ++ "."
         Object top <- return val

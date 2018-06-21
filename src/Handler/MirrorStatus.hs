@@ -163,9 +163,9 @@ getHackageRecent latestTime =
     httpSink "https://hackage.haskell.org/packages/recent" sink
   where
     sink _ = parseBytes def
-         =$= concatMapC getDate
-         =$= filterC (<= latestTime)
-         =$= headC
+          .| concatMapC getDate
+          .| filterC (<= latestTime)
+          .| headC
 
     getDate :: Event -> Maybe UTCTime
     getDate (EventContent (ContentText t)) = parseTimeM

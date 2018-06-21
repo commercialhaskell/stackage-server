@@ -165,7 +165,7 @@ class MonadIO m => GetStackageDatabase m where
 instance MonadIO m => GetStackageDatabase (ReaderT StackageDatabase m) where
     getStackageDatabase = ask
 
-sourcePackages :: MonadResource m => FilePath -> Producer m Tar.Entry
+sourcePackages :: MonadResource m => FilePath -> ConduitT i Tar.Entry m ()
 sourcePackages root = do
     dir <- liftIO $ cloneOrUpdate root "commercialhaskell" "all-cabal-metadata"
     bracketP
@@ -178,14 +178,14 @@ sourcePackages root = do
             liftIO $ runIn dir "git" ["archive", "--output", fp, "--format", "tar", "master"]
             sourceTarFile False fp
 
-sourceBuildPlans :: MonadResource m => FilePath -> Producer m (SnapName, FilePath, Either (IO BuildPlan) (IO DocMap))
+sourceBuildPlans :: MonadResource m => FilePath -> ConduitT i (SnapName, FilePath, Either (IO BuildPlan) (IO DocMap)) m ()
 sourceBuildPlans root = do
     forM_ ["lts-haskell", "stackage-nightly"] $ \repoName -> do
         dir <- liftIO $ cloneOrUpdate root "fpco" repoName
-        sourceDirectory (encodeString dir) =$= concatMapMC (go Left . fromString)
+        sourceDirectory (encodeString dir) .| concatMapMC (go Left . fromString)
         let docdir = dir </> "docs"
         whenM (liftIO $ F.isDirectory docdir) $
-            sourceDirectory (encodeString docdir) =$= concatMapMC (go Right . fromString)
+            sourceDirectory (encodeString docdir) .| concatMapMC (go Right . fromString)
   where
     go wrapper fp | Just name <- nameFromFP fp = liftIO $ do
         let bp = decodeFileEither (encodeString fp) >>= either throwIO return
@@ -248,7 +248,7 @@ createStackageDatabase fp = liftIO $ do
     F.createTree root
     runResourceT $ do
         putStrLn "Updating all-cabal-metadata repo"
-        flip runSqlPool pool $ sourcePackages root $$ getZipSink
+        flip runSqlPool pool $ runConduit $ sourcePackages root .| getZipSink
             ( ZipSink (mapM_C addPackage)
            *> ZipSink (do
                 deprs <- foldlC getDeprecated' []
@@ -268,7 +268,7 @@ createStackageDatabase fp = liftIO $ do
                         loop i
                  in loop (0 :: Int))
             )
-        sourceBuildPlans root $$ mapM_C (\(sname, fp', eval) -> flip runSqlPool pool $ do
+        runConduit $ sourceBuildPlans root .| mapM_C (\(sname, fp', eval) -> flip runSqlPool pool $ do
             let (typ, action) =
                     case eval of
                         Left bp -> ("build-plan", liftIO bp >>= addPlan sname fp')
@@ -372,7 +372,7 @@ addPlan name fp bp = do
                         ]
                     cp = cp' { cwd = Just $ encodeString $ directory fp }
                 t <- withCheckedProcess cp $ \ClosedStream out ClosedStream ->
-                    out $$ decodeUtf8C =$ foldC
+                    runConduit $ out .| decodeUtf8C .| foldC
                 case readMay $ concat $ take 1 $ words t of
                     Just created -> return created
                     Nothing -> do

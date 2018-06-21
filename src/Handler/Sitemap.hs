@@ -4,9 +4,6 @@ import Import
 import Yesod.Sitemap
 --import Stackage.Database
 
---type SitemapFor a = forall m. Monad m => Conduit a m (SitemapUrl (Route App))
-type Sitemap = forall m. Monad m => Producer m (SitemapUrl (Route App))
-
 getSitemapR :: Handler TypedContent
 getSitemapR = track "Handler.Sitemap.getSitemapR" $ sitemap $ do
     priority 1.0 $ HomeR
@@ -89,7 +86,7 @@ url loc = yield SitemapUrl
     }
 -}
 
-priority :: Double -> Route App -> Sitemap
+priority :: Monad m => Double -> Route App -> ConduitT i (SitemapUrl (Route App)) m ()
 priority p loc = yield SitemapUrl
     { sitemapLoc = loc
     , sitemapLastMod = Nothing

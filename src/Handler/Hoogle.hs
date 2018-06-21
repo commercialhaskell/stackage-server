@@ -2,7 +2,6 @@
 module Handler.Hoogle where
 
 import           Control.DeepSeq (NFData(..))
-import           Control.DeepSeq.Generics (genericRnf)
 import           Data.Data (Data)
 import           Data.Text.Read (decimal)
 import qualified Hoogle
@@ -106,7 +105,7 @@ data HoogleQueryInput = HoogleQueryInput
 
 data HoogleQueryOutput = HoogleQueryOutput [HoogleResult] (Maybe Int) -- ^ Int == total count
     deriving (Read, Typeable, Data, Show, Eq, Generic)
-instance NFData HoogleQueryOutput where rnf = genericRnf
+instance NFData HoogleQueryOutput
 
 data HoogleResult = HoogleResult
     { hrURL     :: String
@@ -128,9 +127,9 @@ data ModuleLink = ModuleLink
     }
     deriving (Eq, Read, Show, Data, Typeable, Ord, Generic)
 
-instance NFData HoogleResult where rnf = genericRnf
-instance NFData PackageLink where rnf = genericRnf
-instance NFData ModuleLink where rnf = genericRnf
+instance NFData HoogleResult
+instance NFData PackageLink
+instance NFData ModuleLink
 
 runHoogleQuery :: (Route App -> Text)
                -> SnapName

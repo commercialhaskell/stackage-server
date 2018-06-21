@@ -5,7 +5,7 @@ module Stackage.Database.Haddock
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
 import qualified Documentation.Haddock.Parser as Haddock
-import Documentation.Haddock.Types (DocH (..), Hyperlink (..), Picture (..), Header (..), Example (..), MetaDoc(..))
+import Documentation.Haddock.Types (DocH (..), Hyperlink (..), Picture (..), Header (..), Example (..), MetaDoc(..), Table (..), TableRow (..), TableCell (..))
 import ClassyPrelude.Conduit
 import Text.Blaze.Html (Html, toHtml)
 
@@ -58,3 +58,12 @@ hToHtml =
         wrapper _ = H.h6
     go (DocMathInline x) = H.pre $ H.code $ toHtml x
     go (DocMathDisplay x) = H.pre $ H.code $ toHtml x
+    go (DocTable (Table header body)) = H.table $ do
+      unless (null header) $ H.thead $ mapM_ goRow header
+      unless (null body) $ H.tbody $ mapM_ goRow body
+
+    goRow (TableRow cells) = H.tr $ forM_ cells $ \(TableCell colspan rowspan content) ->
+      H.td
+        H.! A.colspan (H.toValue colspan)
+        H.! A.rowspan (H.toValue rowspan)
+          $ go content
