@@ -6,12 +6,13 @@ module Data.WebsiteContent
     ) where
 
 import ClassyPrelude.Yesod
-import Text.Markdown (markdown, msXssProtect, msAddHeadingId)
+import CMarkGFM
 import Data.GhcLinks
 import Data.Aeson (withObject)
 import Data.Yaml
 import System.FilePath (takeFileName)
 import Types
+import Text.Blaze.Html (preEscapedToHtml)
 
 data WebsiteContent = WebsiteContent
     { wcHomepage :: !Html
@@ -49,13 +50,11 @@ loadWebsiteContent dir = do
                   >>= either throwIO (return . setFromList . map PackageName)
     return WebsiteContent {..}
   where
-    readHtml fp = fmap (preEscapedToMarkup . decodeUtf8 :: ByteString -> Html)
-                $ readFile $ dir </> fp
-    readMarkdown fp = fmap (markdown def
-                        { msXssProtect   = False
-                        , msAddHeadingId = True
-                        } . fromStrict . decodeUtf8)
-               $ readFile $ dir </> fp
+    readHtml fp = fmap preEscapedToMarkup $ readFileUtf8 $ dir </> fp
+    readMarkdown fp = fmap (preEscapedToHtml . commonmarkToHtml
+                        [optSmart]
+                        [extTable, extAutolink])
+               $ readFileUtf8 $ dir </> fp
 
 loadPosts :: FilePath -> IO (Vector Post)
 loadPosts dir =
@@ -80,10 +79,10 @@ loadPosts dir =
           _ -> error "Does not start with --- frontmatter"
       case Data.Yaml.decodeEither' $ encodeUtf8 frontmatter of
         Left e -> throwIO e
-        Right mkPost -> return $ mkPost slug $ markdown def
-          { msXssProtect = False
-          , msAddHeadingId = True
-          } $ fromStrict body
+        Right mkPost -> return $ mkPost slug $ preEscapedToHtml $ commonmarkToHtml
+          [optSmart]
+          [extTable, extAutolink]
+          body
 
 instance (slug ~ Text, body ~ Html) => FromJSON (slug -> body -> Post) where
   parseJSON = withObject "Post" $ \o -> do

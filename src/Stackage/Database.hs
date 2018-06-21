@@ -49,12 +49,12 @@ module Stackage.Database
 import Web.PathPieces (toPathPiece)
 import qualified Codec.Archive.Tar as Tar
 import Database.Esqueleto.Internal.Language (From)
-import Text.Markdown (markdown, msAddHeadingId, def)
+import CMarkGFM
 import System.Directory (removeFile)
 import Stackage.Database.Haddock
 import System.FilePath (takeBaseName, takeExtension)
 import ClassyPrelude.Conduit hiding (pi, FilePath, (</>))
-import Text.Blaze.Html (Html, toHtml)
+import Text.Blaze.Html (Html, toHtml, preEscapedToHtml)
 import Yesod.Form.Fields (Textarea (..))
 import Stackage.Database.Types
 import System.Directory (getAppUserDataDirectory)
@@ -351,9 +351,10 @@ addPackage e =
     fp = Tar.entryPath e
     base = takeBaseName fp
 
-    renderContent txt "markdown" = markdown
-                                    (def { msAddHeadingId = True })
-                                    (fromStrict txt)
+    renderContent txt "markdown" = preEscapedToHtml $ commonmarkToHtml
+                                    [optSmart, optSafe]
+                                    [extTable, extAutolink]
+                                    txt
     renderContent txt "haddock" = renderHaddock txt
     renderContent txt _ = toHtml $ Textarea txt
 

@@ -67,7 +67,7 @@ dependencies:
 - mono-traversable
 - time
 - process
-- markdown
+- cmark-gfm
 - formatting
 - blaze-html
 - haddock-library
