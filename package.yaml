@@ -75,7 +75,6 @@ dependencies:
 - hoogle
 - deepseq
 - auto-update
-- stackage-curator
 - yesod-sitemap
 - streaming-commons
 - classy-prelude-conduit
