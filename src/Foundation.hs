@@ -12,6 +12,7 @@ import           Yesod.AtomFeed
 import           Yesod.GitRepo
 import Stackage.Database
 import qualified Yesod.Core.Unsafe as Unsafe
+import           Yesod.GitRev (GitRev)
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -31,6 +32,7 @@ data App = App
     -- https://github.com/fpco/stackage-server/issues/172
     , appMirrorStatus :: IO (Status, WidgetFor App ())
     , appGetHoogleDB :: SnapName -> IO (Maybe FilePath)
+    , appGitRev :: GitRev
     }
 
 instance HasHttpManager App where

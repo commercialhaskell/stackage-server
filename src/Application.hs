@@ -37,6 +37,7 @@ import           Stackage.Database (openStackageDatabase, PostgresConf (..))
 import           Stackage.Database.Cron (newHoogleLocker, singleRun)
 import           Control.AutoUpdate
 import           Control.Concurrent (threadDelay)
+import           Yesod.GitRev (tGitRev)
 
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
@@ -51,7 +52,6 @@ import           Handler.Package
 import           Handler.PackageDeps
 import           Handler.PackageList
 import           Handler.Hoogle
-import           Handler.BuildVersion
 import           Handler.Sitemap
 import           Handler.BuildPlan
 import           Handler.Download
@@ -144,6 +144,7 @@ makeFoundation appSettings = do
     appMirrorStatus <- mkUpdateMirrorStatus
     hoogleLocker <- newHoogleLocker True appHttpManager
     let appGetHoogleDB = singleRun hoogleLocker
+    let appGitRev = $$tGitRev
 
     return App {..}
 

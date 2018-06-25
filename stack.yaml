@@ -1,4 +1,5 @@
 resolver: nightly-2018-06-20
 extra-deps:
-- archive: https://github.com/snoyberg/gitrev/archive/6a1a639f493ac08959eb5ddf540ca1937baaaaf9.tar.gz
 - archive: https://github.com/bitemyapp/esqueleto/archive/b81e0d951e510ebffca03c5a58658ad884cc6fbd.tar.gz
+- archive: https://github.com/snoyberg/githash/archive/a80ff63bb32d2a3920bb870b4395ee231df0bd6e.tar.gz
+- archive: https://github.com/snoyberg/yesod-gitrev/archive/98383b2d5ddad23b1503468d83b2ced76e6c6fe8.tar.gz

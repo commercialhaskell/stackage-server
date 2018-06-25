@@ -42,7 +42,7 @@
 /install InstallR GET
 /older-releases OlderReleasesR GET
 
-/build-version BuildVersionR GET
+/build-version BuildVersionR GitRev appGitRev
 
 /download DownloadR GET
 /download/snapshots.json DownloadSnapshotsJsonR GET
