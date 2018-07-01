@@ -67,6 +67,8 @@
                   Add your maintained packages to stackage
 
       <div .span6>
+        <h3>News
+        <a href="/blog">Blog
         <h3>Snapshots
         $forall stackages <- groups
             $forall (_, _, uploaded) <- take 1 stackages
