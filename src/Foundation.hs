@@ -145,6 +145,7 @@ instance ToMarkup (Route App) where
     toMarkup c =
         case c of
           AllSnapshotsR{} -> "Snapshots"
+          BlogHomeR -> "Blog"
           _ -> ""
 
 -- This instance is required to use forms. You can modify renderMessage to

@@ -9,17 +9,9 @@
         <img src="/static/img/stackage.png" title="FP Complete">
       <div class="nav-collapse collapse">
         <ul class="nav">
-          $forall route <- [AllSnapshotsR]
-            $maybe current <- cur
-              $if route == current
-                <li .active>
-                  <a href=@{route}>#{route}
-              $else
-                <li>
-                  <a href=@{route}>#{route}
-            $nothing
-              <li>
-                  <a href=@{route}>#{route}
+          $forall route <- [AllSnapshotsR, BlogHomeR]
+            <li :Just route == cur:.active>
+              <a href=@{route}>#{route}
 
 $maybe msg <- mmsg
     <div .container>
