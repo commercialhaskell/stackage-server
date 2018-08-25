@@ -147,6 +147,8 @@ executables:
     when:
     - condition: flag(library-only)
       buildable: false
+    - condition: flag(dev)
+      cpp-options: -DDEVELOPMENT
 
   stackage-server-cron:
     main: stackage-server-cron.hs
@@ -161,3 +163,5 @@ executables:
     when:
     - condition: flag(library-only)
       buildable: false
+    - condition: flag(dev)
+      cpp-options: -DDEVELOPMENT
