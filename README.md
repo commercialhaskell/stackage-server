@@ -27,9 +27,12 @@ $ export PGSTRING=postgresql://postgres:password@localhost:5432/stackage
 $ stack exec stackage-server-cron
 ```
 
+Note that you need to modify the PGSTRING according to your actual database configuration. Also, you need to create an empty database before running the cron job.
+
 After this, try running in the stackage server:
 
 ``` shellsession
+$ export PGSTRING=postgresql://postgres:password@localhost:5432/stackage
 $ stack exec stackage-server
 ```
 
