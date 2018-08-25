@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP#-}
 module Stackage.Database.Cron
     ( stackageServerCron
     , newHoogleLocker
@@ -107,6 +108,7 @@ stackageServerCron = do
           }
     createStackageDatabase dbfp
 
+#if !DEVELOPMENT          
     db <- openStackageDatabase dbfp
 
     do
@@ -139,6 +141,7 @@ stackageServerCron = do
                     let dest = unpack key
                     createDirectoryIfMissing True $ takeDirectory dest
                     renamePath fp dest
+#endif
 
 createHoogleDB :: StackageDatabase -> Manager -> SnapName -> IO (Maybe FilePath)
 createHoogleDB db man name = handleAny (\e -> print e $> Nothing) $ do
