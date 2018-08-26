@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE CPP#-}
 module Application
     ( getApplicationDev
     , appMain
@@ -81,7 +82,9 @@ makeApplication foundation = do
     appPlain <- toWaiAppPlain foundation
 
     let middleware = id -- prometheus def
+#if !DEVELOPMENT
                    . forceSSL' (appSettings foundation)
+#endif
                    . logWare
                    . defaultMiddlewaresNoLogging
 
