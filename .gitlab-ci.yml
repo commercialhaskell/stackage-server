@@ -14,8 +14,12 @@ stages:
 variables:
     STACK_ROOT: "${CI_PROJECT_DIR}/.stack-root"
     DEPLOYMENT_IMAGE: "${CI_REGISTRY_IMAGE}:${CI_BUILD_REF_SLUG}_${CI_PIPELINE_ID}"
-    DEPLOYMENT_NAME: "stackage-server-${CI_BUILD_REF_SLUG}"
-    DEPLOYMENT_APP: "${CI_ENVIRONMENT_SLUG}"
+    DEPLOYMENT_NAME: "stackage-server-prod"
+    HOOGLE_DEPLOYMENT_NAME: "stackage-server-hoogle-prod"
+    CRON_DEPLOYMENT_NAME: "stackage-server-cron-prod"
+    DEPLOYMENT_APP: "stackage-server-prod"
+    CRON_DEPLOYMENT_APP: "stackage-server-cron-prod"
+    HOOGLE_DEPLOYMENT_APP: "stackage-server-hoogle-prod"
 
 # This creates anchors for bits of script that are reused between builds
 .anchors:
@@ -27,8 +31,11 @@ variables:
     kubectl config use-context cluster
   - &KUBEAPPLY
     kubectl apply -f <(envsubst <etc/kube/service_template.yaml) &&
+    kubectl apply -f <(envsubst <etc/kube/hoogle_service_template.yaml) &&
     kubectl apply -f <(envsubst <etc/kube/deployment_template.yaml) &&
-    kubectl rollout status -f <(envsubst <etc/kube/deployment_template.yaml)
+    kubectl apply -f <(envsubst <etc/kube/cron_deployment_template.yaml) &&
+    kubectl apply -f <(envsubst <etc/kube/hoogle_deployment_template.yaml) &&
+    kubectl apply -f <(envsubst <etc/kube/ingress_template.yaml) &&
 
 build:
   stage: build
@@ -60,6 +67,7 @@ deploy_prod:
     HOOGLE_DEPLOYMENT_NAME: "stackage-server-hoogle-prod"
     CRON_DEPLOYMENT_NAME: "stackage-server-cron-prod"
     PROD_DEPLOYMENT_IMAGE: "fpco/stackage-server-prod:${CI_BUILD_REF_SLUG}_${CI_PIPELINE_ID}"
+    HOST: stackage.org
   script:
     - export
       KUBE_CA_PEM="$PROD_KUBE_CA_PEM"
@@ -90,11 +98,13 @@ deploy_ci:
     DEPLOYMENT_NAME: "stackage-server-ci"
     HOOGLE_DEPLOYMENT_NAME: "stackage-server-hoogle-ci"
     CRON_DEPLOYMENT_NAME: "stackage-server-cron-ci"
+    DEPLOYMENT_APP: "stackage-server-ci"
+    CRON_DEPLOYMENT_APP: "stackage-server-cron-ci"
+    HOOGLE_DEPLOYMENT_APP: "stackage-server-hoogle-ci"
+    HOST: ci.stackage.org
   script:
     - *KUBELOGIN
-    - kubectl set image "deployment/$DEPLOYMENT_NAME" stackage-server="$DEPLOYMENT_IMAGE"
-    - kubectl set image "deployment/$HOOGLE_DEPLOYMENT_NAME" stackage-server-hoogle="$DEPLOYMENT_IMAGE"
-    - kubectl set image "deployment/$CRON_DEPLOYMENT_NAME" stackage-server-cron="$DEPLOYMENT_IMAGE"
+    - *KUBEAPPLY
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
     - kubectl rollout status "deployment/$HOOGLE_DEPLOYMENT_NAME"
     - kubectl rollout status "deployment/$CRON_DEPLOYMENT_NAME"
