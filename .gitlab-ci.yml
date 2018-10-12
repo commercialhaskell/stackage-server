@@ -34,8 +34,7 @@ variables:
     kubectl apply -f <(envsubst <etc/kube/hoogle_service_template.yaml) &&
     kubectl apply -f <(envsubst <etc/kube/deployment_template.yaml) &&
     kubectl apply -f <(envsubst <etc/kube/cron_deployment_template.yaml) &&
-    kubectl apply -f <(envsubst <etc/kube/hoogle_deployment_template.yaml) &&
-    kubectl apply -f <(envsubst <etc/kube/ingress_template.yaml) &&
+    kubectl apply -f <(envsubst <etc/kube/hoogle_deployment_template.yaml)
 
 build:
   stage: build
@@ -105,6 +104,7 @@ deploy_ci:
   script:
     - *KUBELOGIN
     - *KUBEAPPLY
+    - kubectl apply -f <(envsubst <etc/kube/ingress_template.yaml)
     - kubectl rollout status "deployment/$DEPLOYMENT_NAME"
     - kubectl rollout status "deployment/$HOOGLE_DEPLOYMENT_NAME"
     - kubectl rollout status "deployment/$CRON_DEPLOYMENT_NAME"
