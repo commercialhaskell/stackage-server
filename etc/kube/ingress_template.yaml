@@ -7,15 +7,25 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "nginx"
     kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   rules:
     - host: "${HOST}"
       http:
         paths:
-          - backend:
-              serviceName: "${DEPLOYMENT_NAME}"
-              servicePort: 80
+        - path: /haddock.*
+          backend:
+            serviceName: "${DEPLOYMENT_NAME}"
+            servicePort: 80
+        - path: /.+/hoogle
+          backend:
+            serviceName: "${HOOGLE_DEPLOYMENT_NAME}"
+            servicePort: 80
+        - backend:
+            serviceName: "${DEPLOYMENT_NAME}"
+            servicePort: 80
   tls:
     - hosts:
       - "${HOST}"
       secretName: "${DEPLOYMENT_NAME}-tls"
+
