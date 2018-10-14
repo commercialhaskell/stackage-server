@@ -24,6 +24,11 @@ spec:
           env:
             - name: APPROOT
               value: "${APPROOT}"
+            - name: PGSTRING
+              valueFrom:
+                secretKeyRef:
+                  name: "${DEPLOYMENT_NAME}"
+                  key: PGCONN
           readinessProbe:
             httpGet:
               path: /
@@ -44,10 +49,17 @@ spec:
                 # Works around stackage-server's `forceSSL` redirect
                 - name: HTTPS
                   value: "on"
-            initialDelaySeconds: 60
+            initialDelaySeconds: 120
             timeoutSeconds: 1
             periodSeconds: 10
             successThreshold: 1
             failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 1.0Gi
+            limits:
+              cpu: 150m
+              memory: 1.5Gi
       imagePullSecrets:
         - name: registry-key

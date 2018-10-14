@@ -1,0 +1,19 @@
+# Kubernetes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: "${HOOGLE_DEPLOYMENT_NAME}"
+  labels:
+    app: "${HOOGLE_DEPLOYMENT_APP}"
+spec:
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+  - name: https
+    port: 443
+    targetPort: http
+  type: ClusterIP
+  selector:
+    app: "${HOOGLE_DEPLOYMENT_APP}"
