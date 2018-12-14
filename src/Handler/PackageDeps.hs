@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Handler.PackageDeps
   ( getPackageDepsR
   , getPackageRevDepsR
@@ -5,55 +7,76 @@ module Handler.PackageDeps
   , getSnapshotPackageRevDepsR
   ) where
 
+import Handler.StackageSdist (pnvToSnapshotPackageInfo)
 import Import
+import Types (PackageVersionRev(..))
 import Stackage.Database
+import Stackage.Database.Types (SnapshotPackageInfo(..))
 
-getPackageDepsR :: PackageName -> Handler Html
-getPackageDepsR = packageDeps Nothing
+getPackageDepsR :: PackageNameP -> Handler Html
+getPackageDepsR pname = do
+    mspi <- getSnapshotPackageLatestVersion pname
+    case mspi of
+        Nothing -> redirect $ PackageR pname
+        Just spi -> helper Deps spi
 
 getSnapshotPackageDepsR :: SnapName -> PackageNameVersion -> Handler Html
-getSnapshotPackageDepsR snap (PNVNameVersion pname version) =
-  packageDeps (Just (snap, version)) pname
-getSnapshotPackageDepsR _ _ = notFound
+getSnapshotPackageDepsR snapName pnv =
+    pnvToSnapshotPackageInfo snapName pnv (\_ _ -> notFound) $ \isSameVersion spi ->
+        if isSameVersion
+            then helper Deps spi
+            else redirect $
+                 SnapshotR snapName $
+                 SnapshotPackageDepsR $ PNVNameVersion (spiPackageName spi) (spiVersion spi)
 
-packageDeps :: Maybe (SnapName, Version) -> PackageName -> Handler Html
-packageDeps = helper Deps
-
-getPackageRevDepsR :: PackageName -> Handler Html
-getPackageRevDepsR = packageRevDeps Nothing
+getPackageRevDepsR :: PackageNameP -> Handler Html
+getPackageRevDepsR pname = do
+    mspi <- getSnapshotPackageLatestVersion pname
+    case mspi of
+        Nothing -> redirect $ PackageR pname
+        Just spi -> helper RevDeps spi
 
 getSnapshotPackageRevDepsR :: SnapName -> PackageNameVersion -> Handler Html
-getSnapshotPackageRevDepsR snap (PNVNameVersion pname version) =
-  packageRevDeps (Just (snap, version)) pname
-getSnapshotPackageRevDepsR _ _ = notFound
+getSnapshotPackageRevDepsR snapName pnv =
+    pnvToSnapshotPackageInfo snapName pnv (\_ _ -> notFound) $ \isSameVersion spi ->
+        if isSameVersion
+            then helper RevDeps spi
+            else redirect $
+                 SnapshotR snapName $
+                 SnapshotPackageRevDepsR $ PNVNameVersion (spiPackageName spi) (spiVersion spi)
 
-packageRevDeps :: Maybe (SnapName, Version) -> PackageName -> Handler Html
-packageRevDeps = helper Revdeps
 
-data DepType = Deps | Revdeps
+getPackagePageLink :: SnapName -> PackageVersionRev -> Route App
+getPackagePageLink snapName (PackageVersionRev pname (VersionRev version _)) =
+  SnapshotR snapName $ StackageSdistR $ PNVNameVersion pname version
 
-helper :: DepType -> Maybe (SnapName, Version) -> PackageName -> Handler Html
-helper depType mversion pname = track "Handler.PackageDeps.helper" $ do
-  deps <-
-    (case depType of
-       Deps -> getDeps
-       Revdeps -> getRevDeps) (toPathPiece pname) Nothing
-  let packagePage =
-        case mversion of
-          Nothing -> PackageR pname
-          Just (snap, version) -> SnapshotR snap $ StackageSdistR $ PNVNameVersion pname version
-  defaultLayout $ do
-    let title = toHtml $
-          (case depType of
-            Deps -> "Dependencies"
-            Revdeps -> "Reverse dependencies ") ++ " for " ++ toPathPiece pname
-    setTitle title
-    [whamlet|
-      <h1>#{title}
-      <p>
-        <a href=#{packagePage}>Return to package page
-      <ul>
-        $forall (name, range) <- deps
-          <li>
-            <a href=@{PackageR $ PackageName name} title=#{range}>#{name}
-    |]
+data DepType = Deps | RevDeps
+
+helper :: DepType -> SnapshotPackageInfo -> Handler Html
+helper depType spi =
+    track "Handler.PackageDeps.helper" $ do
+        let (depsGetter, header) =
+                case depType of
+                    Deps -> (getForwardDeps, "Dependencies for ")
+                    RevDeps -> (getReverseDeps, "Reverse dependencies on ")
+        deps <- run $ depsGetter spi Nothing
+        render <- getUrlRender
+        let title =
+                toHtml $
+                header ++ toPathPiece (PackageIdentifierP (spiPackageName spi) (spiVersion spi))
+            packagePageUrl =
+                render $
+                SnapshotR (spiSnapName spi) $
+                StackageSdistR $ PNVNameVersion (spiPackageName spi) (spiVersion spi)
+        defaultLayout $ do
+            setTitle title
+            [whamlet|
+              <h1>#{title}
+              <h3>There is a total of #{length deps} dependencies in <em>#{spiSnapName spi}</em>
+              <p>
+                <a href=#{packagePageUrl}>&lt;&lt; Return to package page
+              <ul>
+                $forall (depNameVerRev, verRange) <- deps
+                  <li>
+                    <a href=@{getPackagePageLink (spiSnapName spi) depNameVerRev} title="'#{spiPackageName spi}' version bounds: #{verRange}">#{depNameVerRev}
+            |]

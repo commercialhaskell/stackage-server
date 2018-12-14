@@ -19,7 +19,7 @@ approot:        "_env:APPROOT:"
 # reload-templates: false
 # mutable-static: false
 # skip-combining: false
-# force-ssl: true
+force-ssl: false
 # dev-download: false
 
 postgres-string: "_env:PGSTRING:host=localhost port=5432 user=stackage dbname=stackage password=stackage"

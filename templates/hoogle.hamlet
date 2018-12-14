@@ -12,12 +12,12 @@
                         <p .self>
                             <a href=#{url}>#{preEscapedToHtml self}
                         <table .sources>
-                            $forall (pkg, modus) <- sources
+                            $forall (pkg, modules) <- sources
                                 <tr>
                                     <th>
                                         <a href=#{plURL pkg}>#{plName pkg}
                                     <td>
-                                        $forall ModuleLink name url' <- modus
+                                        $forall ModuleLink name url' <- modules
                                             <a href=#{url'}>#{name}
                         $if null docs
                             <p .nodocs>No documentation available.

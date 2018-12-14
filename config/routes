@@ -31,12 +31,12 @@
 /system SystemR GET
 /haddock/#SnapName/*Texts HaddockR GET
 !/haddock/*Texts HaddockBackupR GET
-/package/#PackageName PackageR GET
-/package/#PackageName/snapshots PackageSnapshotsR GET
-/package/#PackageName/badge/#SnapshotBranch PackageBadgeR GET
+/package/#PackageNameP PackageR GET
+/package/#PackageNameP/snapshots PackageSnapshotsR GET
+/package/#PackageNameP/badge/#SnapshotBranch PackageBadgeR GET
 /package PackageListR GET
-/package/#PackageName/deps PackageDepsR GET
-/package/#PackageName/revdeps PackageRevDepsR GET
+/package/#PackageNameP/deps PackageDepsR GET
+/package/#PackageNameP/revdeps PackageRevDepsR GET
 
 /authors AuthorsR GET
 /install InstallR GET

@@ -1,5 +1,6 @@
 -- Adopted from https://github.com/haskell/hackage-server/blob/master/Distribution/Server/Packages/ModuleForest.hs
-
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE ViewPatterns #-}
 module Distribution.Package.ModuleForest
     ( moduleName
     , moduleForest
@@ -8,9 +9,10 @@ module Distribution.Package.ModuleForest
     , NameComponent
     ) where
 
-import           Distribution.ModuleName (ModuleName)
+import Distribution.ModuleName (ModuleName)
 import qualified Distribution.ModuleName as ModuleName
-import           Import
+import RIO
+import RIO.Text (pack, unpack)
 
 type NameComponent = Text
 

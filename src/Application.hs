@@ -1,70 +1,79 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE CPP#-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE BlockArguments #-}
+
 module Application
-    ( getApplicationDev
+    ( App
+    , withApplicationDev
+    , withFoundationDev
+    , makeApplication
     , appMain
     , develMain
-    , makeFoundation
+    , withFoundation
     , makeLogWare
     -- * for DevelMain
-    , getApplicationRepl
-    , shutdownApp
+    , withApplicationRepl
     -- * for GHCI
     , handler
     ) where
 
-import Control.Monad.Logger                 (liftLoc)
-import Language.Haskell.TH.Syntax           (qLocation)
-import           Control.Concurrent (forkIO)
-import           Data.WebsiteContent
-import           Import hiding (catch)
-import           Network.Wai (Middleware, rawPathInfo)
-import Network.Wai.Handler.Warp             (Settings, defaultSettings,
-                                             defaultShouldDisplayException,
-                                             runSettings, setHost,
-                                             setOnException, setPort, getPort)
-import           Network.Wai.Middleware.ForceSSL (forceSSL)
-import           Network.Wai.Middleware.RequestLogger
-    ( mkRequestLogger, outputFormat, OutputFormat (..), IPAddrSource (..), destination
-    , Destination (Logger)
-    )
-import           System.Log.FastLogger (newStdoutLoggerSet, defaultBufSize, toLogStr)
-import           Yesod.Core.Types (loggerSet)
-import           Yesod.Default.Config2
-import           Yesod.Default.Handlers
-import           Yesod.GitRepo
-import           System.Process (rawSystem)
-import           Stackage.Database (openStackageDatabase, PostgresConf (..))
-import           Stackage.Database.Cron (newHoogleLocker, singleRun)
-import           Control.AutoUpdate
-import           Control.Concurrent (threadDelay)
-import           Yesod.GitRev (tGitRev)
+import Control.AutoUpdate
+import Control.Concurrent (threadDelay)
+import Control.Monad.Logger (liftLoc)
+import Data.WebsiteContent
+import Database.Persist.Postgresql (PostgresConf(..))
+import Import hiding (catch)
+import Language.Haskell.TH.Syntax (qLocation)
+import Network.Wai (Middleware, rawPathInfo)
+import Network.Wai.Handler.Warp (Settings, defaultSettings,
+                                 defaultShouldDisplayException, getPort,
+                                 runSettings, setHost, setOnException, setPort)
+import Network.Wai.Middleware.ForceSSL (forceSSL)
+import Network.Wai.Middleware.RequestLogger (Destination(Logger),
+                                             IPAddrSource(..), OutputFormat(..),
+                                             destination, mkRequestLogger,
+                                             outputFormat)
+import RIO (LogFunc, LogOptions, logOptionsHandle, withLogFunc, runRIO, logError)
+import RIO.Prelude.Simple (runSimpleApp)
+import Stackage.Database (withStackageDatabase)
+import Stackage.Database.Cron (newHoogleLocker, singleRun)
+import Stackage.Database.Github (getStackageContentDir)
+import System.Log.FastLogger (defaultBufSize, newStdoutLoggerSet, toLogStr)
+import Yesod.Core.Types (loggerSet)
+import Yesod.Default.Config2
+import Yesod.Default.Handlers
+import Yesod.GitRepo
+import Yesod.GitRev (tGitRev)
 
 -- Import all relevant handler modules here.
--- Don't forget to add new modules to your cabal file!
-import           Handler.Home
-import           Handler.Snapshots
-import           Handler.StackageHome
-import           Handler.StackageIndex
-import           Handler.StackageSdist
-import           Handler.System
-import           Handler.Haddock
-import           Handler.Package
-import           Handler.PackageDeps
-import           Handler.PackageList
-import           Handler.Hoogle
-import           Handler.Sitemap
-import           Handler.BuildPlan
-import           Handler.Download
-import           Handler.OldLinks
-import           Handler.Feed
-import           Handler.DownloadStack
-import           Handler.MirrorStatus
-import           Handler.Blog
+import Handler.Blog
+import Handler.BuildPlan
+import Handler.Download
+import Handler.DownloadStack
+import Handler.Feed
+import Handler.Haddock
+import Handler.Home
+import Handler.Hoogle
+import Handler.MirrorStatus
+import Handler.OldLinks
+import Handler.Package
+import Handler.PackageDeps
+import Handler.PackageList
+import Handler.Sitemap
+import Handler.Snapshots
+import Handler.StackageHome
+import Handler.StackageIndex
+import Handler.StackageSdist
+import Handler.System
 
---import           Network.Wai.Middleware.Prometheus (prometheus)
---import           Prometheus (register)
---import           Prometheus.Metric.GHC (ghcMetrics)
+--import Network.Wai.Middleware.Prometheus (prometheus)
+--import Prometheus (register)
+--import Prometheus.Metric.GHC (ghcMetrics)
 
 -- This line actually creates our YesodDispatch instance. It is the second half
 -- of the call to mkYesodData which occurs in Foundation.hs. Please see the
@@ -104,52 +113,52 @@ forceSSL' settings app
 
 -- | Loads up any necessary settings, creates your foundation datatype, and
 -- performs some initialization.
-makeFoundation :: AppSettings -> IO App
-makeFoundation appSettings = do
-    -- Some basic initializations: HTTP connection manager, logger, and static
-    -- subsite.
+--
+-- Some basic initializations: HTTP connection manager, logger, and static
+-- subsite.
+withFoundation :: LogFunc -> AppSettings -> (App -> IO a) -> IO a
+withFoundation appLogFunc appSettings inner = do
     appHttpManager <- newManager
     appLogger <- newStdoutLoggerSet defaultBufSize >>= makeYesodLogger
     appStatic <-
-        (if appMutableStatic appSettings then staticDevel else static)
-        (appStaticDir appSettings)
+        (if appMutableStatic appSettings
+             then staticDevel
+             else static)
+            (appStaticDir appSettings)
+    appWebsiteContent <-
+        if appDevDownload appSettings
+            then do
+                fp <- runSimpleApp $ getStackageContentDir "."
+                gitRepoDev fp loadWebsiteContent
+            else gitRepo "https://github.com/fpco/stackage-content.git" "master" loadWebsiteContent
+    let pgConf =
+            PostgresConf {pgPoolSize = 2, pgConnStr = encodeUtf8 $ appPostgresString appSettings}
+        -- Temporary workaround to force content updates regularly, until
+        -- distribution of webhooks is handled via consul
+        runContentUpdates =
+            Concurrently $
+            forever $
+            void $ do
+                threadDelay $ 1000 * 1000 * 60 * 5
+                handleAny (runRIO appLogFunc . RIO.logError . fromString . displayException) $
+                    grRefresh appWebsiteContent
+    withStackageDatabase (appShouldLogAll appSettings) pgConf $ \appStackageDatabase -> do
+        appLatestStackMatcher <-
+            mkAutoUpdate
+                defaultUpdateSettings
+                    { updateFreq = 1000 * 1000 * 60 * 30 -- update every thirty minutes
+                    , updateAction = getLatestMatcher appHttpManager
+                    }
+        appHoogleLock <- newMVar ()
+        appMirrorStatus <- mkUpdateMirrorStatus
+        hoogleLocker <- newHoogleLocker appLogFunc appHttpManager
+        let appGetHoogleDB = singleRun hoogleLocker
+        let appGitRev = $$tGitRev
+        runConcurrently $ runContentUpdates *> Concurrently (inner App {..})
 
-    appWebsiteContent <- if appDevDownload appSettings
-        then do
-            void $ rawSystem "git"
-                [ "clone"
-                , "https://github.com/fpco/stackage-content.git"
-                ]
-            gitRepoDev "stackage-content" loadWebsiteContent
-        else gitRepo
-            "https://github.com/fpco/stackage-content.git"
-            "master"
-            loadWebsiteContent
+getLogOpts :: AppSettings -> IO LogOptions
+getLogOpts settings = logOptionsHandle stdout (appShouldLogAll settings)
 
-    appStackageDatabase <- openStackageDatabase PostgresConf
-      { pgPoolSize = 2
-      , pgConnStr = encodeUtf8 $ appPostgresString appSettings
-      }
-
-    -- Temporary workaround to force content updates regularly, until
-    -- distribution of webhooks is handled via consul
-    void $ forkIO $ forever $ void $ do
-        threadDelay $ 1000 * 1000 * 60 * 5
-        handleAny print $ grRefresh appWebsiteContent
-
-    appLatestStackMatcher <- mkAutoUpdate defaultUpdateSettings
-        { updateFreq = 1000 * 1000 * 60 * 30 -- update every thirty minutes
-        , updateAction = getLatestMatcher appHttpManager
-        }
-
-    appHoogleLock <- newMVar ()
-
-    appMirrorStatus <- mkUpdateMirrorStatus
-    hoogleLocker <- newHoogleLocker True appHttpManager
-    let appGetHoogleDB = singleRun hoogleLocker
-    let appGitRev = $$tGitRev
-
-    return App {..}
 
 makeLogWare :: App -> IO Middleware
 makeLogWare foundation =
@@ -180,21 +189,26 @@ warpSettings foundation =
             (toLogStr $ "Exception from Warp: " ++ show e))
       defaultSettings
 
--- | For yesod devel, return the Warp settings and WAI Application.
-getApplicationDev :: IO (Settings, Application)
-getApplicationDev = do
-    settings <- getAppSettings
-    foundation <- makeFoundation settings
-    wsettings <- getDevSettings $ warpSettings foundation
-    app <- makeApplication foundation
-    return (wsettings, app)
+-- | For yesod devel, apply an action to Warp settings, RIO's LogFunc and Foundation.
+withFoundationDev :: (Settings -> App -> IO a) -> IO a
+withFoundationDev inner = do
+    appSettings <- getAppSettings
+    logOpts <- getLogOpts appSettings
+    withLogFunc logOpts $ \logFunc ->
+        withFoundation logFunc appSettings $ \foundation -> do
+            settings <- getDevSettings $ warpSettings foundation
+            inner settings foundation
 
-getAppSettings :: IO AppSettings
-getAppSettings = loadYamlSettings [configSettingsYml] [] useEnv
+
+withApplicationDev :: (Settings -> Application -> IO a) -> IO a
+withApplicationDev inner =
+    withFoundationDev $ \ settings foundation -> do
+        application <- makeApplication foundation
+        inner settings application
 
 -- | main function for use by yesod devel
 develMain :: IO ()
-develMain = develMainHelper getApplicationDev
+develMain = withApplicationDev $ \settings app -> develMainHelper (pure (settings, app))
 
 -- | The @main@ function for an executable running this site.
 appMain :: IO ()
@@ -206,30 +220,30 @@ appMain = do
 
         -- allow environment variables to override
         useEnv
+    logOpts <- getLogOpts settings
+    withLogFunc logOpts $ \ logFunc -> do
+        -- Generate the foundation from the settings
+        withFoundation logFunc settings $ \ foundation -> do
 
-    -- Generate the foundation from the settings
-    foundation <- makeFoundation settings
+            -- Generate a WAI Application from the foundation
+            app <- makeApplication foundation
 
-    -- Generate a WAI Application from the foundation
-    app <- makeApplication foundation
-
-    -- Run the application with Warp
-    runSettings (warpSettings foundation) app
+            -- Run the application with Warp
+            runSettings (warpSettings foundation) app
 
 
 --------------------------------------------------------------
 -- Functions for DevelMain.hs (a way to run the app from GHCi)
 --------------------------------------------------------------
-getApplicationRepl :: IO (Int, App, Application)
-getApplicationRepl = do
+withApplicationRepl :: (Int -> App -> Application -> IO ()) -> IO ()
+withApplicationRepl inner = do
     settings <- getAppSettings
-    foundation <- makeFoundation settings
-    wsettings <- getDevSettings $ warpSettings foundation
-    app1 <- makeApplication foundation
-    return (getPort wsettings, foundation, app1)
-
-shutdownApp :: App -> IO ()
-shutdownApp _ = return ()
+    logOpts <- getLogOpts settings
+    withLogFunc logOpts $ \ logFunc ->
+        withFoundation logFunc settings $ \foundation -> do
+            wsettings <- getDevSettings $ warpSettings foundation
+            app1 <- makeApplication foundation
+            inner (getPort wsettings) foundation app1
 
 
 ---------------------------------------------
@@ -238,4 +252,8 @@ shutdownApp _ = return ()
 
 -- | Run a handler
 handler :: Handler a -> IO a
-handler h = getAppSettings >>= makeFoundation >>= flip unsafeHandler h
+handler h = do
+    logOpts <- logOptionsHandle stdout True
+    withLogFunc logOpts $ \ logFunc -> do
+        settings <- getAppSettings
+        withFoundation logFunc settings (`unsafeHandler` h)

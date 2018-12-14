@@ -1,9 +1,13 @@
-{-# LANGUAGE TupleSections, OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Handler.Snapshots where
 
-import           Data.Time.Clock
-import           Import
+import RIO.Time
+import Import
 import Stackage.Database
 
 snapshotsPerPage :: Integral a => a
@@ -18,7 +22,7 @@ snapshotsPerPage = 50
 -- inclined, or create a single monolithic file.
 getAllSnapshotsR :: Handler TypedContent
 getAllSnapshotsR = track "Handler.Snapshots.getAllSnapshotsR" $ do
-    now' <- liftIO getCurrentTime
+    now' <- getCurrentTime
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int
         currentPage = fromMaybe 1 (currentPageMay >>= readMay)
@@ -36,9 +40,9 @@ getAllSnapshotsR = track "Handler.Snapshots.getAllSnapshotsR" $ do
         setTitle "Stackage Server"
         let snapshotsNav = $(widgetFile "snapshots-nav")
         $(widgetFile "all-snapshots")
-        
+
       provideRep $ return $ object ["snapshots" .= groups, "totalCount" .= totalCount]
-                
+
   where uncrapify now' snapshot =
             ( snapshotName snapshot
             , snapshotTitle snapshot

@@ -5,5 +5,5 @@
     <ul>
         $forall mli <- mlis
             <li>
-                <a href=#{mliUrl mli}>#{mliName mli}
-                (#{mliPackageVersion mli})
+                <a href=#{mliUrl mli}>#{mliModuleName mli}
+                (#{toPathPiece $ mliPackageIdentifier mli})

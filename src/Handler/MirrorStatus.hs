@@ -1,3 +1,5 @@
+{-# LANGUAGE QuasiQuotes #-}
+
 module Handler.MirrorStatus
     ( getMirrorStatusR
     , mkUpdateMirrorStatus
@@ -6,7 +8,7 @@ module Handler.MirrorStatus
 import Import
 import Control.AutoUpdate
 import Network.HTTP.Simple
-import Data.Time (parseTimeM, diffUTCTime, addUTCTime)
+import RIO.Time (parseTimeM, diffUTCTime, addUTCTime, getCurrentTime)
 import Text.XML.Stream.Parse
 import Data.XML.Types (Event (EventContent), Content (ContentText))
 import qualified Prelude

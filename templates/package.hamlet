@@ -1,63 +1,65 @@
 $newline never
-<div .container #snapshot-home .content :deprecated:.deprecated>
+<div .container #snapshot-home .content :isDeprecated:.deprecated>
     <div .row>
         <div .span12>
-            $if deprecated
+            $if isDeprecated
               <h1 .package-deprecation-warning>
                 Deprecated
-              $if (not $ null ixInFavourOf)
+              $if (not $ null inFavourOf)
                 <div .in-favour-of>
                   In favour of
                   <div .in-favour-of-list>
-                    $forall (i, pn) <- ixInFavourOf
+                    $forall (i, pn) <- enumerate inFavourOf
                       $if i /= 0
                         , #
-                      <a href="@{PackageR $ PackageName pn}">
+                      <a href="@{PackageR pn}">
                         #{pn}
             <h1>
-               #{pn}
+               #{pname}
             <p .synopsis>
-                #{synopsis}
+                #{piSynopsis}
                \ #
-               $maybe url <- homepage
+               $maybe url <- piHomepage
                    <a href="#{url}">
                        #{url}
 
             <table>
-              $forall displayedVersion <- mdisplayedVersion
+              $maybe displayedVersion <- mdisplayedVersion
                 <tr>
                   <td align=right>Version on this page:
                   <td>
                     <span .version>#{displayedVersion}
-              $forall li <- latests
-                 <tr>
-                   <td align="right">
-                     <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
-                        #{prettyNameShort (liSnapName li)}
-                     :
-                   <td>
-                     <span .version>
-                       <a href=@{SnapshotR (liSnapName li) (StackageSdistR (PNVName pn))}>#{liVersion li}
-              <tr>
-                <td align="right">Latest on Hackage:
-                <td>
-                  <a href="https://hackage.haskell.org/package/#{pn}-#{latestVersion}">
-                    <span .version>#{latestVersion}
+              $maybe sppi <- msppi
+                $forall li <- sppiLatestInfo sppi
+                   <tr>
+                     <td align="right">
+                       <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
+                          #{snapshotPrettyNameShort (liSnapName li)}
+                       :
+                     <td>
+                       <span .version>
+                         <a href=@{SnapshotR (liSnapName li) (StackageSdistR (PNVName pname))}>#{liVersionRev li}
+              $maybe hciLatest <- mhciLatest
+                  <tr>
+                    <td align="right">Latest on Hackage:
+                    <td>
+                      <a href="https://hackage.haskell.org/package/#{hciPackageName hciLatest}">
+                        <span .version>#{hciVersionRev hciLatest}
 
-            $if null latests
+            $if isNothing msppi
                 <p .add-to-nightly>
                     This package is not currently in any snapshots. If you're interested in using it, we recommend #
                     <a href="https://github.com/fpco/stackage/#add-your-package">adding it to Stackage Nightly
                     . Doing so will make builds more reliable, and allow stackage.org to host generated Haddocks.
             $else
                 <p>
-                  <a href=@{PackageSnapshotsR pn}>See all snapshots <code>#{pn}</code> appears in
+                  <a href=@{PackageSnapshotsR pname}>See all snapshots <code>#{pname}</code> appears in
 
     <div .row>
         <div .span12>
             <div .authorship>
                 <span .license>
-                    #{packageLicenseName package} licensed #
+                    #{piLicenseName} licensed #
                     $if null maintainers
                         and maintained #
                 $if not (null authors)
@@ -76,47 +78,61 @@ $newline never
                                       #{name}
                               $of _
 
-           <div .maintainer>
-               $if not (null maintainers)
-                    Maintained by #
-                    $forall (i,identity) <- maintainers
-                         <strong .author>
-                             $case identity
-                                $of PlainText name
-                                    $if i /= 0
-                                        , #
-                                    #{name}
-                                $of Contact name email
-                                    $if i /= 0
-                                        , #
-                                    <a href="mailto:#{renderEmail email}">
-                                        #{name}
-                                $of EmailOnly email
-                                    $if i /= 0
-                                        , #
-                                    <a href="mailto:#{renderEmail email}">
-                                        #{renderEmail email}
+            <div .maintainer>
+                $if not (null maintainers)
+                     Maintained by #
+                     $forall (i,identity) <- maintainers
+                          <strong .author>
+                              $case identity
+                                 $of PlainText name
+                                     $if i /= 0
+                                         , #
+                                     #{name}
+                                 $of Contact name email
+                                     $if i /= 0
+                                         , #
+                                     <a href="mailto:#{renderEmail email}">
+                                         #{name}
+                                 $of EmailOnly email
+                                     $if i /= 0
+                                         , #
+                                     <a href="mailto:#{renderEmail email}">
+                                         #{renderEmail email}
 
-            $maybe (sname, version, modules) <- mdocs
-                <div .docs>
-                    <h4>
-                        Module documentation for #{version}
-                    $if null modules
-                        <p>There are no documented modules for this package.
-                    $else
-                        ^{hoogleForm sname}
-                        ^{renderModules sname (toPkgVer pname' version) modules}
 
-$if not (LT.null (LT.renderHtml (packageDescription package)))
+            $maybe sppi <- msppi
+                $with spi <- sppiSnapshotPackageInfo sppi
+                    <div .docs>
+                        <h4>
+                            Module documentation for #{spiVersion spi}
+                        $maybe pantryCabal <- sppiPantryCabal sppi
+                            <div .pantry-version>
+                                This version can be pinned in stack with:
+                                <code>#{pantryCabal}
+                        $if null (sppiModuleNames sppi)
+                            <p>There are no documented modules for this package.
+                        $else
+                            ^{hoogleForm (spiSnapName spi)}
+                            ^{renderModules sppi}
+
+$if not (LT.null (LT.renderHtml piReadme))
     <div .markdown-container .readme-container>
         <div .container .content>
             <div .row>
                 <div .span12 .expanding>
-                    #{packageDescription package}
+                    #{piReadme}
+                    <div .bottom-gradient>
+                        <i class="fa fa-angle-down">
+$elseif not (LT.null (LT.renderHtml piDescription))
+    <div .markdown-container .readme-container>
+        <div .container .content>
+            <div .row>
+                <div .span12 .expanding>
+                    #{piDescription}
                     <div .bottom-gradient>
                         <i class="fa fa-angle-down">
 
-$if not (LT.null (LT.renderHtml (packageChangelog package)))
+$if not (LT.null (LT.renderHtml piChangelog))
     <div .container .content id=changes>
        <div .row>
            <div .span12>
@@ -125,39 +141,40 @@ $if not (LT.null (LT.renderHtml (packageChangelog package)))
         <div .container>
             <div .row>
                 <div .span12 .expanding>
-                    #{packageChangelog package}
+                    #{piChangelog}
                     <div .bottom-gradient>
                         <i class="fa fa-angle-down">
 
 <div .container #snapshot-home .content>
     <div .row>
         <div .span12>
-            $if depsCount > 0
-              <div .dependencies #dependencies>
-                Depends on #{renderNoPackages depsCount}:
-                <div .dep-list>
-                    $forall (i,(name, range)) <- deps
-                        $if i /= 0
-                            , #
-                        <a href=@{PackageR $ PackageName name} title=#{range}>
-                            #{name}
-                    $if depsCount > maxDisplayedDeps
-                      , #
-                      <a href=@{packageDepsLink}>
-                        <b>and many more
-            $if revdepsCount > 0
-              <div .reverse-dependencies #reverse-dependencies>
-                Used by #{renderNoPackages revdepsCount}:
-                <div .dep-list>
-                    $forall (i,(name, range)) <- revdeps
-                        $if i /= 0
-                            , #
-                        <a href=@{PackageR $ PackageName name} title=#{range}>
-                            #{name}
-                    $if revdepsCount > maxDisplayedDeps
-                      , #
-                      <a href=@{packageRevDepsLink}>
-                        <b>and many more
+            $maybe sppi <- msppi
+                $with spi <- sppiSnapshotPackageInfo sppi
+                    $if (sppiForwardDepsCount sppi > 0)
+                      <div .dependencies #dependencies>
+                        Depends on #{renderNumPackages (sppiForwardDepsCount sppi)}
+                        <em>(<a href=@{makeDepsLink spi SnapshotPackageDepsR}>full list with versions</a>)</em>:
+                        <div .dep-list>
+                            $forall (i, (name, range)) <- enumerate (sppiForwardDeps sppi)
+                                $if i /= 0
+                                    , #
+                                <a href=@{PackageR name} title=#{range}>
+                                    #{name}
+                            $if (sppiForwardDepsCount sppi > maxDisplayedDeps)
+                              , <em>and many more</em>
+                    $if (sppiReverseDepsCount sppi > 0)
+                        <div .reverse-dependencies #reverse-dependencies>
+                          Used by #{renderNumPackages (sppiReverseDepsCount sppi)} in <b>#{spiSnapName spi}</b>
+                          <em>(<a href=@{makeDepsLink spi SnapshotPackageRevDepsR}>full list with versions</a>)</em>:
+                          <div .dep-list>
+                              $forall (i, (name, range)) <- enumerate (sppiReverseDeps sppi)
+                                  $if i /= 0
+                                      , #
+                                  <a href=@{PackageR name} title=#{range}>
+                                      #{name}
+                              $if (sppiReverseDepsCount sppi > maxDisplayedDeps)
+                                , <em>and many more</em>
+
 
 <div .container .content>
     <div .row>

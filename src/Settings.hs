@@ -1,3 +1,7 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
 -- | Settings are centralized, as much as possible, into this file. This
 -- includes database connection settings, static file locations, etc.
 -- In addition, you can configure a number of different aspects of Yesod
@@ -6,16 +10,16 @@
 module Settings where
 
 import ClassyPrelude.Yesod
-import Data.Aeson                  (Result (..), fromJSON, withObject, (.!=),
-                                    (.:?))
-import Data.FileEmbed              (embedFile)
-import Data.Yaml                   (decodeEither')
-import Language.Haskell.TH.Syntax  (Exp, Name, Q)
-import Network.Wai.Handler.Warp    (HostPreference)
-import Yesod.Default.Config2       (applyEnvValue, configSettingsYml)
-import Yesod.Default.Util          (WidgetFileSettings, widgetFileNoReload,
-                                    widgetFileReload, wfsHamletSettings)
+import Data.Aeson (Result(..), fromJSON, withObject, (.!=), (.:?))
+import Data.FileEmbed (embedFile)
+import Data.Yaml (decodeEither')
+import Data.Yaml.Config
+import Language.Haskell.TH.Syntax (Exp, Name, Q)
+import Network.Wai.Handler.Warp (HostPreference)
 import Text.Hamlet
+import Yesod.Default.Config2 (applyEnvValue, configSettingsYml)
+import Yesod.Default.Util (WidgetFileSettings, wfsHamletSettings,
+                           widgetFileNoReload, widgetFileReload)
 
 -- | Runtime settings to configure this application. These settings can be
 -- loaded from various sources: defaults, environment variables, config files,
@@ -118,7 +122,7 @@ configSettingsYmlValue = either impureThrow id $ decodeEither' configSettingsYml
 compileTimeAppSettings :: AppSettings
 compileTimeAppSettings =
     case fromJSON $ applyEnvValue False mempty configSettingsYmlValue of
-        Error e -> error e
+        Error e          -> error e
         Success settings -> settings
 
 -- The following two functions can be used to combine multiple CSS or JS files
@@ -136,3 +140,7 @@ combineScripts :: Name -> [Route Static] -> Q Exp
 combineScripts = combineScripts'
     (appSkipCombining compileTimeAppSettings)
     combineSettings
+
+
+getAppSettings :: IO AppSettings
+getAppSettings = loadYamlSettings [configSettingsYml] [] useEnv

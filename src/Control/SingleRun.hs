@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 -- | Ensure that a function is only being run on a given input in one
 -- thread at a time. All threads trying to make the call at once
 -- return the same result.
@@ -7,10 +9,7 @@ module Control.SingleRun
     , singleRun
     ) where
 
-import Control.Concurrent.MVar
-import Control.Exception
-import Control.Monad (join)
-import Prelude
+import RIO
 
 -- | Captures all of the locking machinery and the function which is
 -- run to generate results. Use 'mkSingleRun' to create this value.
@@ -20,13 +19,13 @@ data SingleRun k v = SingleRun
     -- computations. More ideal would be to use a Map, but we're
     -- avoiding dependencies outside of base in case this moves into
     -- auto-update.
-    , srFunc :: k -> IO v
+    , srFunc :: forall m . MonadIO m => k -> m v
     }
 
 -- | Create a 'SingleRun' value out of a function.
-mkSingleRun :: Eq k
-            => (k -> IO v)
-            -> IO (SingleRun k v)
+mkSingleRun :: MonadIO m => Eq k
+            => (forall n . MonadIO n => k -> n v)
+            -> m (SingleRun k v)
 mkSingleRun f = do
     var <- newMVar []
     return SingleRun
@@ -52,7 +51,7 @@ toRes se =
 -- exception, we will rethrow that same synchronous exception. If,
 -- however, that other thread dies from an asynchronous exception, we
 -- will retry.
-singleRun :: Eq k => SingleRun k v -> k -> IO v
+singleRun :: (MonadUnliftIO m, Eq k) => SingleRun k v -> k -> m v
 singleRun sr@(SingleRun var f) k =
     -- Mask all exceptions so that we don't get killed between exiting
     -- the modifyMVar and entering the join, which could leave an

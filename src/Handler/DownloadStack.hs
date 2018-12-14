@@ -1,14 +1,16 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Handler.DownloadStack
     ( getDownloadStackListR
     , getDownloadStackR
     , getLatestMatcher
     ) where
 
-import Import
-import Yesod.GitRepo
-import Data.WebsiteContent
 import Data.Aeson.Parser (json)
 import Data.Conduit.Attoparsec (sinkParser)
+import Data.WebsiteContent
+import Import
+import Yesod.GitRepo
 
 getDownloadStackListR :: Handler Html
 getDownloadStackListR = track "Handler.DownloadStack.getDownloadStackListR" $ do
@@ -18,9 +20,9 @@ getDownloadStackListR = track "Handler.DownloadStack.getDownloadStackListR" $ do
         $(widgetFile "download-stack-list")
 
 getDownloadStackR :: Text -> Handler ()
-getDownloadStackR pattern = track "Handler.DownloadStack.getDownloadStackR" $ do
+getDownloadStackR pattern' = track "Handler.DownloadStack.getDownloadStackR" $ do
     matcher <- getYesod >>= liftIO . appLatestStackMatcher
-    maybe notFound redirect $ matcher pattern
+    maybe notFound redirect $ matcher pattern'
 
 -- | Creates a function which will find the latest release for a given pattern.
 getLatestMatcher :: Manager -> IO (Text -> Maybe Text)
@@ -30,11 +32,11 @@ getLatestMatcher man = do
             }
     val <- flip runReaderT man $ withResponse req
         $ \res -> runConduit $ responseBody res .| sinkParser json
-    return $ \pattern -> do
-        let pattern' = pattern ++ "."
+    return $ \pattern' -> do
+        let pattern'' = pattern' ++ "."
         Object top <- return val
         Array assets <- lookup "assets" top
-        headMay $ preferZip $ catMaybes $ map (findMatch pattern') assets
+        headMay $ preferZip $ catMaybes $ map (findMatch pattern'') assets
   where
     findMatch pattern' (Object o) = do
         String name <- lookup "name" o
@@ -44,5 +46,5 @@ getLatestMatcher man = do
         Just url
     findMatch _ _ = Nothing
 
-    preferZip = map snd . sortBy (comparing fst) . map
+    preferZip = map snd . sortOn fst . map
         (\x -> (if ".zip" `isSuffixOf` x then 0 else 1 :: Int, x))

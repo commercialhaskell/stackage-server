@@ -1,13 +1,16 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE QuasiQuotes #-}
 module Handler.Feed
     ( getFeedR
     , getBranchFeedR
     ) where
 
+import Data.These
 import Import
 import Stackage.Database
-import Data.These
 import Stackage.Snapshot.Diff
 import Text.Blaze (text)
+import RIO.Time (getCurrentTime)
 
 getFeedR :: Handler TypedContent
 getFeedR = track "Handler.Feed.getBranchFeedR" $ getBranchFeed Nothing
@@ -26,13 +29,13 @@ mkFeed mBranch snaps = do
         return FeedEntry
             { feedEntryLink = SnapshotR (snapshotName snap) StackageHomeR
             , feedEntryUpdated = UTCTime (snapshotCreated snap) 0
-            , feedEntryTitle = prettyName (snapshotName snap) (snapshotGhc snap)
+            , feedEntryTitle = snapshotTitle snap
             , feedEntryContent = content
             , feedEntryEnclosure = Nothing
             }
     updated <-
         case entries of
-            [] -> liftIO getCurrentTime
+            []  -> getCurrentTime
             x:_ -> return $ feedEntryUpdated x
     newsFeed Feed
         { feedTitle = title
@@ -46,8 +49,8 @@ mkFeed mBranch snaps = do
         , feedLogo = Nothing
         }
   where
-    branchTitle NightlyBranch = "Nightly"
-    branchTitle LtsBranch     = "LTS"
+    branchTitle NightlyBranch      = "Nightly"
+    branchTitle LtsBranch          = "LTS"
     branchTitle (LtsMajorBranch x) = "LTS-" <> tshow x
     title = "Recent Stackage " <> maybe "" branchTitle mBranch <> " snapshots"
 
@@ -61,7 +64,7 @@ getContent sid2 snap = do
             let name2 = snapshotName snap
             withUrlRenderer
                 [hamlet|
-                  <p>Difference between #{prettyNameShort name1} and #{prettyNameShort $ snapshotName snap}
+                  <p>Difference between #{snapshotPrettyNameShort name1} and #{snapshotPrettyNameShort $ snapshotName snap}
                   <table border=1 cellpadding=5>
                     <thead>
                       <tr>
@@ -69,9 +72,9 @@ getContent sid2 snap = do
                         <th align=right>Old
                         <th align=left>New
                     <tbody>
-                      $forall (pkgname@(PackageName name), VersionChange change, versionDiff) <- toVersionedDiffList snapDiff
+                      $forall (pkgname, VersionChange change, versionDiff) <- toVersionedDiffList snapDiff
                         <tr>
-                          <th align=right>#{name}
+                          <th align=right>#{pkgname}
                           $case change
                             $of This old
                               <td align=right>

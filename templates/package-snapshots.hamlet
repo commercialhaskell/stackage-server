@@ -7,12 +7,12 @@ $newline never
             <table .table .snapshots>
                 <thead>
                     <th>
-                        Package
+                        Package version
                     <th>
                         Snapshot
-                $forall (snapshot, version) <- snapshots
+                $forall (compiler, spi) <- snapshots
                     <tr>
                         <td>
-                            #{version}
+                            #{spiVersionRev spi}
                         <td>
-                            <a href=@{SnapshotR (snapshotName snapshot) $ StackageSdistR $ PNVName pn}>#{snapshotTitle snapshot}
+                            <a href=@{SnapshotR (spiSnapName spi) $ StackageSdistR $ PNVName pn}>#{snapshotPrettyName (spiSnapName spi) compiler}

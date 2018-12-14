@@ -21,13 +21,11 @@ dependencies:
 - classy-prelude-yesod
 - conduit
 - conduit-extra
-- cryptonite
 - directory
 - email-validate
 - esqueleto
 - exceptions
 - fast-logger
-- foreign-store
 - ghc-prim
 - html-conduit
 - http-conduit
@@ -35,14 +33,17 @@ dependencies:
 - mtl
 #- prometheus-client
 #- prometheus-metrics-ghc
+- pantry
+- path
 - persistent
 - persistent-template
 - resourcet
+- rio
 - shakespeare
-- tar
+- tar-conduit
 - template-haskell
-- temporary
 - text
+- transformers
 - these
 - unliftio
 - wai
@@ -63,7 +64,6 @@ dependencies:
 - hashable
 - Cabal
 - mono-traversable
-- time
 - process
 - cmark-gfm
 - formatting
@@ -89,39 +89,9 @@ dependencies:
 - file-embed
 - resource-pool
 - containers
-- pretty
 
 default-extensions:
-- TemplateHaskell
-- QuasiQuotes
 - OverloadedStrings
-- NoImplicitPrelude
-- CPP
-- MultiParamTypeClasses
-- TypeFamilies
-- GADTs
-- GeneralizedNewtypeDeriving
-- FlexibleContexts
-- EmptyDataDecls
-- NoMonomorphismRestriction
-- DeriveDataTypeable
-- ViewPatterns
-- TypeSynonymInstances
-- FlexibleInstances
-- RankNTypes
-- FunctionalDependencies
-- PatternGuards
-- StandaloneDeriving
-- UndecidableInstances
-- RecordWildCards
-- ScopedTypeVariables
-- BangPatterns
-- TupleSections
-- DeriveGeneric
-- DeriveFunctor
-- DeriveFoldable
-- DeriveTraversable
-- LambdaCase
 
 library:
   source-dirs: src
@@ -141,24 +111,33 @@ executables:
   stackage-server:
     main: main.hs
     source-dirs: app
-    ghc-options: -threaded -O2 -rtsopts "-with-rtsopts=-N -T"
+    ghc-options: -Wall -threaded -O2 -rtsopts "-with-rtsopts=-N -T"
     dependencies:
     - stackage-server
     when:
     - condition: flag(library-only)
       buildable: false
     - condition: flag(dev)
-      cpp-options: -DDEVELOPMENT
+      then:
+        other-modules: DevelMain
+        dependencies:
+          - foreign-store
+      else:
+        other-modules: []
 
   stackage-server-cron:
     main: stackage-server-cron.hs
     source-dirs: app
+    other-modules: []
     ghc-options:
+    - -Wall
     - -threaded
     - -O2
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - optparse-applicative
+    - rio
     - stackage-server
     when:
     - condition: flag(library-only)

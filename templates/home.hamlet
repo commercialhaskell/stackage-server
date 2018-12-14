@@ -73,7 +73,7 @@
             <ul>
                 $forall (major, minor, ghc, date) <- latestLtsByGhc
                   <li>
-                    <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for GHC #{ghc}#
+                    <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for #{ghc}#
                     \, published #{dateDiff now' date}
             <h3>
                 Package Maintainers

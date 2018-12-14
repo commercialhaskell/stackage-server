@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 module Handler.OldLinks
     ( getOldSnapshotBranchR
     , getOldSnapshotR

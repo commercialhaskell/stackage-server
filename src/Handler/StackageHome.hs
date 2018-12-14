@@ -1,3 +1,9 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 module Handler.StackageHome
     ( getStackageHomeR
     , getStackageDiffR
@@ -6,33 +12,34 @@ module Handler.StackageHome
     , getSnapshotPackagesR
     ) where
 
-import Import
+import Data.Ord
 import Data.These
-import Data.Time (FormatTime)
+import RIO.Time (FormatTime)
+import Import
 import Stackage.Database
-import Stackage.Database.Types (isLts)
+import Stackage.Database.Types (PackageListingInfo(..), isLts)
 import Stackage.Snapshot.Diff
 
 getStackageHomeR :: SnapName -> Handler TypedContent
-getStackageHomeR name = track "Handler.StackageHome.getStackageHomeR" $ do
-    Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
-    previousSnapName <- fromMaybe name . map snd <$> snapshotBefore (snapshotName snapshot)
-    let hoogleForm =
-            let queryText = "" :: Text
-                exact = False
-                mPackageName = Nothing :: Maybe Text
-            in $(widgetFile "hoogle-form")
-    packageCount <- getPackageCount sid
-    packages <- getPackages sid
-    selectRep $ do
-      provideRep $ do
-        defaultLayout $ do
-            setTitle $ toHtml $ snapshotTitle snapshot
-            $(widgetFile "stackage-home")
-      provideRep $ pure $ toJSON $ SnapshotInfo snapshot packages
-
-
-  where strip x = fromMaybe x (stripSuffix "." x)
+getStackageHomeR name =
+    track "Handler.StackageHome.getStackageHomeR" $ do
+        Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
+        previousSnapName <- fromMaybe name . map snd <$> snapshotBefore (snapshotName snapshot)
+        let hoogleForm =
+                let queryText = "" :: Text
+                    exact = False
+                    mPackageName = Nothing :: Maybe Text
+                 in $(widgetFile "hoogle-form")
+        packages <- getPackagesForSnapshot sid
+        let packageCount = length packages
+        selectRep $ do
+            provideRep $
+                defaultLayout $ do
+                    setTitle $ toHtml $ snapshotTitle snapshot
+                    $(widgetFile "stackage-home")
+            provideRep $ pure $ toJSON $ SnapshotInfo snapshot packages
+  where
+    strip x = fromMaybe x (stripSuffix "." x)
 
 data SnapshotInfo
   = SnapshotInfo { snapshot :: Snapshot
@@ -48,7 +55,7 @@ getStackageDiffR name1 name2 = track "Handler.StackageHome.getStackageDiffR" $ d
     Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
     Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
     (map (snapshotName . entityVal) -> snapNames) <- getSnapshots Nothing 0 0
-    let (ltsSnaps, nightlySnaps) = partition isLts $ reverse $ sort snapNames
+    let (ltsSnaps, nightlySnaps) = partition isLts $ sortOn Down snapNames
     snapDiff <- getSnapshotDiff sid1 sid2
     selectRep $ do
         provideRep $ defaultLayout $ do
@@ -69,7 +76,7 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
     mglobal <- lookupGetParam "global"
     let isGlobal = mglobal == Just "true"
 
-    plis <- getPackages sid
+    plis <- getPackagesForSnapshot sid
 
     respondSource typePlain $ yieldMany plis .|
         if isGlobal
@@ -119,7 +126,7 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
     asHttp s = error $ "Unexpected url prefix: " <> unpack s
 
     constraint p
-        | pliIsCore p = toBuilder $ asText " installed"
+        | pliOrigin p == Core = toBuilder $ asText " installed"
         | otherwise = toBuilder (asText " ==") ++
                       toBuilder (pliVersion p)
 
@@ -153,7 +160,7 @@ getDocsR name = track "Handler.StackageHome.getDocsR" $ do
     Entity sid _ <- lookupSnapshot name >>= maybe notFound return
     mlis <- getSnapshotModules sid
     render <- getUrlRender
-    let mliUrl mli = render $ haddockUrl name (mliPackageVersion mli) (mliName mli)
+    let mliUrl mli = render $ haddockUrl name mli
     defaultLayout $ do
         setTitle $ toHtml $ "Module list for " ++ toPathPiece name
         $(widgetFile "doc-list")

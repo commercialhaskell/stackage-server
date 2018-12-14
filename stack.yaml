@@ -1,1 +1,10 @@
-resolver: lts-13.9
+resolver: lts-13.16
+packages:
+  - '.'
+extra-deps:
+- git: https://github.com/commercialhaskell/stack
+  commit: dfbf85ad7e8af5b01cf7b51367290870ffc2c90e
+  subdirs:
+  - subs/http-download
+  - subs/pantry
+  - subs/rio-prettyprint

@@ -1,6 +1,6 @@
 ((haskell-mode . ((haskell-indent-spaces . 4)
-                  (hindent-style . "johan-tibell")
-                  (haskell-process-type . cabal-repl)
+                  ;;(hindent-style . "johan-tibell")
+                  ;;(haskell-process-type . cabal-repl)
                   (haskell-process-use-ghci . t)))
  (hamlet-mode . ((hamlet/basic-offset . 4)
                  (haskell-process-use-ghci . t)))

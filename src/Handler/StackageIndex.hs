@@ -1,13 +1,15 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 module Handler.StackageIndex where
 
 import Import
-import Stackage.Database
+import Stackage.Database.Types (haddockBucketName)
 
 getStackageIndexR :: SnapName -> Handler TypedContent
-getStackageIndexR slug = do
-    -- Insecure, courtesy of cabal-install
+getStackageIndexR slug =
     redirect $ concat
-        [ "http://haddock.stackage.org/package-index/"
+        [ "https://s3.amazonaws.com/"
+        , haddockBucketName
+        , "/package-index/"
         , toPathPiece slug
         , ".tar.gz"
         ]

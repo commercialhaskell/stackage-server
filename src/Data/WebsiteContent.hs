@@ -1,3 +1,7 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeFamilies #-}
 module Data.WebsiteContent
     ( WebsiteContent (..)
     , StackRelease (..)
@@ -7,31 +11,31 @@ module Data.WebsiteContent
 
 import ClassyPrelude.Yesod
 import CMarkGFM
-import Data.GhcLinks
 import Data.Aeson (withObject)
+import Data.GhcLinks
 import Data.Yaml
 import System.FilePath (takeFileName)
-import Types
 import Text.Blaze.Html (preEscapedToHtml)
+import Types
 
 data WebsiteContent = WebsiteContent
-    { wcHomepage :: !Html
-    , wcAuthors  :: !Html
+    { wcHomepage      :: !Html
+    , wcAuthors       :: !Html
     , wcOlderReleases :: !Html
-    , wcGhcLinks :: !GhcLinks
+    , wcGhcLinks      :: !GhcLinks
     , wcStackReleases :: ![StackRelease]
-    , wcPosts :: !(Vector Post)
-    , wcSpamPackages :: !(Set PackageName)
+    , wcPosts         :: !(Vector Post)
+    , wcSpamPackages  :: !(Set PackageNameP)
     -- ^ Packages considered spam which should not be displayed.
     }
 
 data Post = Post
-  { postTitle :: !Text
-  , postSlug :: !Text
-  , postAuthor :: !Text
-  , postTime :: !UTCTime
+  { postTitle       :: !Text
+  , postSlug        :: !Text
+  , postAuthor      :: !Text
+  , postTime        :: !UTCTime
   , postDescription :: !Text
-  , postBody :: !Html
+  , postBody        :: !Html
   }
 
 loadWebsiteContent :: FilePath -> IO WebsiteContent
@@ -47,7 +51,7 @@ loadWebsiteContent dir = do
       putStrLn $ "Error loading posts: " ++ tshow e
       return mempty
     wcSpamPackages <- decodeFileEither (dir </> "spam-packages.yaml")
-                  >>= either throwIO (return . setFromList . map PackageName)
+                  >>= either throwIO (return . setFromList)
     return WebsiteContent {..}
   where
     readHtml fp = fmap preEscapedToMarkup $ readFileUtf8 $ dir </> fp
@@ -93,7 +97,7 @@ instance (slug ~ Text, body ~ Html) => FromJSON (slug -> body -> Post) where
     return $ \postSlug postBody -> Post {..}
 
 data StackRelease = StackRelease
-    { srName :: !Text
+    { srName    :: !Text
     , srPattern :: !Text
     }
 instance FromJSON StackRelease where

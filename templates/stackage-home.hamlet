@@ -15,7 +15,7 @@ $newline never
 
     <p>Edit your stack.yaml and set the following:
     <p .stack-resolver-yaml>resolver: #{toPathPiece name}
-    <p>You can also use <code>--resolver #{toPathPiece name}</code> on the command line
+    <p>You can also use <code>stack --resolver #{toPathPiece name}</code> on the command line
 
     <p>
         <b>New to stack?
@@ -39,7 +39,7 @@ $newline never
                 $forall pli <- packages
                     <tr>
                         <td>
-                            <a href=@{packageUrl name (PackageName $ pliName pli) (Version $ pliVersion pli)}>
+                            <a class=package-name href=@{packageUrl name (pliName pli) (pliVersion pli)}>
                                 #{pliName pli}-#{pliVersion pli}
                         <td>
                             #{strip $ pliSynopsis pli}

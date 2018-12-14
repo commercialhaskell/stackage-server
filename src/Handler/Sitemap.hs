@@ -74,7 +74,7 @@ packageMetadataSitemaps = awaitForever go
         url' PackageR
         url' PackageSnapshotsR
       where
-        url' floc = url $ floc $ PackageName $ packageName m
+        url' floc = url $ floc $ PackageNameP $ packageName m
 
 
 url :: Route App -> Sitemap

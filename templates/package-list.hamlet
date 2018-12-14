@@ -3,12 +3,15 @@
     <div .packages>
         <table .table>
             <thead>
+                <th>Latest snapshot
                 <th>Package
                 <th>Synopsis
             <tbody>
-                $forall (name, version, synopsis) <- packages
+                $forall (snapName, pli) <- packages
                     <tr>
+                        <td nowrap>
+                            <a href=@{SnapshotR snapName SnapshotPackagesR}>#{snapName}
+                        <td nowrap>
+                            <a href=@{makePackageLink snapName pli}>#{pliName pli}-#{pliVersion pli}
                         <td>
-                            <a href=@{PackageR $ PackageName name}>#{name}-#{version}
-                        <td>
-                            #{strip synopsis}
+                            #{strip (pliSynopsis pli)}

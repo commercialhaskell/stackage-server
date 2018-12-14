@@ -21,3 +21,5 @@ TAGS
 *~
 *#
 /stackage-server.cabal
+/hoogle/
+/hoogle-gen/

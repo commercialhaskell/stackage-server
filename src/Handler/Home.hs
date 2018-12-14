@@ -1,5 +1,8 @@
-{-# LANGUAGE TupleSections, OverloadedStrings #-}
-
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 module Handler.Home
     ( getHomeR
     , getAuthorsR
@@ -7,7 +10,7 @@ module Handler.Home
     , getOlderReleasesR
     ) where
 
-import Data.Time.Clock
+import RIO.Time
 import Import
 import Stackage.Database
 import Yesod.GitRepo (grContent)
@@ -21,7 +24,7 @@ import Yesod.GitRepo (grContent)
 -- inclined, or create a single monolithic file.
 getHomeR :: Handler Html
 getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
-    now' <- liftIO getCurrentTime
+    now' <- getCurrentTime
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int
         currentPage = fromMaybe 1 (currentPageMay >>= readMay)

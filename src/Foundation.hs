@@ -1,38 +1,46 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ViewPatterns #-}
 module Foundation where
 
-import           ClassyPrelude.Yesod
-import           Data.WebsiteContent
-import           Settings
-import           Settings.StaticFiles
-import           Text.Blaze
-import           Text.Hamlet (hamletFile)
-import           Types
-import           Yesod.Core.Types (Logger)
-import           Yesod.AtomFeed
-import           Yesod.GitRepo
+import ClassyPrelude.Yesod
+import Data.WebsiteContent
+import Settings
+import Settings.StaticFiles
 import Stackage.Database
+import Text.Blaze
+import Text.Hamlet (hamletFile)
+import Types
+import Yesod.AtomFeed
+import Yesod.Core.Types (Logger)
 import qualified Yesod.Core.Unsafe as Unsafe
-import           Yesod.GitRev (GitRev)
+import Yesod.GitRepo
+import Yesod.GitRev (GitRev)
+import qualified RIO
 
 -- | The site argument for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
 -- starts running, such as database connections. Every handler will have
 -- access to the data present here.
 data App = App
-    { appSettings :: AppSettings
-    , appStatic :: Static -- ^ Settings for static file serving.
-    , appHttpManager :: Manager
-    , appLogger :: Logger
-    , appWebsiteContent :: GitRepo WebsiteContent
-    , appStackageDatabase :: StackageDatabase
-    , appLatestStackMatcher :: IO (Text -> Maybe Text)
+    { appSettings           :: !AppSettings
+    , appStatic             :: !Static -- ^ Settings for static file serving.
+    , appHttpManager        :: !Manager
+    , appLogger             :: !Logger
+    , appLogFunc            :: !RIO.LogFunc
+    , appWebsiteContent     :: !(GitRepo WebsiteContent)
+    , appStackageDatabase   :: !StackageDatabase
+    , appLatestStackMatcher :: !(IO (Text -> Maybe Text))
     -- ^ Give a pattern, get a URL
-    , appHoogleLock :: MVar ()
+    , appHoogleLock         :: !(MVar ())
     -- ^ Avoid concurrent Hoogle queries, see
     -- https://github.com/fpco/stackage-server/issues/172
-    , appMirrorStatus :: IO (Status, WidgetFor App ())
-    , appGetHoogleDB :: SnapName -> IO (Maybe FilePath)
-    , appGitRev :: GitRev
+    , appMirrorStatus       :: !(IO (Status, WidgetFor App ()))
+    , appGetHoogleDB        :: !(SnapName -> IO (Maybe FilePath))
+    , appGitRev             :: !GitRev
     }
 
 instance HasHttpManager App where
@@ -87,7 +95,7 @@ defaultLayoutWithContainer insideContainer widget = do
 instance Yesod App where
     approot = ApprootRequest $ \app req ->
         case appRoot $ appSettings app of
-            Nothing -> getApprootText guessApproot app req
+            Nothing   -> getApprootText guessApproot app req
             Just root -> root
 
     -- Store session data on the client in encrypted cookies,
@@ -145,8 +153,8 @@ instance ToMarkup (Route App) where
     toMarkup c =
         case c of
           AllSnapshotsR{} -> "Snapshots"
-          BlogHomeR -> "Blog"
-          _ -> ""
+          BlogHomeR       -> "Blog"
+          _               -> ""
 
 -- This instance is required to use forms. You can modify renderMessage to
 -- achieve customized and internationalized form validation messages.
@@ -160,7 +168,10 @@ instance RenderMessage App FormMessage where
 --
 -- https://github.com/yesodweb/yesod/wiki/Sending-email
 
-instance GetStackageDatabase Handler where
+instance GetStackageDatabase App Handler where
     getStackageDatabase = appStackageDatabase <$> getYesod
-instance GetStackageDatabase (WidgetFor App) where
+    getLogFunc = appLogFunc <$> getYesod
+
+instance GetStackageDatabase App (WidgetFor App) where
     getStackageDatabase = appStackageDatabase <$> getYesod
+    getLogFunc = appLogFunc <$> getYesod
