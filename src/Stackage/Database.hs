@@ -224,8 +224,7 @@ openStackageDatabase pg = liftIO $ do
 getSchema :: PostgresConf -> IO (Maybe Int)
 getSchema fp = do
     StackageDatabase pool <- openStackageDatabase fp
-    eres <- tryAny $ runSqlPool (selectList [] []) pool
-    putStrLn $ "getSchema result: " ++ tshow eres
+    eres <- tryAny $ runSqlPool (selectList [] [Desc SchemaVal, LimitTo 1]) pool
     case eres of
         Right [Entity _ (Schema v)] -> return $ Just v
         _ -> return Nothing
@@ -241,7 +240,9 @@ createStackageDatabase fp = liftIO $ do
     StackageDatabase pool <- openStackageDatabase fp
     flip runSqlPool pool $ do
         runMigration migrateAll
-        unless schemaMatch $ insert_ $ Schema currentSchema
+        unless schemaMatch $ do
+          deleteWhere ([] :: [Filter Schema])
+          insert_ $ Schema currentSchema
 
     root <- liftIO $ (</> "database") <$> getAppUserDataDirectory "stackage"
     createDirectoryIfMissing True root
