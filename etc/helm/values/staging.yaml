@@ -1,0 +1,30 @@
+name: stackage-server-ci
+app: stackage-server-ci
+hoogleName: stackage-server-hoogle-ci
+hoogleApp: stackage-server-hoogle-ci
+cronName: stackage-server-cron-ci
+cronApp: stackage-server-cron-ci
+
+image:
+  replicas: 1
+  env:
+    #approot: "https://ci.stackage.org"
+    approot: ""
+
+stackageResources:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1.0Gi
+    limits:
+      cpu: 150m
+      memory: 1.5Gi
+
+cronResources:
+  resources:
+    requests:
+      cpu: 150m
+      memory: 1048Mi
+    limits:
+     cpu: 200m
+     memory: 2096Mi

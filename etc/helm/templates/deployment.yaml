@@ -1,0 +1,58 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+spec:
+  replicas: {{ .Values.image.replicas }}
+  minReadySeconds: 50
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app }}
+        release: {{ .Release.Name }}
+    spec:
+      imagePullSecrets:
+        - name: registry-key
+      containers:
+        - name: stackage-server
+          image: {{ .Values.image.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+          command:
+            - stackage-server
+          env:
+            - name: APPROOT
+              value: {{ .Values.image.env.approot | quote }}
+            - name: PGSTRING
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.name }}
+                  key: PGCONN
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+              httpHeaders:
+                # Works around stackage-server's `forceSSL` redirect
+                - name: HTTPS
+                  value: "on"
+          resources:
+{{ toYaml .Values.stackageResources.resources | indent 12 }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

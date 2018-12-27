@@ -1,0 +1,25 @@
+replicaCount: 1
+
+image:
+  env:
+    approot: "stackage.org"
+
+stackageResources:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1.0Gi
+    limits:
+      cpu: 150m
+      memory: 1.5Gi
+
+cronResources:
+  resources:
+    requests:
+      cpu: 150m
+      memory: 2048Mi
+    limits:
+     cpu: 300m
+     memory: 4096Mi
+
+

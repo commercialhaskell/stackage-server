@@ -1,0 +1,65 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ .Values.hoogleName }}
+spec:
+  replicas: {{ .Values.image.replicas }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.hoogleApp }}
+    spec:
+      imagePullSecrets:
+        - name: registry-key
+      containers:
+        - name: stackage-server-hoogle
+          image: {{ .Values.image.image }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+          command: ["stackage-server"]
+          workingDir: /app
+          env:
+            - name: APPROOT
+              value: {{ .Values.image.env.approot | quote }}
+            - name: PGSTRING
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.name }}
+                  key: PGCONN
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 120
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+              httpHeaders:
+                # Works around stackage-server's `forceSSL` redirect
+                - name: HTTPS
+                  value: "on"
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+            periodSeconds: 5
+            successThreshold: 1
+          resources:
+{{ toYaml .Values.stackageResources.resources | indent 12 }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
