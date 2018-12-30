@@ -1,5 +1,5 @@
 image:
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   minReadySeconds: 5
 
 service:

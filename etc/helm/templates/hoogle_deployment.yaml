@@ -3,11 +3,13 @@ kind: Deployment
 metadata:
   name: {{ .Values.hoogleName }}
 spec:
-  replicas: {{ .Values.image.replicas }}
+  replicas: {{ .Values.image.replicasHoggle }}
+  minReadySeconds: 5
   template:
     metadata:
       labels:
         app: {{ .Values.hoogleApp }}
+        release: {{ .Release.Name }}
     spec:
       imagePullSecrets:
         - name: registry-key
@@ -28,15 +30,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.name }}
                   key: PGCONN
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 3000
-            initialDelaySeconds: 120
-            timeoutSeconds: 1
-            periodSeconds: 10
-            successThreshold: 1
-            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /
@@ -49,6 +42,19 @@ spec:
             timeoutSeconds: 1
             periodSeconds: 5
             successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+              httpHeaders:
+                # Works around stackage-server's `forceSSL` redirect
+                - name: HTTPS
+                  value: "on"
+            initialDelaySeconds: 120
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
           resources:
 {{ toYaml .Values.stackageResources.resources | indent 12 }}
     {{- with .Values.nodeSelector }}

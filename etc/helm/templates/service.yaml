@@ -4,9 +4,7 @@ metadata:
   name: {{ .Values.name }}
   labels:
     app: {{ .Values.app }}
-    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
     release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -19,5 +17,5 @@ spec:
       targetPort: http
       protocol: TCP
   selector:
-    app: {{ template "stackage-server.name" . }}
+    app: {{ .Values.app }}
     release: {{ .Release.Name }}

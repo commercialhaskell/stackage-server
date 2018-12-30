@@ -1,15 +1,19 @@
-name: stackage-server-ci
-app: stackage-server-ci
-hoogleName: stackage-server-hoogle-ci
-hoogleApp: stackage-server-hoogle-ci
-cronName: stackage-server-cron-ci
-cronApp: stackage-server-cron-ci
+#name: stackage-server-ci
+#app: stackage-server-ci
+#hoogleName: stackage-server-hoogle-ci
+#hoogleApp: stackage-server-hoogle-ci
+#cronName: stackage-server-cron-ci
+#cronApp: stackage-server-cron-ci
 
 image:
   replicas: 1
+  replicasHoggle: 2
   env:
-    #approot: "https://ci.stackage.org"
-    approot: ""
+    approot: "https://ci.stackage.org"
+
+ingress:
+  hosts:
+    - ci.stackage.org
 
 stackageResources:
   resources:

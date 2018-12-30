@@ -11,6 +11,7 @@ spec:
     metadata:
       labels:
         app: {{ .Values.cronApp }}
+        release: {{ .Release.Name }}
     spec:
       imagePullSecrets:
         - name: registry-key

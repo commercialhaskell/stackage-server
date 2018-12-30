@@ -1,38 +1,39 @@
 {{- if .Values.ingress.enabled -}}
-{{- $fullName := .Values.name -}}
+{{- $name := .Values.name -}}
+{{- $hoogleName := .Values.hoogleName -}}
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ $fullName }}
+  name: {{ $name }}
   labels:
     app: {{ .Values.app }}
     chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
   annotations:
     {{- range $key, $value := .Values.ingress.annotations }}
       {{ $key }}: {{ $value | quote }}
     {{- end }}
 spec:
+  {{- range .Values.ingress.hosts }}
   rules:
-    - host: {{ .Values.ingress.host }}
+    - host: {{ . }}
       http:
         paths:
           - path: /haddock.*
             backend:
-              serviceName: {{ .Values.name }}
+              serviceName: {{ $name }}
               servicePort: 80
           - path: /.+/hoogle
             backend:
-              serviceName: {{ .Values.hoogleName }}
+              serviceName: {{ $hoogleName }}
               servicePort: 80
           - backend:
-              serviceName: {{ .Values.name }}
+              serviceName: {{ $name }}
               servicePort: 80
+  {{- end }}
   tls:
     - hosts:
       {{- range .Values.ingress.hosts }}
         - {{ . }}
       {{- end }}
-      secretName: {{ $fullName }}-tls
+      secretName: {{ $name }}-tls
 {{- end }}

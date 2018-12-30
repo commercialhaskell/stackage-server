@@ -4,6 +4,7 @@ metadata:
   name: {{ .Values.hoogleName }}
   labels:
     app: {{ .Values.hoogleApp }}
+    release: {{ .Release.Name }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -17,3 +18,4 @@ spec:
       protocol: TCP
   selector:
     app: {{ .Values.hoogleApp }}
+    release: {{ .Release.Name }}
