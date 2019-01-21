@@ -98,7 +98,7 @@ deploy_ci:
   #only:
   #  - ci
   environment:
-    name: stackage-server-ci
+    name: staging
     url: https://ci.stackage.org/
   variables:
     KUBE_NAMESPACE: "fpco-public"
