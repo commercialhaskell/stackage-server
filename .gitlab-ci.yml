@@ -37,10 +37,10 @@ variables:
     kubectl apply -f <(envsubst <etc/kube/cron_deployment_template.yaml) &&
     kubectl apply -f <(envsubst <etc/kube/hoogle_deployment_template.yaml)
   - &HELMUPGRADE
-    helm upgrade -i "${DEPLOYMENT_NAME}" etc/helm --set name="${DEPLOYMENT_NAME}" --set app="${DEPLOYMENT_APP}" --set hoogleName="${HOOGLE_DEPLOYMENT_NAME}" --set hoogleApp="${HOOGLE_DEPLOYMENT_APP}" --set cronName="${CRON_DEPLOYMENT_NAME}" --set cronApp="${HOOGLE_DEPLOYMENT_APP}" --set image.image="${DEPLOYMENT_IMAGE}" --values etc/helm/values/$CI_ENVIRONMENT_NAME.yaml --namespace fpco-public
+    helm --tiller-namespace ${KUBE_NAMESPACE} upgrade -i "${DEPLOYMENT_NAME}" etc/helm --set name="${DEPLOYMENT_NAME}" --set app="${DEPLOYMENT_APP}" --set hoogleName="${HOOGLE_DEPLOYMENT_NAME}" --set hoogleApp="${HOOGLE_DEPLOYMENT_APP}" --set cronName="${CRON_DEPLOYMENT_NAME}" --set cronApp="${HOOGLE_DEPLOYMENT_APP}" --set image.image="${DEPLOYMENT_IMAGE}" --values etc/helm/values/$CI_ENVIRONMENT_NAME.yaml --namespace ${KUBE_NAMESPACE}
   - &HELMCHECK
-    helm ls &&
-    helm status "${DEPLOYMENT_NAME}"
+    helm --tiller-namespace ${KUBE_NAMESPACE} ls &&
+    helm --tiller-namespace ${KUBE_NAMESPACE} status "${DEPLOYMENT_NAME}"
 
     #build:
     #  stage: build
@@ -111,6 +111,5 @@ deploy_ci:
     HOST: ci.stackage.org
   script:
     - *KUBELOGIN
-    - echo $KUBE_NAMESPACE
     - *HELMUPGRADE
-      #- *HELMCHECK
+    - *HELMCHECK
