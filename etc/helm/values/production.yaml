@@ -1,0 +1,30 @@
+#name: stackage-server-prod
+#app: stackage-server-prod
+#hoogleName: stackage-server-hoogle-prod
+#hoogleApp: stackage-server-hoogle-prod
+#cronName: stackage-server-cron-prod
+#cronApp: stackage-server-cron-prod
+
+image:
+  replicas: 1
+  replicasHoggle: 2
+  env:
+    approot: "stackage.org"
+
+stackageResources:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1.0Gi
+    limits:
+      cpu: 150m
+      memory: 1.5Gi
+
+cronResources:
+  resources:
+    requests:
+      cpu: 150m
+      memory: 2048Mi
+    limits:
+     cpu: 300m
+     memory: 4096Mi
