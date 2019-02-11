@@ -9,7 +9,11 @@ image:
   replicas: 1
   replicasHoggle: 2
   env:
-    approot: "stackage.org"
+    approot: "https://stackage.org"
+
+ingress:
+  hosts:
+    - stackage.org
 
 stackageResources:
   resources:
