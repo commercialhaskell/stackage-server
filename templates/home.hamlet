@@ -19,7 +19,20 @@
     <div .row>
         <div .span12>
             <p>
-                Stackage is a stable source of Haskell packages. We guarantee that packages build consistently and pass tests before generating nightly and Long Term Support (LTS) releases.
+                Stackage is a stable source of Haskell packages. It guarantees that packages build consistently and pass tests before generating nightly and Long Term Support (LTS) releases.
+            <p>
+                A Stackage snapshot includes pinned package versions from <a href="https://hackage.haskell.org">Hackage</a> (the index of all Haskell packages in all versions).
+                It is a curated set of packages that work well together, similar to how a <a href="https://www.debian.org">Debian</a> release is a curated snapshot of most of the open-source software in the world.
+            <p>
+                <a href="https://haskellstack.org">Stack</a> is a tool made specifically to make using Stackage snapshots easy and convenient.
+                We recommend you to use it.
+                But you can also use Stackage in other ways: as a source for packages that work well together, or to ensure that Haskell packages you author or care about work well with others.
+            <p>
+                Stackage is a community project: Haskell users around the world work together to create the stable snapshots.
+                <br />
+                Stackage itself and all tools surrounding it are open-source.
+            <p>
+                Stackage's infrastructure, build machines, initial creation and ongoing maintenance, are proudly sponsored by <a href="https://www.fpcomplete.com">FP Complete</a>.
 
     <div .row>
         <div .span6>
