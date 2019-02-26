@@ -65,6 +65,7 @@ deploy_prod:
   stage: deploy
   only:
     - master
+  when: manual
   environment:
     name: stackage-server-prod
     url: https://www.stackage.org/
