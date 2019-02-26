@@ -6,7 +6,7 @@
 #cronApp: stackage-server-cron-prod
 
 image:
-  replicas: 1
+  replicas: 2
   replicasHoggle: 2
   env:
     approot: "https://stackage.org"
@@ -32,3 +32,8 @@ cronResources:
     limits:
      cpu: 300m
      memory: 4096Mi
+
+cron:
+  enabled: false
+
+registrySecretName: gitlab-ci-registrykey

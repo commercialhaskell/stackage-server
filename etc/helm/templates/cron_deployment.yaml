@@ -1,3 +1,4 @@
+{{- if .Values.cron.enabled -}}
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -14,7 +15,7 @@ spec:
         release: {{ .Release.Name }}
     spec:
       imagePullSecrets:
-        - name: registry-key
+        - name: {{ .Values.registrySecretName }}
       volumes:
       - name: stackage-server-cron-volume
         secret:
@@ -62,3 +63,4 @@ spec:
       tolerations:
 {{ toYaml . | indent 8 }}
     {{- end }}
+{{- end }}

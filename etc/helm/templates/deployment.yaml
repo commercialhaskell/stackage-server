@@ -12,7 +12,7 @@ spec:
         release: {{ .Release.Name }}
     spec:
       imagePullSecrets:
-        - name: registry-key
+        - name: {{ .Values.registrySecretName }}
       containers:
         - name: stackage-server
           image: {{ .Values.image.image }}
