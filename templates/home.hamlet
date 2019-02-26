@@ -54,17 +54,19 @@
 
             <p>
                 Have more questions? We have a #
-                <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github
-                .
+                <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github#
+                \.
             <h3>
                 Related initiatives
             <p>
-                Get started with using Stackage with our tool called Stack at our
-                <a href="https://haskell-lang.org/get-started">
-                    Getting Started
+                Stack is the recommended way to use Stackage.
+            <p>
+                <a href="https://haskell.fpcomplete.com/get-started">
+                    Get started with Stack
                 on
-                <a href="https://haskell-lang.org/">
-                  haskell-lang.org
+                <a href="https://haskell.fpcomplete.com/">#
+                    haskell.fpcomplete.com#
+                \.
 
             <h3>
                 Latest LTS per GHC version
