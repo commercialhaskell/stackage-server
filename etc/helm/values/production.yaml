@@ -13,6 +13,7 @@ image:
 
 ingress:
   hosts:
+    - www.stackage.org
     - stackage.org
 
 stackageResources:
