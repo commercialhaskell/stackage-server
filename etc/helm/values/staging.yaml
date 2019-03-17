@@ -7,7 +7,7 @@
 
 image:
   replicas: 1
-  replicasHoggle: 2
+  replicasHoggle: 1
   env:
     approot: "https://ci.stackage.org"
 
@@ -32,3 +32,5 @@ cronResources:
     limits:
      cpu: 200m
      memory: 2096Mi
+
+registrySecretName: registry-key
