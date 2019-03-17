@@ -11,6 +11,8 @@ image:
   env:
     approot: "https://stackage.org"
 
+# IMPORTANT_NOTE: We need make a repro to be sure but so far it appears that the order of domains matters here
+# and www needs to be first!
 ingress:
   hosts:
     - www.stackage.org
