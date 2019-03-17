@@ -352,7 +352,7 @@ addPackage e =
     base = takeBaseName fp
 
     renderContent txt "markdown" = preEscapedToHtml $ commonmarkToHtml
-                                    [optSmart, optSafe]
+                                    [optSmart]
                                     [extTable, extAutolink]
                                     txt
     renderContent txt "haddock" = renderHaddock txt

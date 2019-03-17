@@ -57,7 +57,8 @@ build:
 deploy_prod:
   stage: deploy
   only:
-    - production-deployment
+    - master
+  when: manual
   environment:
     name: production
     url: https://www.stackage.org/

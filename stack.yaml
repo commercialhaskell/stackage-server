@@ -1,5 +1,1 @@
-resolver: nightly-2018-06-20
-extra-deps:
-- archive: https://github.com/bitemyapp/esqueleto/archive/b81e0d951e510ebffca03c5a58658ad884cc6fbd.tar.gz
-- archive: https://github.com/snoyberg/githash/archive/be83d64078e7940ce595c5c09efbd8d7d26beff0.tar.gz
-- archive: https://github.com/snoyberg/yesod-gitrev/archive/5364cf7ffa6b49b46173a99a7f1b48de4f660170.tar.gz
+resolver: lts-13.9
