@@ -62,7 +62,13 @@ optsParser =
          value (GithubRepo repoAccount repoName) <>
          help
              ("Github repository with snapshot files. Default level is '" ++
-              repoAccount ++ "/" ++ repoName ++ "'."))
+              repoAccount ++ "/" ++ repoName ++ "'.")) <*>
+    switch (long "report-progress" <> help "Report how many packages has been loaded.") <*>
+    switch
+        (long "cache-cabal-files" <>
+         help
+             ("Improve performance by cached parsed cabal files" ++
+              " at expense of higher memory consumption"))
   where
     repoAccount = "commercialhaskell"
     repoName = "stackage-snapshots"
