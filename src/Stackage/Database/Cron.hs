@@ -204,6 +204,8 @@ stackageServerCron StackageCronOptions {..} = do
                         , scDownloadBucketName = scoDownloadBucketName
                         , scUploadBucketName = scoUploadBucketName
                         , scSnapshotsRepo = scoSnapshotsRepo
+                        , scReportProgress = scoReportProgress
+                        , scCacheCabalFiles = scoCacheCabalFiles
                         }
              in runRIO stackage (runStackageUpdate scoDoNotUpload)
 
@@ -265,7 +267,8 @@ makeCorePackageGetter _compiler pname ver =
                     readIORef pkgInfoRef >>= \case
                         Just pkgInfo -> return pkgInfo
                         Nothing -> do
-                            logSticky $ "Loading core package: " <> display pid
+                            whenM (scReportProgress <$> ask) $
+                                logSticky $ "Loading core package: " <> display pid
                             htr <- getHackageTarball pir Nothing
                             case htrFreshPackageInfo htr of
                                 Just (gpd, treeId) -> do
@@ -295,20 +298,24 @@ makeCorePackageGetter _compiler pname ver =
 addPantryPackage ::
        SnapshotId -> CompilerP -> Bool -> Map FlagNameP Bool -> PantryPackage -> RIO StackageCron Bool
 addPantryPackage sid compiler isHidden flags (PantryPackage pc treeKey) = do
-    gpdCachedRef <- scCachedGPD <$> ask
+    env <- ask
+    let gpdCachedRef = scCachedGPD env
+        cache = scCacheCabalFiles env
     let blobKeyToInt = fromIntegral . unSqlBackendKey . unBlobKey
     let updateCacheGPD blobId gpd =
             atomicModifyIORef' gpdCachedRef (\cacheMap -> (IntMap.insert blobId gpd cacheMap, gpd))
     let getCachedGPD treeCabal =
             \case
-                Just gpd -> updateCacheGPD (blobKeyToInt treeCabal) gpd
-                Nothing -> do
+                Just gpd | cache -> updateCacheGPD (blobKeyToInt treeCabal) gpd
+                Just gpd -> pure gpd
+                Nothing | cache -> do
                     cacheMap <- readIORef gpdCachedRef
                     case IntMap.lookup (blobKeyToInt treeCabal) cacheMap of
                         Just gpd -> pure gpd
                         Nothing ->
                             loadBlobById treeCabal >>=
                             updateCacheGPD (blobKeyToInt treeCabal) . parseCabalBlob
+                Nothing -> parseCabalBlob <$> loadBlobById treeCabal
     let storeHackageSnapshotPackage hcid mtid mgpd =
             getTreeForKey treeKey >>= \case
                 Just (Entity treeId _)
@@ -521,7 +528,9 @@ createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { 
                         sfiSnapName
                         sfiUpdatedOn
                         snapshotFile
-        unlessM (readIORef finishedDocs) $
+        report <- scReportProgress <$> ask
+        when report $
+            unlessM (readIORef finishedDocs) $
             logSticky "Still loading the docs for previous snapshot ..."
         pure loadDocs
 
@@ -556,10 +565,29 @@ updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..
             pure curSucc
     -- Leave some cores and db connections for the doc loader
     n <- max 1 . (`div` 2) <$> getNumCapabilities
+    before <- getCurrentTime
+    report <- scReportProgress <$> ask
     pantryUpdatesSucceeded <-
         runConcurrently
-            (Concurrently (runProgressReporter loadedPackageCountRef totalPackages snapName) *>
+            (Concurrently
+                 (when report (runProgressReporter loadedPackageCountRef totalPackages snapName)) *>
              Concurrently (pooledMapConcurrentlyN n addPantryPackageWithReport sfPackages))
+    after <- getCurrentTime
+    let timeTotal = round (diffUTCTime after before)
+        (mins, secs) = timeTotal `quotRem` (60 :: Int)
+        packagePerSecond = fromIntegral ((totalPackages * 100) `div` timeTotal) / 100 :: Float
+    logInfo $
+        mconcat
+            [ "Loading snapshot '"
+            , display snapName
+            , "' was done (in "
+            , displayShow mins
+            , "min "
+            , displayShow secs
+            , "sec). With average "
+            , displayShow packagePerSecond
+            , " packages/sec. There are still docs."
+            ]
     return $ do
         checkForDocsSucceeded <-
             tryAny (checkForDocs snapshotId snapName) >>= \case
@@ -574,44 +602,24 @@ updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..
             else logError $ "There were errors while adding snapshot '" <> display snapName <> "'"
 
 
--- | Report how many packages has been loaded so far and provide statistics at the end.
+-- | Report how many packages has been loaded so far.
 runProgressReporter :: IORef Int -> Int -> SnapName -> RIO StackageCron ()
 runProgressReporter loadedPackageCountRef totalPackages snapName = do
-    before <- getCurrentTime
     let reportProgress = do
             loadedPackageCount <- readIORef loadedPackageCountRef
-            if loadedPackageCount < totalPackages
-                then do
-                    logSticky $
-                        mconcat
-                            [ "Loading snapshot '"
-                            , display snapName
-                            , "' ("
-                            , displayShow loadedPackageCount
-                            , "/"
-                            , displayShow totalPackages
-                            , ")"
-                            ]
-                    threadDelay 1000000
-                    reportProgress
-                else do
-                    after <- getCurrentTime
-                    let timeTotal = round (diffUTCTime after before)
-                        (mins, secs) = timeTotal `quotRem` (60 :: Int)
-                        packagePerSecond =
-                            fromIntegral ((loadedPackageCount * 100) `div` timeTotal) / 100 :: Float
-                    logInfo $
-                        mconcat
-                            [ "Loading snapshot '"
-                            , display snapName
-                            , "' was done (in "
-                            , displayShow mins
-                            , "min "
-                            , displayShow secs
-                            , "sec). With average "
-                            , displayShow packagePerSecond
-                            , " packages/sec. There are still docs."
-                            ]
+            when (loadedPackageCount < totalPackages) $ do
+                logSticky $
+                    mconcat
+                        [ "Loading snapshot '"
+                        , display snapName
+                        , "' ("
+                        , displayShow loadedPackageCount
+                        , "/"
+                        , displayShow totalPackages
+                        , ")"
+                        ]
+                threadDelay 1000000
+                reportProgress
     reportProgress
 
 -- | Uploads a json file to S3 with all latest snapshots per major lts version and one nightly.

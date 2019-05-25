@@ -50,9 +50,8 @@ import Data.Aeson
 import qualified Data.Text as T
 import Data.Text.Read (decimal)
 import Network.AWS (Env, HasEnv(..))
-import Pantry as Pantry (BlobKey(..), CabalFileInfo(..), FileSize(..),
-                         HasPantryConfig(..), PackageIdentifierRevision(..),
-                         TreeKey(..))
+import Pantry (BlobKey(..), CabalFileInfo(..), FileSize(..),
+               HasPantryConfig(..), PackageIdentifierRevision(..), TreeKey(..))
 import Pantry.Internal.Stackage as Pantry (PackageNameP(..), PantryConfig,
                                            VersionP(..))
 import Pantry.SHA256 (fromHexText)
@@ -74,6 +73,8 @@ data StackageCronOptions = StackageCronOptions
   , scoDoNotUpload        :: !Bool
   , scoLogLevel           :: !LogLevel
   , scoSnapshotsRepo      :: !GithubRepo
+  , scoReportProgress     :: !Bool
+  , scoCacheCabalFiles    :: !Bool
   }
 
 data StackageCron = StackageCron
@@ -87,6 +88,8 @@ data StackageCron = StackageCron
     , scDownloadBucketName :: !Text
     , scUploadBucketName   :: !Text
     , scSnapshotsRepo      :: !GithubRepo
+    , scReportProgress     :: !Bool
+    , scCacheCabalFiles    :: !Bool
     }
 
 instance HasEnv StackageCron where
