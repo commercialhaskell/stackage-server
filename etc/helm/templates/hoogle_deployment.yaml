@@ -28,7 +28,7 @@ spec:
             - name: PGSTRING
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.name }}
+                  name: {{ .Values.name }}-upgrade
                   key: PGCONN
           readinessProbe:
             httpGet:
