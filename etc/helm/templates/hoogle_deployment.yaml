@@ -39,7 +39,7 @@ spec:
                 - name: HTTPS
                   value: "on"
             initialDelaySeconds: 5
-            timeoutSeconds: 1
+            timeoutSeconds: 3
             periodSeconds: 5
             successThreshold: 1
           livenessProbe:
@@ -51,7 +51,7 @@ spec:
                 - name: HTTPS
                   value: "on"
             initialDelaySeconds: 120
-            timeoutSeconds: 1
+            timeoutSeconds: 3
             periodSeconds: 10
             successThreshold: 1
             failureThreshold: 3
