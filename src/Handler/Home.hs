@@ -5,6 +5,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Handler.Home
     ( getHomeR
+    , getHealthzR
     , getAuthorsR
     , getInstallR
     , getOlderReleasesR
@@ -14,6 +15,9 @@ import RIO.Time
 import Import
 import Stackage.Database
 import Yesod.GitRepo (grContent)
+
+getHealthzR :: Handler String
+getHealthzR = return "OK"
 
 -- This is a handler function for the G request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in

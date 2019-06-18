@@ -32,7 +32,7 @@ spec:
                   key: PGCONN
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 3000
               httpHeaders:
                 # Works around stackage-server's `forceSSL` redirect
@@ -44,7 +44,7 @@ spec:
             successThreshold: 1
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 3000
               httpHeaders:
                 # Works around stackage-server's `forceSSL` redirect

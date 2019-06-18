@@ -8,6 +8,7 @@
 /sitemap.xml SitemapR GET
 
 / HomeR GET
+/healthz HealthzR GET
 /snapshots AllSnapshotsR GET
 
 /snapshot/#Text/*Texts OldSnapshotR GET
