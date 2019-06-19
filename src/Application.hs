@@ -29,7 +29,7 @@ import Data.WebsiteContent
 import Database.Persist.Postgresql (PostgresConf(..))
 import Import hiding (catch)
 import Language.Haskell.TH.Syntax (qLocation)
-import Network.Wai (Middleware, rawPathInfo)
+import Network.Wai (Middleware, rawPathInfo, pathInfo, responseBuilder)
 import Network.Wai.Handler.Warp (Settings, defaultSettings,
                                  defaultShouldDisplayException, getPort,
                                  runSettings, setHost, setOnException, setPort)
@@ -91,6 +91,7 @@ makeApplication foundation = do
     appPlain <- toWaiAppPlain foundation
 
     let middleware = id -- prometheus def
+                   . healthz
 #if !DEVELOPMENT
                    . forceSSL' (appSettings foundation)
 #endif
@@ -100,6 +101,13 @@ makeApplication foundation = do
     -- FIXME prometheus void (register ghcMetrics)
 
     return (middleware appPlain)
+
+-- | Bypass any overhead from Yesod
+healthz :: Middleware
+healthz app req send =
+  case pathInfo req of
+    ["healthz"] -> send $ responseBuilder status200 [("content-type", "text/plain; charset=utf-8")] "OK"
+    _ -> app req send
 
 forceSSL' :: AppSettings -> Middleware
 forceSSL' settings app
