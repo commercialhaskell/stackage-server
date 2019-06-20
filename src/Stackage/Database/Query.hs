@@ -570,14 +570,17 @@ selectApplyMaybe f = fmap (fmap f . listToMaybe) . select
 
 -- | Convert a string representation of a version to an array so it can be used for sorting.
 versionArray :: SqlExpr (Entity Version) -> SqlExpr (Value [Int64])
-versionArray v = stringToArray (v ^. VersionVersion) (val ("." :: String))
+versionArray v = stringsToInts (stringToArray (v ^. VersionVersion) (val ("." :: String)))
+
+stringsToInts :: SqlExpr (Value [String]) -> SqlExpr (Value [Int64])
+stringsToInts = unsafeSqlCastAs "INTEGER[]"
 
 -- | Define postgresql native function in Haskell with Esqueleto
 stringToArray ::
        (SqlString s1, SqlString s2)
     => SqlExpr (Value s1)
     -> SqlExpr (Value s2)
-    -> SqlExpr (Value [Int64])
+    -> SqlExpr (Value [String])
 stringToArray s1 s2 = unsafeSqlFunction "string_to_array" (s1, s2)
 
 getSnapshotsForPackage
