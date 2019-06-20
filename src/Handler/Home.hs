@@ -17,7 +17,7 @@ import Stackage.Database
 import Yesod.GitRepo (grContent)
 
 getHealthzR :: Handler String
-getHealthzR = return "OK"
+getHealthzR = return "This should never be used, we should use the middleware instead"
 
 -- This is a handler function for the G request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in
