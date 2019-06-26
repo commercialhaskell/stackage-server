@@ -14,6 +14,7 @@ module Stackage.Database.Cron
     ) where
 
 import Conduit
+import Control.DeepSeq
 import Control.Lens ((.~))
 import qualified Control.Monad.Trans.AWS as AWS (paginate)
 import Control.SingleRun
@@ -274,7 +275,7 @@ makeCorePackageGetter _compiler pname ver =
                                 Just (gpd, treeId) -> do
                                     mTree <- run $ getEntity treeId
                                     let pkgInfo = (mTree, Just hackageCabalId, pid, gpd)
-                                    writeIORef pkgInfoRef $ Just pkgInfo
+                                    gpd `deepseq` writeIORef pkgInfoRef $ Just pkgInfo
                                     pure pkgInfo
                                 Nothing -> do
                                     (cabalBlob, mTree) <-
@@ -283,7 +284,7 @@ makeCorePackageGetter _compiler pname ver =
                                              getTreeForKey (packageTreeKey (htrPackage htr)))
                                     let gpd = parseCabalBlob cabalBlob
                                         pkgInfo = (mTree, Just hackageCabalId, pid, gpd)
-                                    writeIORef pkgInfoRef $ Just pkgInfo
+                                    gpd `deepseq` writeIORef pkgInfoRef $ Just pkgInfo
                                     pure pkgInfo
             pure $ Just getMemoPackageInfo
   where
@@ -303,6 +304,7 @@ addPantryPackage sid compiler isHidden flags (PantryPackage pc treeKey) = do
         cache = scCacheCabalFiles env
     let blobKeyToInt = fromIntegral . unSqlBackendKey . unBlobKey
     let updateCacheGPD blobId gpd =
+            gpd `deepseq`
             atomicModifyIORef' gpdCachedRef (\cacheMap -> (IntMap.insert blobId gpd cacheMap, gpd))
     let getCachedGPD treeCabal =
             \case
@@ -400,8 +402,8 @@ checkForDocs snapshotId snapName = do
             _ -> pure Nothing
 
 data SnapshotFileInfo = SnapshotFileInfo
-    { sfiSnapName :: !SnapName
-    , sfiUpdatedOn :: !UTCTime
+    { sfiSnapName           :: !SnapName
+    , sfiUpdatedOn          :: !UTCTime
     , sfiSnapshotFileGetter :: !(RIO StackageCron (Maybe SnapshotFile))
     }
 
