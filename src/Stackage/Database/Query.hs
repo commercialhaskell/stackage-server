@@ -552,7 +552,7 @@ getSnapshotPackageLatestVersion pname =
     run (snapshotPackageInfoQuery $ \_sp s pn v spiQ -> do
              where_ (pn ^. PackageNameName ==. val pname)
              orderBy
-                 [ desc (stringToArray (v ^. VersionVersion) (val ("." :: String)))
+                 [ desc (versionArray v)
                  , desc (s ^. SnapshotCreated)
                  ]
              limit 1
