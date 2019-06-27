@@ -440,10 +440,8 @@ getSnapshotPackagePageInfo ::
        GetStackageDatabase env m => SnapshotPackageInfo -> Int -> m SnapshotPackagePageInfo
 getSnapshotPackagePageInfo spi maxDisplayedDeps =
     run $ do
-        mhciLatest <-
-            case spiOrigin spi of
-                Hackage -> getHackageLatestVersion $ spiPackageName spi
-                _       -> pure Nothing
+        mhciLatest <- getHackageLatestVersion $ spiPackageName spi
+        -- TODO: check for `spiOrigin spi` once other than `Hackage` are implemented
         forwardDepsCount <- getForwardDepsCount spi
         reverseDepsCount <- getReverseDepsCount spi
         forwardDeps <-
@@ -554,7 +552,7 @@ getSnapshotPackageLatestVersion pname =
     run (snapshotPackageInfoQuery $ \_sp s pn v spiQ -> do
              where_ (pn ^. PackageNameName ==. val pname)
              orderBy
-                 [ desc (stringToArray (v ^. VersionVersion) (val ("." :: String)))
+                 [ desc (versionArray v)
                  , desc (s ^. SnapshotCreated)
                  ]
              limit 1
