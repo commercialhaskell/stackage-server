@@ -376,7 +376,7 @@ checkForDocs snapshotId snapName = do
     notFoundList <- lift $ pooledMapConcurrentlyN n (markModules sidsCacheRef) mods
     forM_ (Set.fromList $ catMaybes notFoundList) $ \pid ->
         lift $
-        logError $
+        logWarn $
         "Documentation available for package '" <> display pid <>
         "' but was not found in this snapshot: " <>
         display snapName
@@ -550,12 +550,6 @@ updateSnapshot ::
     -> RIO StackageCron (ResourceT (RIO StackageCron) ())
 updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..} = do
     insertSnapshotName snapshotId snapName
-    case Map.lookup sfCompiler corePackageGetters of
-        Nothing -> logError $ "Hints are not found for the compiler: " <> display sfCompiler
-        Just compilerCorePackages ->
-            forM_ compilerCorePackages $ \getCorePackageInfo -> do
-                (mTree, mhcid, pid, gpd) <- getCorePackageInfo
-                run $ addSnapshotPackage snapshotId sfCompiler Core mTree mhcid False mempty pid gpd
     loadedPackageCountRef <- newIORef (0 :: Int)
     let totalPackages = length sfPackages
         addPantryPackageWithReport pp = do
@@ -578,6 +572,7 @@ updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..
     let timeTotal = round (diffUTCTime after before)
         (mins, secs) = timeTotal `quotRem` (60 :: Int)
         packagePerSecond = fromIntegral ((totalPackages * 100) `div` timeTotal) / 100 :: Float
+        allPantryUpdatesSucceeded = and pantryUpdatesSucceeded
     logInfo $
         mconcat
             [ "Loading snapshot '"
@@ -590,6 +585,21 @@ updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..
             , displayShow packagePerSecond
             , " packages/sec. There are still docs."
             ]
+    case Map.lookup sfCompiler corePackageGetters of
+        Nothing -> logError $ "Hints are not found for the compiler: " <> display sfCompiler
+        Just _
+            | not allPantryUpdatesSucceeded ->
+                logWarn $
+                mconcat
+                    [ "There was an issue loading a snapshot '"
+                    , display snapName
+                    , "', deferring addition of packages "
+                    , "from global-hints until next time."
+                    ]
+        Just compilerCorePackages ->
+            forM_ compilerCorePackages $ \getCorePackageInfo -> do
+                (mTree, mhcid, pid, gpd) <- getCorePackageInfo
+                run $ addSnapshotPackage snapshotId sfCompiler Core mTree mhcid False mempty pid gpd
     return $ do
         checkForDocsSucceeded <-
             tryAny (checkForDocs snapshotId snapName) >>= \case
@@ -597,7 +607,8 @@ updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..
                     logError $ "Received exception while getting the docs: " <> displayShow exc
                     return False
                 Right () -> return True
-        if and pantryUpdatesSucceeded && checkForDocsSucceeded
+        if allPantryUpdatesSucceeded &&
+           checkForDocsSucceeded && Map.member sfCompiler corePackageGetters
             then do
                 lift $ snapshotMarkUpdated snapshotId updatedOn
                 logInfo $ "Created or updated snapshot '" <> display snapName <> "' successfully"
