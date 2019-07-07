@@ -656,7 +656,7 @@ getForwardDeps spi mlimit =
              where_ $
                  (user ^. DepUser ==. val (spiSnapshotPackageId spi)) &&.
                  (uses ^. SnapshotPackageSnapshot ==. val (spiSnapshotId spi))
-             orderBy [desc (pn ^. PackageNameName)]
+             orderBy [asc (pn ^. PackageNameName)]
              maybe (pure ()) (limit . fromIntegral) mlimit
              pure
                  ( pn ^. PackageNameName
@@ -704,7 +704,7 @@ getReverseDeps spi mlimit =
              where_ $
                  (curPn ^. PackageNameName ==. val (spiPackageName spi)) &&.
                  (sp ^. SnapshotPackageSnapshot ==. val (spiSnapshotId spi))
-             orderBy [desc (pn ^. PackageNameName)]
+             orderBy [asc (pn ^. PackageNameName)]
              maybe (pure ()) (limit . fromIntegral) mlimit
              pure
                  ( pn ^. PackageNameName
@@ -792,7 +792,6 @@ addSnapshotPackage ::
     -> ReaderT SqlBackend (RIO env) ()
 addSnapshotPackage snapshotId compiler origin mTree mHackageCabalId isHidden flags pid gpd = do
     let PackageIdentifierP pname pver = pid
-        keyInsertBy = fmap (either entityKey id) . P.insertBy
         mTreeId = entityKey <$> mTree
     packageNameId <-
         maybe (getPackageNameId (unPackageNameP pname)) (pure . treeName . entityVal) mTree
@@ -816,10 +815,23 @@ addSnapshotPackage snapshotId compiler origin mTree mHackageCabalId isHidden fla
                 , snapshotPackageIsHidden = isHidden
                 , snapshotPackageFlags = flags
                 }
-    snapshotPackageId <- keyInsertBy snapshotPackage
-    -- TODO: collect all missing dependencies and make a report
-    _ <- insertDeps pid snapshotPackageId (extractDependencies compiler flags gpd)
-    insertSnapshotPackageModules snapshotPackageId (extractModuleNames gpd)
+        checkForDuplicate =
+            \case
+                Right key -> pure $ Just key
+                Left entity
+                    -- Make sure this package still comes from the same place and update
+                    -- all the fields to newest values. Necessary for making sure global
+                    -- hints do not overwrite hackage packages, but still allows for
+                    -- updating package info in case of a forceful update.
+                    | snapshotPackageOrigin (entityVal entity) == origin -> do
+                        P.replace (entityKey entity) snapshotPackage
+                        pure $ Just (entityKey entity)
+                _ -> pure Nothing
+    msnapshotPackageId <- checkForDuplicate =<< P.insertBy snapshotPackage
+    forM_ msnapshotPackageId $ \snapshotPackageId -> do
+        _ <- insertDeps pid snapshotPackageId (extractDependencies compiler flags gpd)
+        -- TODO: collect all missing dependencies and make a report
+        insertSnapshotPackageModules snapshotPackageId (extractModuleNames gpd)
 
 getContentTreeEntryId ::
        TreeId

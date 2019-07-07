@@ -67,7 +67,7 @@ optsParser =
     switch
         (long "cache-cabal-files" <>
          help
-             ("Improve performance by cached parsed cabal files" ++
+             ("Improve performance by caching parsed cabal files" ++
               " at expense of higher memory consumption"))
   where
     repoAccount = "commercialhaskell"
