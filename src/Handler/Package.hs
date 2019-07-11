@@ -18,6 +18,7 @@ module Handler.Package
 
 import Control.Lens
 
+import qualified RIO.Map as Map
 import Data.Coerce
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
@@ -121,8 +122,9 @@ handlePackage epi = do
         SnapshotR (spiSnapName spi) $ f $ PNVNameVersion (spiPackageName spi) (spiVersion spi)
     pname = either hciPackageName spiPackageName epi
     enumerate = zip [0 :: Int ..]
-    renderModules sppi = renderForest [] $ moduleForest $ coerce (sppiModuleNames sppi)
+    renderModules sppi = renderForest [] $ moduleForest $ coerce $ Map.keys modNames
       where
+        modNames = sppiModuleNames sppi
         SnapshotPackageInfo{spiPackageName, spiVersion, spiSnapName} = sppiSnapshotPackageInfo sppi
         packageIdentifier = PackageIdentifierP spiPackageName spiVersion
         renderForest _ [] = mempty
@@ -135,7 +137,7 @@ handlePackage epi = do
             renderTree Node {..} =
                 [hamlet|
                   <li>
-                    $if isModule
+                    $if isModule && hasDoc
                       <a href=@{haddockUrl spiSnapName mli}>#{modName}
                     $else
                       #{modName}
@@ -145,6 +147,7 @@ handlePackage epi = do
                 mli = ModuleListingInfo modName packageIdentifier
                 pathRev' = component : pathRev
                 modName = moduleNameFromComponents (reverse pathRev')
+                hasDoc = fromMaybe False $ Map.lookup modName modNames
     maxDisplayedDeps :: Int
     maxDisplayedDeps = 40
 
