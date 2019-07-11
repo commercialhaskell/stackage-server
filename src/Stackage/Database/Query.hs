@@ -630,15 +630,15 @@ getFileByTreeEntryId teid =
         where_ $ te ^. TreeEntryId ==. val teid
         pure (fp ^. FilePathPath, b ^. BlobContents)
 
-getModuleNames :: SnapshotPackageId -> ReaderT SqlBackend (RIO env) [ModuleNameP]
+getModuleNames :: SnapshotPackageId -> ReaderT SqlBackend (RIO env) (Map ModuleNameP Bool)
 getModuleNames spid =
-    map unValue <$>
+    Map.fromList . map (\(md, hs) -> (unValue md, unValue hs)) <$>
     select
         (from $ \(spm `InnerJoin` pm) -> do
              on (spm ^. SnapshotPackageModuleModule ==. pm ^. ModuleNameId)
              where_ (spm ^. SnapshotPackageModuleSnapshotPackage ==. val spid)
              orderBy [desc (pm ^. ModuleNameName)]
-             pure (pm ^. ModuleNameName))
+             pure (pm ^. ModuleNameName, spm ^. SnapshotPackageModuleHasDocs))
 
 ------ Dependencies
 
@@ -1000,7 +1000,7 @@ markModuleHasDocs ::
        SnapshotId
     -> PackageIdentifierP
     -> Maybe SnapshotPackageId
-    -- ^ If we know ahead of time the SnapshotPackageId it will speed up a great deal if don't have
+    -- ^ If we know ahead of time the SnapshotPackageId it will speed things up, since we don't have
     -- to look it up in the database.
     -> ModuleNameP
     -> ReaderT SqlBackend (RIO env) (Maybe SnapshotPackageId)
