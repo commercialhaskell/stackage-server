@@ -218,10 +218,10 @@ runStackageUpdate doNotUpload = do
     runStackageMigrations
     didUpdate <- forceUpdateHackageIndex (Just "stackage-server cron job")
     case didUpdate of
-        UpdateOccurred -> do
-            logInfo "Updated hackage index. Getting deprecated info now"
-            getHackageDeprecations >>= run . mapM_ addDeprecated
+        UpdateOccurred -> logInfo "Updated hackage index"
         NoUpdateOccurred -> logInfo "No new packages in hackage index"
+    logInfo "Getting deprecated info now"
+    getHackageDeprecations >>= setDeprecations
     corePackageGetters <- makeCorePackageGetters
     runResourceT $
         join $

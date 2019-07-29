@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 module Stackage.Database.Query
     (
@@ -44,6 +45,7 @@ module Stackage.Database.Query
     -- ** Deprecations
 
     , getDeprecated
+    , setDeprecations
 
     -- * Needed for Cron Job
     -- ** Re-exports from Pantry
@@ -56,7 +58,6 @@ module Stackage.Database.Query
     , getHackageCabalByKey
     , snapshotMarkUpdated
     , insertSnapshotName
-    , addDeprecated
     , markModuleHasDocs
     , insertSnapshotPackageModules
     , insertDeps
@@ -874,6 +875,8 @@ lookupPackageNameId pname = fmap entityKey <$> getBy (UniquePackageName pname)
 lookupPackageNameById :: PackageNameId -> ReaderT SqlBackend (RIO env) (Maybe PackageNameP)
 lookupPackageNameById pnid = fmap PackageNameP <$> getPackageNameById pnid
 
+-- | Add or updates package deprecation and its "in favor" list. Returns the Id if package
+-- was found in pantry.
 addDeprecated :: HasLogFunc env => Deprecation -> ReaderT SqlBackend (RIO env) ()
 addDeprecated (Deprecation pname inFavourOfNameSet) = do
     mPackageNameId <- lookupPackageNameId pname
@@ -902,6 +905,12 @@ addDeprecated (Deprecation pname inFavourOfNameSet) = do
             lift $
             logError $
             "Package name: " <> display pname <> " from deprecation list was not found in Pantry."
+
+-- | In a single transaction clear out all deprecatons and add the new ones.
+setDeprecations :: GetStackageDatabase env m => [Deprecation] -> m ()
+setDeprecations deprecations = run $ do
+  delete $ from $ \(_deprecation :: SqlExpr (Entity Deprecated)) -> pure ()
+  mapM_ addDeprecated deprecations
 
 
 getHackageCabalByRev0 ::
