@@ -675,11 +675,12 @@ buildAndUploadHoogleDB = do
     env <- ask
     locker <- newHoogleLocker (env ^. logFuncL) (env ^. envManager)
     void $ flip Map.traverseWithKey snapshots $ \snapshotId snapName -> do
-        logDebug $ "Starting Hoogle DB download: " <> display (hoogleKey snapName)
+        logInfo $ "Starting Hoogle DB download: " <> display (hoogleKey snapName)
         mfp <- singleRun locker snapName
         case mfp of
-            Just _ -> logDebug $ "Hoogle database exists for: " <> display snapName
+            Just _ -> logInfo $ "Hoogle database exists for: " <> display snapName
             Nothing -> do
+                logInfo $ "Hoogle database does not exist for: " <> display snapName
                 mfp' <- createHoogleDB snapshotId snapName
                 forM_ mfp' $ \fp -> do
                     let key = hoogleKey snapName
