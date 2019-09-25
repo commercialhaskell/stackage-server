@@ -653,7 +653,8 @@ uploadHoogleDB fp key =
     withTempFile (takeDirectory fp) (takeFileName fp <.> "gz") $ \fpgz h -> do
         runConduitRes $ sourceFile fp .| compress 9 (WindowBits 31) .| CB.sinkHandle h
         hClose h
-        body <- chunkedFile defaultChunkSize fpgz
+        -- FIXME body <- chunkedFile defaultChunkSize fpgz
+        body <- toBody <$> readFileBinary fpgz
         uploadBucket <- scUploadBucketName <$> ask
         uploadFromRIO key $
             set poACL (Just OPublicRead) $ putObject (BucketName uploadBucket) key body
