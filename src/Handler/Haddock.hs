@@ -38,7 +38,7 @@ getHaddockR snapName rest
                     case docType of
                         DocHtml -> do
                             mstyle <- lookupGetParam "style"
-                            return ("text/html; charset=utf-8", mstyle == Just "plain")
+                            return ("text/html; charset=utf-8", mstyle /= Just "stackage")
                         DocJson ->
                             return ("application/jsontml; charset=utf-8", True)
                 req <- parseRequest $ unpack $ makeURL snapName rest
