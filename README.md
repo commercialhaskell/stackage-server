@@ -1,7 +1,7 @@
 stackage-server
 ===============
 
-[![Build Status](https://travis-ci.org/fpco/stackage-server.svg?branch=master)](https://travis-ci.org/fpco/stackage-server)
+[![Build Status](https://dev.azure.com/fpco/stackage-server/_apis/build/status/fpco.stackage-server?branchName=master)](https://dev.azure.com/fpco/stackage-server/_build/latest?definitionId=1&branchName=master)
 
 Server for stable, curated Haskell package sets
 
@@ -31,5 +31,3 @@ After this, run the stackage server:
 $ export PGSTRING=postgresql://postgres:password@localhost:5432/stackage
 $ stack exec stackage-server
 ```
-
-
