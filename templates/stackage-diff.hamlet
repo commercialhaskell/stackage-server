@@ -37,29 +37,31 @@
           <tr>
             $case verChange
               $of This oldVersion
+                <td> #{pkgname}
                 <td>
-                  <a href=@{packageUrl name1 pkgname oldVersion}#changes}>
-                    #{pkgname}-#{oldVersion}
-                <td>
+                  <a href=@{packageUrl name1 pkgname oldVersion}#changes>
+                    <span .version-removed>#{oldVersion}
               $of That newVersion
-                <td>
+                <td> #{pkgname}
                 <td>
                   <a href=@{packageUrl name2 pkgname newVersion}#changes>
-                    #{pkgname}-#{newVersion}
+                    <span .version-added>#{newVersion}
               $of These oldVersion newVersion
                 $maybe (common, old, new) <- versionDiff
+                  <td> #{pkgname}
                   <td>
                     <a href=@{packageUrl name1 pkgname oldVersion}#changes>
-                      #{pkgname}-#{common}#
+                      #{common}#
                       <span .version-removed>#{old}
-                  <td>
+                    &rarr;
                     <a href=@{packageUrl name2 pkgname newVersion}#changes>
-                      #{pkgname}-#{common}#
+                      #{common}#
                       <span .version-added>#{new}
                 $nothing
+                  <td> #{pkgname}
                   <td>
                     <a href=@{packageUrl name1 pkgname oldVersion}#changes>
-                      #{pkgname}-#{oldVersion}
-                  <td>
+                      <span .version-removed>#{oldVersion}
+                    &rarr;
                     <a href=@{packageUrl name2 pkgname newVersion}#changes>
-                      #{pkgname}-#{newVersion}
+                      <span .version-added>#{newVersion}
