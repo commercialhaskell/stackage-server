@@ -176,12 +176,14 @@ $if not (LT.null (LT.renderHtml piChangelog))
                                 , <em>and many more</em>
 
 
-<div .container .content>
-    <div .row>
-        <div .span12>
-          <div id="disqus_thread">
-              <script>
-                  var disqus_shortname = "fpcomplete"; (function() { var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true; dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js'; (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq); })();
-              <a class="dsq-brlink" href="https://disqus.com">
-                  comments powered by
-                  <span class="logo-disqus">Disqus
+$# Too much spam on Disqus, remove it
+
+$#<div .container .content>
+$#    <div .row>
+$#        <div .span12>
+$#          <div id="disqus_thread">
+$#              <script>
+$#                  var disqus_shortname = "fpcomplete"; (function() { var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true; dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js'; (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq); })();
+$#              <a class="dsq-brlink" href="https://disqus.com">
+$#                  comments powered by
+$#                  <span class="logo-disqus">Disqus
