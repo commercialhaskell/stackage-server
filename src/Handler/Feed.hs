@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE QuasiQuotes #-}
 module Handler.Feed
@@ -7,10 +8,11 @@ module Handler.Feed
 
 import Data.These
 import Import
+import RIO.Time (getCurrentTime)
 import Stackage.Database
 import Stackage.Snapshot.Diff
 import Text.Blaze (text)
-import RIO.Time (getCurrentTime)
+import Yesod.Core.Handler (lookupGetParam)
 
 getFeedR :: Handler TypedContent
 getFeedR = track "Handler.Feed.getBranchFeedR" $ getBranchFeed Nothing
@@ -25,7 +27,11 @@ mkFeed :: Maybe SnapshotBranch -> [Entity Snapshot] -> Handler TypedContent
 mkFeed _ [] = notFound
 mkFeed mBranch snaps = do
     entries <- forM snaps $ \(Entity snapid snap) -> do
-        content <- getContent snapid snap
+        showsDiff <- doesShowDiff
+        content <-
+          if showsDiff
+            then getContent snapid snap
+            else return mempty
         return FeedEntry
             { feedEntryLink = SnapshotR (snapshotName snap) StackageHomeR
             , feedEntryUpdated = UTCTime (snapshotCreated snap) 0
@@ -53,6 +59,14 @@ mkFeed mBranch snaps = do
     branchTitle LtsBranch          = "LTS"
     branchTitle (LtsMajorBranch x) = "LTS-" <> tshow x
     title = "Recent Stackage " <> maybe "" branchTitle mBranch <> " snapshots"
+
+    doesShowDiff =
+        (fmap fromPathPiece <$> lookupGetParam "withDiff") >>= \case
+            Just (Just False) -> return False
+            Just (Just True) -> return True
+            Just Nothing -> notFound
+            Nothing -> return True
+
 
 getContent :: SnapshotId -> Snapshot -> Handler Html
 getContent sid2 snap = do
