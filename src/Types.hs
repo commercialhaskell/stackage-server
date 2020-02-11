@@ -61,18 +61,16 @@ import Database.Persist
 import Database.Persist.Sql (PersistFieldSql(sqlType))
 import qualified Distribution.ModuleName as DT (components, fromComponents,
                                                 validModuleComponent)
-import Distribution.PackageDescription (FlagName, GenericPackageDescription)
+import Distribution.PackageDescription (GenericPackageDescription)
 import Distribution.Parsec as DT (Parsec)
 import Distribution.Pretty as DT (Pretty)
 import qualified Distribution.Text as DT (display, simpleParse)
 import Distribution.Types.VersionRange (VersionRange)
 import Distribution.Version (mkVersion, versionNumbers)
-import Pantry (Revision(..))
+import Pantry (FlagName, Revision(..), packageNameString, parsePackageName,
+               parseVersionThrowing, parseVersion, versionString)
 import Pantry.Internal.Stackage (ModuleNameP(..), PackageNameP(..),
-                                 SafeFilePath, VersionP(..), packageNameString,
-                                 parsePackageName, parseVersion,
-                                 parseVersionThrowing, unSafeFilePath,
-                                 versionString)
+                                 SafeFilePath, VersionP(..), unSafeFilePath)
 import RIO
 import qualified RIO.Map as Map
 import RIO.Time (Day)

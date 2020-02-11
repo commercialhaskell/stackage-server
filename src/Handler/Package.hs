@@ -73,9 +73,7 @@ checkSpam pname inner = do
         $(widgetFile "spam-package")
       else inner
 
-packagePage :: Maybe SnapshotPackageInfo
-            -> PackageNameP
-            -> Handler Html
+packagePage :: Maybe SnapshotPackageInfo -> PackageNameP -> Handler Html
 packagePage mspi pname =
     track "Handler.Package.packagePage" $
     checkSpam pname $
@@ -84,8 +82,6 @@ packagePage mspi pname =
             hci <- run (getHackageLatestVersion pname) >>= maybe notFound pure
             handlePackage $ Left hci
           Just spi -> handlePackage $ Right spi
-
-
 
 
 handlePackage :: Either HackageCabalInfo SnapshotPackageInfo -> Handler Html

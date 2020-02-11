@@ -1,5 +1,5 @@
-{-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE ViewPatterns #-}
 module Stackage.Database.PackageInfo
     ( PackageInfo(..)
     , Identifier(..)
@@ -14,10 +14,11 @@ module Stackage.Database.PackageInfo
     ) where
 
 import CMarkGFM
-import Data.Coerce
 import Data.Char (isSpace)
+import Data.Coerce
 import Data.Map.Merge.Strict as Map
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import Distribution.Compiler (CompilerFlavor(GHC))
 import Distribution.Package (Dependency(..))
 import Distribution.PackageDescription (CondTree(..), Condition(..),
@@ -26,28 +27,29 @@ import Distribution.PackageDescription (CondTree(..), Condition(..),
                                         GenericPackageDescription, author,
                                         condExecutables, condLibrary,
                                         description, genPackageFlags, homepage,
-                                        license, maintainer,
-                                        packageDescription, synopsis)
+                                        license, maintainer, packageDescription,
+                                        synopsis)
 import Distribution.PackageDescription.Parsec (parseGenericPackageDescription,
                                                runParseResult)
 import Distribution.Pretty (prettyShow)
 import Distribution.System (Arch(X86_64), OS(Linux))
 import Distribution.Types.CondTree (CondBranch(..))
 import Distribution.Types.Library (exposedModules)
+import Distribution.Types.PackageDescription (PackageDescription(package))
 import Distribution.Types.VersionRange (VersionRange, intersectVersionRanges,
                                         normaliseVersionRange, withinRange)
 import Distribution.Version (simplifyVersionRange)
-import qualified Data.Text.Encoding as T
 import RIO
 import qualified RIO.Map as Map
 import qualified RIO.Map.Unchecked as Map (mapKeysMonotonic)
 import Stackage.Database.Haddock (renderHaddock)
 import Stackage.Database.Types (Changelog(..), Readme(..))
 import Text.Blaze.Html (Html, preEscapedToHtml, toHtml)
-import Types (CompilerP(..), FlagNameP(..), ModuleNameP(..), PackageNameP(..),
-              SafeFilePath, VersionP(..), VersionRangeP(..), unSafeFilePath)
-import Yesod.Form.Fields (Textarea(..))
 import Text.Email.Validate
+import Types (CompilerP(..), FlagNameP(..), ModuleNameP(..), PackageIdentifierP,
+              PackageNameP(..), SafeFilePath, VersionP(..), VersionRangeP(..),
+              unSafeFilePath, dtDisplay)
+import Yesod.Form.Fields (Textarea(..))
 
 
 data PackageInfo = PackageInfo
@@ -79,7 +81,7 @@ toPackageInfo gpd mreadme mchangelog =
         , piHomepage =
               case T.strip $ T.pack $ homepage pd of
                   "" -> Nothing
-                  x -> Just x
+                  x  -> Just x
         , piLicenseName = T.pack $ prettyShow $ license pd
         }
   where
@@ -125,17 +127,23 @@ parseCabalBlob cabalBlob =
 
 parseCabalBlobMaybe ::
        (MonadIO m, MonadReader env m, HasLogFunc env)
-    => PackageNameP
+    => PackageIdentifierP
     -> ByteString
     -> m (Maybe GenericPackageDescription)
-parseCabalBlobMaybe packageName cabalBlob =
+parseCabalBlobMaybe pidp cabalBlob =
     case snd $ runParseResult $ parseGenericPackageDescription cabalBlob of
         Left err ->
             Nothing <$
             logError
-                ("Problem parsing cabal blob for '" <> display packageName <> "': " <>
-                 displayShow err)
-        Right pgd -> pure $ Just pgd
+                ("Problem parsing cabal blob for '" <> display pidp <> "': " <> displayShow err)
+        Right gpd -> do
+            let pid = package (packageDescription gpd)
+            unless (textDisplay (dtDisplay pid :: Utf8Builder) == textDisplay pidp) $
+                logError $
+                "Supplied package identifier: '" <> display pidp <>
+                "' does not match the one in cabal file: '" <>
+                dtDisplay pid
+            pure $ Just gpd
 
 getCheckCond ::
        CompilerP -> Map FlagName Bool -> GenericPackageDescription -> Condition ConfVar -> Bool

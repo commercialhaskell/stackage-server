@@ -22,7 +22,7 @@ import Data.These
 import RIO
 import Stackage.Database (GetStackageDatabase, SnapshotId,
                           getPackagesForSnapshot)
-import Stackage.Database.Types (PackageListingInfo(..), SnapName)
+import Stackage.Database.Types (PackageListingInfo(..))
 import Types
 import Web.PathPieces
 

@@ -50,7 +50,7 @@ import Database.Persist.Postgresql
 import Database.Persist.TH
 import Pantry (HasPantryConfig(..), Revision)
 import Pantry.Internal.Stackage as PS (BlobId, HackageCabalId, ModuleNameId,
-                                       PackageNameId, Tree(..), TreeEntry(..),
+                                       PackageNameId, Tree(..),
                                        TreeEntryId, TreeId, Unique(..),
                                        VersionId, unBlobKey)
 import Pantry.Internal.Stackage (PantryConfig(..), Storage(..))
