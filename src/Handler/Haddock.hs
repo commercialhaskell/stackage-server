@@ -7,7 +7,6 @@ module Handler.Haddock
 import Import
 import qualified Data.Text as T (takeEnd)
 import Stackage.Database
-import Stackage.Database.Types (haddockBucketName)
 
 makeURL :: SnapName -> [Text] -> Text
 makeURL snapName rest = concat

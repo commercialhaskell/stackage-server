@@ -11,7 +11,6 @@ module Data.WebsiteContent
 
 import ClassyPrelude.Yesod
 import CMarkGFM
-import Data.Aeson (withObject)
 import Data.GhcLinks
 import Data.Yaml
 import System.FilePath (takeFileName)

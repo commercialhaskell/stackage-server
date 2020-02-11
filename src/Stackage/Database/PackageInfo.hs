@@ -18,8 +18,6 @@ import Data.Coerce
 import Data.Char (isSpace)
 import Data.Map.Merge.Strict as Map
 import qualified Data.Text as T
-import Data.Text.Encoding (decodeUtf8With)
-import Data.Text.Encoding.Error (lenientDecode)
 import Distribution.Compiler (CompilerFlavor(GHC))
 import Distribution.Package (Dependency(..))
 import Distribution.PackageDescription (CondTree(..), Condition(..),
@@ -172,7 +170,7 @@ getDeps checkCond = goTree
   where
     goTree (CondNode _data deps comps) =
         combineDeps $
-        map (\(Dependency name range) -> Map.singleton (PackageNameP name) range) deps ++
+        map (\(Dependency name range _) -> Map.singleton (PackageNameP name) range) deps ++
         map goComp comps
     goComp (CondBranch cond yes no)
         | checkCond cond = goTree yes

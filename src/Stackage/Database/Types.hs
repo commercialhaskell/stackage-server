@@ -52,8 +52,7 @@ import Data.Text.Read (decimal)
 import Network.AWS (Env, HasEnv(..))
 import Pantry (BlobKey(..), CabalFileInfo(..), FileSize(..),
                HasPantryConfig(..), PackageIdentifierRevision(..), TreeKey(..))
-import Pantry.Internal.Stackage as Pantry (PackageNameP(..), PantryConfig,
-                                           VersionP(..))
+import Pantry.Internal.Stackage as Pantry (PantryConfig)
 import Pantry.SHA256 (fromHexText)
 import RIO
 import RIO.Process (HasProcessContext(..), ProcessContext)

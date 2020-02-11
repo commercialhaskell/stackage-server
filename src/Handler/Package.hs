@@ -27,8 +27,6 @@ import Graphics.Badge.Barrier
 import Import
 import Stackage.Database
 import Stackage.Database.PackageInfo (PackageInfo(..), Identifier(..), renderEmail)
-import Stackage.Database.Types (HackageCabalInfo(..), LatestInfo(..),
-                                ModuleListingInfo(..))
 import qualified Text.Blaze.Html.Renderer.Text as LT
 import Yesod.GitRepo
 

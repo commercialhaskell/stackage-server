@@ -72,10 +72,10 @@ import Database.Esqueleto
 import Database.Esqueleto.Internal.Language (FromPreprocess)
 import Database.Esqueleto.Internal.Sql
 import qualified Database.Persist as P
-import Pantry.Internal.Stackage (EntityField(..), PackageName, Unique(..),
+import Pantry.Internal.Stackage (EntityField(..), PackageName,
                                  Version, getBlobKey, getPackageNameById,
                                  getPackageNameId, getTreeForKey, getVersionId,
-                                 loadBlobById, mkSafeFilePath, treeCabal)
+                                 loadBlobById, mkSafeFilePath)
 import RIO hiding (on, (^.))
 import qualified RIO.Map as Map
 import qualified RIO.Set as Set
@@ -364,7 +364,7 @@ getPackageVersionForSnapshot snapshotId pname =
              pure (v ^. VersionVersion))
 
 getLatest ::
-       FromPreprocess SqlQuery SqlExpr SqlBackend t
+       FromPreprocess t
     => PackageNameP
     -> (t -> SqlExpr (Value SnapshotId))
     -> (t -> SqlQuery ())

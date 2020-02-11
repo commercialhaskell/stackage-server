@@ -15,6 +15,7 @@ import RIO.FilePath
 import RIO.Process
 import RIO.Time
 
+
 data GithubRepo = GithubRepo
     { grAccount :: !String
     , grName    :: !String
@@ -33,17 +34,22 @@ lastGitFileUpdate ::
        (MonadReader env m, HasLogFunc env, HasProcessContext env, MonadUnliftIO m)
     => FilePath -- ^ Root dir of the repository
     -> FilePath -- ^ Relative path of the file
-    -> m (Either String UTCTime)
+    -> m (Maybe UTCTime)
 lastGitFileUpdate gitDir filePath = do
     lastCommitTimestamps <- gitLog gitDir filePath ["-1", "--format=%cD"]
     parseGitDate rfc822DateFormat lastCommitTimestamps
   where
     parseGitDate fmt dates =
         case listToMaybe $ LBS8.lines dates of
-            Nothing -> return $ Left "Git log is empty for the file"
-            Just lbsDate ->
-                mapLeft (displayException :: SomeException -> String) <$>
-                try (parseTimeM False defaultTimeLocale fmt (LBS8.unpack lbsDate))
+            Nothing -> do
+                logError "Git log is empty for the file"
+                return Nothing
+            Just lbsDate -> do
+                let parseDateTime = parseTimeM False defaultTimeLocale fmt (LBS8.unpack lbsDate)
+                catchAny (Just <$> liftIO parseDateTime) $ \exc -> do
+                    logError $
+                        "Error parsing git commit date: " <> fromString (displayException exc)
+                    pure Nothing
 
 -- | Clone a repository locally. In case when repository is already present sync it up with
 -- remote. Returns the full path where repository was cloned into.

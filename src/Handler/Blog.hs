@@ -86,4 +86,5 @@ getBlogFeedR = do
             , feedEntryTitle = postTitle post
             , feedEntryContent = postBody post
             , feedEntryEnclosure = Nothing
+            , feedEntryCategories = []
             }

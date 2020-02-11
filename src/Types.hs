@@ -49,7 +49,6 @@ module Types
     ) where
 
 import ClassyPrelude.Yesod (ToBuilder(..))
-import Control.Monad.Catch (MonadThrow, throwM)
 import Data.Aeson
 import Data.Bifunctor (bimap)
 import Data.Char (ord)
@@ -63,7 +62,9 @@ import Database.Persist.Sql (PersistFieldSql(sqlType))
 import qualified Distribution.ModuleName as DT (components, fromComponents,
                                                 validModuleComponent)
 import Distribution.PackageDescription (FlagName, GenericPackageDescription)
-import qualified Distribution.Text as DT (Text, display, simpleParse)
+import Distribution.Parsec as DT (Parsec)
+import Distribution.Pretty as DT (Pretty)
+import qualified Distribution.Text as DT (display, simpleParse)
 import Distribution.Types.VersionRange (VersionRange)
 import Distribution.Version (mkVersion, versionNumbers)
 import Pantry (Revision(..))
@@ -84,14 +85,14 @@ instance Exception ParseFailedException where
     displayException (ParseFailedException tyRep origString) =
         "Was unable to parse " ++ showsTypeRep tyRep ": " ++ origString
 
-dtParse :: forall a m. (Typeable a, DT.Text a, MonadThrow m) => Text -> m a
+dtParse :: forall a m. (Typeable a, DT.Parsec a, MonadThrow m) => Text -> m a
 dtParse txt =
     let str = T.unpack txt
      in case DT.simpleParse str of
             Nothing -> throwM $ ParseFailedException (typeRep (Proxy :: Proxy a)) str
             Just dt -> pure dt
 
-dtDisplay :: (DT.Text a, IsString b) => a -> b
+dtDisplay :: (DT.Pretty a, IsString b) => a -> b
 dtDisplay = fromString . DT.display
 
 

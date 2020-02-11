@@ -8,7 +8,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Handler.Hoogle where
 
-import Control.DeepSeq (NFData(..))
 import qualified Data.Text as T
 import Data.Text.Read (decimal)
 import qualified Hoogle

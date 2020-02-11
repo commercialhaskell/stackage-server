@@ -12,7 +12,6 @@ import RIO.Time (getCurrentTime)
 import Stackage.Database
 import Stackage.Snapshot.Diff
 import Text.Blaze (text)
-import Yesod.Core.Handler (lookupGetParam)
 
 getFeedR :: Handler TypedContent
 getFeedR = track "Handler.Feed.getBranchFeedR" $ getBranchFeed Nothing
@@ -38,6 +37,7 @@ mkFeed mBranch snaps = do
             , feedEntryTitle = snapshotTitle snap
             , feedEntryContent = content
             , feedEntryEnclosure = Nothing
+            , feedEntryCategories = []
             }
     updated <-
         case entries of

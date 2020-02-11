@@ -28,24 +28,21 @@ import Data.Streaming.Network (bindPortTCP)
 import Data.Yaml (decodeFileEither)
 import Database.Persist
 import Database.Persist.Postgresql
-import Distribution.PackageDescription (GenericPackageDescription)
 import qualified Hoogle
 import Network.AWS hiding (Request, Response)
-import Network.AWS.Data.Body (toBody)
 import Network.AWS.Data.Text (toText)
 import Network.AWS.S3
 import Network.HTTP.Client
 import Network.HTTP.Client.Conduit (bodyReaderSource)
-import Network.HTTP.Simple (getResponseBody, httpJSONEither, parseRequest)
+import Network.HTTP.Simple (getResponseBody, httpJSONEither)
 import Network.HTTP.Types (status200, status404)
 import Pantry (CabalFileInfo(..), DidUpdateOccur(..),
                HpackExecutable(HpackBundled), PackageIdentifierRevision(..),
-               defaultHackageSecurityConfig)
-import Pantry.Internal.Stackage (HackageCabalId, HackageTarballResult(..),
+               defaultHackageSecurityConfig, defaultCasaRepoPrefix, defaultCasaMaxPerRequest)
+import Pantry.Internal.Stackage (HackageTarballResult(..),
                                  PantryConfig(..), Storage(..),
                                  forceUpdateHackageIndex, getHackageTarball,
-                                 getTreeForKey, loadBlobById, packageTreeKey,
-                                 treeCabal)
+                                 packageTreeKey)
 import Path (parseAbsDir, toFilePath)
 import RIO
 import RIO.Directory
@@ -192,6 +189,8 @@ stackageServerCron StackageCronOptions {..} = do
                         , pcParsedCabalFilesRawImmutable = cabalImmutable
                         , pcParsedCabalFilesMutable = cabalMutable
                         , pcConnectionCount = connectionCount
+                        , pcCasaRepoPrefix = defaultCasaRepoPrefix
+                        , pcCasaMaxPerRequest = defaultCasaMaxPerRequest
                         }
                 stackage =
                     StackageCron
@@ -453,19 +452,15 @@ sourceSnapshots = do
                             "Error parsing snapshot file: " <> fromString fp <> "\n" <>
                             fromString (displayException exc)
                         return Nothing
-        lastGitFileUpdate gitDir fp >>= \case
-            Left err -> do
-                logError $ "Error parsing git commit date: " <> fromString err
-                return Nothing
-            Right updatedOn -> do
-                env <- lift ask
-                return $
-                    Just
-                        SnapshotFileInfo
-                            { sfiSnapName = snapName
-                            , sfiUpdatedOn = updatedOn
-                            , sfiSnapshotFileGetter = runRIO env (parseSnapshot updatedOn)
-                            }
+        mUpdatedOn <- lastGitFileUpdate gitDir fp
+        forM mUpdatedOn $ \updatedOn -> do
+            env <- lift ask
+            return $
+                SnapshotFileInfo
+                    { sfiSnapName = snapName
+                    , sfiUpdatedOn = updatedOn
+                    , sfiSnapshotFileGetter = runRIO env (parseSnapshot updatedOn)
+                    }
     getLtsParser gitDir fp =
         case mapM (BS8.readInt . BS8.pack) $ take 2 $ reverse (splitPath fp) of
             Just [(minor, ".yaml"), (major, "/")] ->

@@ -38,9 +38,7 @@ hToHtml =
         H.dt (go x) ++ H.dd (go y)
     go (DocCodeBlock x) = H.pre $ H.code $ go x
     go (DocHyperlink (Hyperlink url mlabel)) =
-        H.a H.! A.href (H.toValue url) $ toHtml label
-      where
-        label = fromMaybe url mlabel
+        H.a H.! A.href (H.toValue url) $ maybe (toHtml url) (toHtml . go) mlabel
     go (DocPic (Picture url mtitle)) =
         H.img H.! A.src (H.toValue url) H.! A.title (H.toValue $ fromMaybe mempty mtitle)
     go (DocAName s) = H.div H.! A.id (H.toValue s) $ mempty
