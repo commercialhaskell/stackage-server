@@ -239,29 +239,53 @@ makeCorePackageGetters ::
 makeCorePackageGetters = do
     rootDir <- scStackageRoot <$> ask
     contentDir <- getStackageContentDir rootDir
+    coreCabalFiles <- getCoreCabalFiles rootDir
     liftIO (decodeFileEither (contentDir </> "stack" </> "global-hints.yaml")) >>= \case
         Right (hints :: Map CompilerP (Map PackageNameP VersionP)) ->
             Map.traverseWithKey
                 (\compiler ->
-                     fmap Map.elems . Map.traverseMaybeWithKey (makeCorePackageGetter compiler))
+                     fmap Map.elems .
+                     Map.traverseMaybeWithKey (makeCorePackageGetter compiler coreCabalFiles))
                 hints
         Left exc -> do
             logError $
                 "Error parsing 'global-hints.yaml' file: " <> fromString (displayException exc)
             return mempty
 
+getCoreCabalFiles :: FilePath -> RIO StackageCron (Map PackageIdentifierP GenericPackageDescription)
+getCoreCabalFiles rootDir = do
+    coreCabalFilesDir <- getCoreCabalFilesDir rootDir
+    cabalFileNames <- getDirectoryContents coreCabalFilesDir
+    cabalFiles <-
+        forM (filter (isExtensionOf ".cabal") cabalFileNames) $ \cabalFileName ->
+            let pidTxt = T.pack (dropExtension (takeFileName cabalFileName))
+             in case fromPathPiece pidTxt of
+                    Nothing -> do
+                        logError $ "Invalid package identifier: " <> fromString cabalFileName
+                        pure Nothing
+                    Just pid@(PackageIdentifierP pname _) -> do
+                        mgpd <-
+                            readFileBinary (coreCabalFilesDir </> cabalFileName) >>=
+                            parseCabalBlobMaybe pname
+                        pure ((,) pid <$> mgpd)
+    pure $ Map.fromList $ catMaybes cabalFiles
+
 -- | Core package info rarely changes between the snapshots, therefore it would be wasteful to
 -- load, parse and update all packages from gloabl-hints for each snapshot, instead we produce
 -- a memoized version that will do it once initiall and then return information aboat a
 -- package on subsequent invocations.
 makeCorePackageGetter ::
-       CompilerP -> PackageNameP -> VersionP -> RIO StackageCron (Maybe CorePackageGetter)
-makeCorePackageGetter _compiler pname ver =
+       CompilerP
+    -> Map PackageIdentifierP GenericPackageDescription
+    -> PackageNameP
+    -> VersionP
+    -> RIO StackageCron (Maybe CorePackageGetter)
+makeCorePackageGetter _compiler fallbackCabalFileMap pname ver =
     run (getHackageCabalByRev0 pid) >>= \case
         Nothing -> do
             logWarn $
                 "Core package from global-hints: '" <> display pid <> "' was not found in pantry."
-            pure Nothing
+            pure (pure . (,,,) Nothing Nothing pid <$> Map.lookup pid fallbackCabalFileMap)
         Just (hackageCabalId, blobId, _) -> do
             pkgInfoRef <- newIORef Nothing -- use for caching of pkgInfo
             let getMemoPackageInfo =
