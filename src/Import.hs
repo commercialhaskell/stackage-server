@@ -3,19 +3,16 @@ module Import
     ( module Import
     ) where
 
-import Control.Monad.Trans.Class (lift)
 import ClassyPrelude.Yesod as Import hiding (getCurrentTime)
 import Foundation as Import
 import Settings as Import
 import Settings.StaticFiles as Import
 import Types as Import
 import Yesod.Auth as Import
-import Yesod.Core.Handler (getYesod)
 import Data.WebsiteContent as Import (WebsiteContent (..))
 import Data.Text.Read (decimal)
 import RIO.Time (diffUTCTime)
 --import qualified Prometheus as P
-import Stackage.Database (SnapName)
 import Stackage.Database.Types (ModuleListingInfo(..))
 import Formatting (format)
 import Formatting.Time (diff)

@@ -27,8 +27,6 @@ import Graphics.Badge.Barrier
 import Import
 import Stackage.Database
 import Stackage.Database.PackageInfo (PackageInfo(..), Identifier(..), renderEmail)
-import Stackage.Database.Types (HackageCabalInfo(..), LatestInfo(..),
-                                ModuleListingInfo(..))
 import qualified Text.Blaze.Html.Renderer.Text as LT
 import Yesod.GitRepo
 
@@ -75,9 +73,7 @@ checkSpam pname inner = do
         $(widgetFile "spam-package")
       else inner
 
-packagePage :: Maybe SnapshotPackageInfo
-            -> PackageNameP
-            -> Handler Html
+packagePage :: Maybe SnapshotPackageInfo -> PackageNameP -> Handler Html
 packagePage mspi pname =
     track "Handler.Package.packagePage" $
     checkSpam pname $
@@ -86,8 +82,6 @@ packagePage mspi pname =
             hci <- run (getHackageLatestVersion pname) >>= maybe notFound pure
             handlePackage $ Left hci
           Just spi -> handlePackage $ Right spi
-
-
 
 
 handlePackage :: Either HackageCabalInfo SnapshotPackageInfo -> Handler Html

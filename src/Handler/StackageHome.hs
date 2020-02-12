@@ -17,7 +17,6 @@ import Data.These
 import RIO.Time (FormatTime)
 import Import
 import Stackage.Database
-import Stackage.Database.Types (PackageListingInfo(..), isLts)
 import Stackage.Snapshot.Diff
 
 getStackageHomeR :: SnapName -> Handler TypedContent

@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -8,8 +9,10 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Stackage.Database.Schema
     ( -- * Database
       run
@@ -47,7 +50,7 @@ import Database.Persist.Postgresql
 import Database.Persist.TH
 import Pantry (HasPantryConfig(..), Revision)
 import Pantry.Internal.Stackage as PS (BlobId, HackageCabalId, ModuleNameId,
-                                       PackageNameId, Tree(..), TreeEntry(..),
+                                       PackageNameId, Tree(..),
                                        TreeEntryId, TreeId, Unique(..),
                                        VersionId, unBlobKey)
 import Pantry.Internal.Stackage (PantryConfig(..), Storage(..))

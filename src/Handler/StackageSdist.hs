@@ -6,7 +6,6 @@ module Handler.StackageSdist
 
 import Import
 import Stackage.Database
-import Stackage.Database.Types (SnapshotPackageInfo(..))
 import Handler.Package (packagePage)
 
 handlePNVTarball :: PackageNameP -> VersionP -> Handler TypedContent

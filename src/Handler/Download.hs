@@ -12,7 +12,6 @@ import Import
 import Data.GhcLinks
 import Yesod.GitRepo (grContent)
 import Stackage.Database
-import Stackage.Database.Types (ghcVersion)
 
 getDownloadR :: Handler Html
 getDownloadR = track "Hoogle.Download.getDownloadR" $

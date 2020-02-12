@@ -1,10 +1,17 @@
-resolver: lts-13.16
+resolver: nightly-2020-02-08
 packages:
   - '.'
 extra-deps:
-- git: https://github.com/commercialhaskell/stack
-  commit: dfbf85ad7e8af5b01cf7b51367290870ffc2c90e
+- barrier-0.1.1@sha256:2021f84c3aba67bb635d72825d3bc0371942444dc014bc307b875071e29eea98,3931
+- hackage-security-0.6.0.0@sha256:69987d46e7b55fe5f0fc537021c3873c5f6f44a6665d349ee6995fd593df8147,11976
+- hoogle-5.0.17.14@sha256:a35eab4f833cd131f1abc79360e3bdbc5aecd7526b9a530ac606580e18691e2b,3173
+- hpack-0.33.0@sha256:ca82f630abe0fba199aa05dcc9942ee8bf137e1425049a7a9ac8458c82d9dcc9,4406
+- yesod-gitrepo-0.3.0@sha256:7aad996935065726ce615c395d735cc01dcef3993b1788f670f6bfc866085e02,1191
+- lukko-0.1.1.1@sha256:5c674bdd8a06b926ba55d872abe254155ed49a58df202b4d842b643e5ed6bcc9,4289
+- github: commercialhaskell/pantry
+  commit: ed48bebc30e539280ad7e13680480be2b87b97ea
+- github: fpco/casa
+  commit: fc0ed26858bfc4f2966ed2dfb2871bae9266dda6
   subdirs:
-  - subs/http-download
-  - subs/pantry
-  - subs/rio-prettyprint
+     - casa-client
+     - casa-types

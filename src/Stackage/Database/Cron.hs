@@ -28,27 +28,25 @@ import Data.Streaming.Network (bindPortTCP)
 import Data.Yaml (decodeFileEither)
 import Database.Persist
 import Database.Persist.Postgresql
-import Distribution.PackageDescription (GenericPackageDescription)
 import qualified Hoogle
 import Network.AWS hiding (Request, Response)
-import Network.AWS.Data.Body (toBody)
 import Network.AWS.Data.Text (toText)
 import Network.AWS.S3
 import Network.HTTP.Client
 import Network.HTTP.Client.Conduit (bodyReaderSource)
-import Network.HTTP.Simple (getResponseBody, httpJSONEither, parseRequest)
+import Network.HTTP.Simple (getResponseBody, httpJSONEither)
 import Network.HTTP.Types (status200, status404)
 import Pantry (CabalFileInfo(..), DidUpdateOccur(..),
                HpackExecutable(HpackBundled), PackageIdentifierRevision(..),
-               defaultHackageSecurityConfig)
-import Pantry.Internal.Stackage (HackageCabalId, HackageTarballResult(..),
+               defaultHackageSecurityConfig, defaultCasaRepoPrefix, defaultCasaMaxPerRequest)
+import Pantry.Internal.Stackage (HackageTarballResult(..),
                                  PantryConfig(..), Storage(..),
                                  forceUpdateHackageIndex, getHackageTarball,
-                                 getTreeForKey, loadBlobById, packageTreeKey,
-                                 treeCabal)
+                                 packageTreeKey)
 import Path (parseAbsDir, toFilePath)
 import RIO
 import RIO.Directory
+import RIO.File
 import RIO.FilePath
 import RIO.List as L
 import qualified RIO.Map as Map
@@ -118,7 +116,6 @@ newHoogleLocker env man = mkSingleRun hoogleLocker
     hoogleLocker name =
         runRIO env $ do
             let fp = T.unpack $ hoogleKey name
-                fptmp = fp <.> "tmp"
             exists <- doesFileExist fp
             if exists
                 then return $ Just fp
@@ -129,24 +126,17 @@ newHoogleLocker env man = mkSingleRun hoogleLocker
                         case responseStatus res of
                             status
                                 | status == status200 -> do
-                                    createDirectoryIfMissing True $ takeDirectory fptmp
-                                    -- TODO: https://github.com/commercialhaskell/rio/issues/160
-                                    -- withBinaryFileDurableAtomic fp WriteMode $ \h ->
-                                    --     runConduitRes $
-                                    --     bodyReaderSource (responseBody res) .| ungzip .|
-                                    --     sinkHandle h
-                                    runConduitRes $
+                                    createDirectoryIfMissing True $ takeDirectory fp
+                                    withBinaryFileDurableAtomic fp WriteMode $ \h ->
+                                        runConduitRes $
                                         bodyReaderSource (responseBody res) .| ungzip .|
-                                        sinkFile fptmp
-                                    renamePath fptmp fp
+                                        sinkHandle h
                                     return $ Just fp
                                 | status == status404 -> do
                                     logDebug $ "NotFound: " <> display (hoogleUrl name)
                                     return Nothing
                                 | otherwise -> do
                                     body <- liftIO $ brConsume $ responseBody res
-                                    -- TODO: ideally only consume the body when log level set to
-                                    -- LevelDebug, will require a way to get LogLevel from LogFunc
                                     mapM_ (logDebug . displayBytesUtf8) body
                                     return Nothing
 
@@ -192,6 +182,8 @@ stackageServerCron StackageCronOptions {..} = do
                         , pcParsedCabalFilesRawImmutable = cabalImmutable
                         , pcParsedCabalFilesMutable = cabalMutable
                         , pcConnectionCount = connectionCount
+                        , pcCasaRepoPrefix = defaultCasaRepoPrefix
+                        , pcCasaMaxPerRequest = defaultCasaMaxPerRequest
                         }
                 stackage =
                     StackageCron
@@ -239,31 +231,64 @@ makeCorePackageGetters ::
 makeCorePackageGetters = do
     rootDir <- scStackageRoot <$> ask
     contentDir <- getStackageContentDir rootDir
+    coreCabalFiles <- getCoreCabalFiles rootDir
     liftIO (decodeFileEither (contentDir </> "stack" </> "global-hints.yaml")) >>= \case
         Right (hints :: Map CompilerP (Map PackageNameP VersionP)) ->
             Map.traverseWithKey
                 (\compiler ->
-                     fmap Map.elems . Map.traverseMaybeWithKey (makeCorePackageGetter compiler))
+                     fmap Map.elems .
+                     Map.traverseMaybeWithKey (makeCorePackageGetter compiler coreCabalFiles))
                 hints
         Left exc -> do
             logError $
                 "Error parsing 'global-hints.yaml' file: " <> fromString (displayException exc)
             return mempty
 
+getCoreCabalFiles ::
+       FilePath
+    -> RIO StackageCron (Map PackageIdentifierP (GenericPackageDescription, CabalFileIds))
+getCoreCabalFiles rootDir = do
+    coreCabalFilesDir <- getCoreCabalFilesDir rootDir
+    cabalFileNames <- getDirectoryContents coreCabalFilesDir
+    cabalFiles <-
+        forM (filter (isExtensionOf ".cabal") cabalFileNames) $ \cabalFileName ->
+            let pidTxt = T.pack (dropExtension (takeFileName cabalFileName))
+             in case fromPathPiece pidTxt of
+                    Nothing -> do
+                        logError $ "Invalid package identifier: " <> fromString cabalFileName
+                        pure Nothing
+                    Just pid -> do
+                        cabalBlob <- readFileBinary (coreCabalFilesDir </> cabalFileName)
+                        mCabalInfo <- run $ addCabalFile pid cabalBlob
+                        pure ((,) pid <$> mCabalInfo)
+    pure $ Map.fromList $ catMaybes cabalFiles
+
 -- | Core package info rarely changes between the snapshots, therefore it would be wasteful to
 -- load, parse and update all packages from gloabl-hints for each snapshot, instead we produce
 -- a memoized version that will do it once initiall and then return information aboat a
 -- package on subsequent invocations.
 makeCorePackageGetter ::
-       CompilerP -> PackageNameP -> VersionP -> RIO StackageCron (Maybe CorePackageGetter)
-makeCorePackageGetter _compiler pname ver =
+       CompilerP
+    -> Map PackageIdentifierP (GenericPackageDescription, CabalFileIds)
+    -> PackageNameP
+    -> VersionP
+    -> RIO StackageCron (Maybe CorePackageGetter)
+makeCorePackageGetter _compiler fallbackCabalFileMap pname ver =
     run (getHackageCabalByRev0 pid) >>= \case
         Nothing -> do
             logWarn $
                 "Core package from global-hints: '" <> display pid <> "' was not found in pantry."
-            pure Nothing
+            forM (Map.lookup pid fallbackCabalFileMap) $ \(gpd, cabalFileIds) -> do
+                logInfo $
+                    "Falling back on '" <> display pid <>
+                    ".cabal' file from the commercialhaskell/core-cabal-files repo"
+                pure $ pure (Left cabalFileIds, Nothing, pid, gpd)
         Just (hackageCabalId, blobId, _) -> do
             pkgInfoRef <- newIORef Nothing -- use for caching of pkgInfo
+            let getCabalFileIdsTree gpd =
+                    \case
+                        Just tree -> pure $ Right tree
+                        Nothing -> Left <$> getCabalFileIds blobId gpd
             let getMemoPackageInfo =
                     readIORef pkgInfoRef >>= \case
                         Just pkgInfo -> return pkgInfo
@@ -273,17 +298,21 @@ makeCorePackageGetter _compiler pname ver =
                             htr <- getHackageTarball pir Nothing
                             case htrFreshPackageInfo htr of
                                 Just (gpd, treeId) -> do
-                                    mTree <- run $ getEntity treeId
-                                    let pkgInfo = (mTree, Just hackageCabalId, pid, gpd)
+                                    eTree <-
+                                        run $ do
+                                            mTree <- getEntity treeId
+                                            getCabalFileIdsTree gpd mTree
+                                    let pkgInfo = (eTree, Just hackageCabalId, pid, gpd)
                                     gpd `deepseq` writeIORef pkgInfoRef $ Just pkgInfo
                                     pure pkgInfo
                                 Nothing -> do
-                                    (cabalBlob, mTree) <-
-                                        run
-                                            ((,) <$> loadBlobById blobId <*>
-                                             getTreeForKey (packageTreeKey (htrPackage htr)))
-                                    let gpd = parseCabalBlob cabalBlob
-                                        pkgInfo = (mTree, Just hackageCabalId, pid, gpd)
+                                    (gpd, eCabalTree) <-
+                                        run $ do
+                                            cabalBlob <- loadBlobById blobId
+                                            let gpd = parseCabalBlob cabalBlob
+                                            mTree <- getTreeForKey (packageTreeKey (htrPackage htr))
+                                            (,) gpd <$> getCabalFileIdsTree gpd mTree
+                                    let pkgInfo = (eCabalTree, Just hackageCabalId, pid, gpd)
                                     gpd `deepseq` writeIORef pkgInfoRef $ Just pkgInfo
                                     pure pkgInfo
             pure $ Just getMemoPackageInfo
@@ -325,11 +354,12 @@ addPantryPackage sid compiler isHidden flags (PantryPackage pc treeKey) = do
                     , tid /= treeId -> do
                         lift $ logError $ "Pantry Tree Key mismatch for: " <> display pc
                         pure False
-                mTree@(Just (Entity _ Tree {treeCabal}))
+                Just tree@(Entity _ Tree {treeCabal})
                     | Just treeCabal' <- treeCabal -> do
                         gpd <- getCachedGPD treeCabal' mgpd
                         let mhcid = Just hcid
-                        addSnapshotPackage sid compiler Hackage mTree mhcid isHidden flags pid gpd
+                            eTree = Right tree
+                        addSnapshotPackage sid compiler Hackage eTree mhcid isHidden flags pid gpd
                         pure True
                 _ -> do
                   lift $ logError $ "Pantry is missing the source tree for " <> display pc
@@ -363,9 +393,7 @@ checkForDocs snapshotId snapName = do
         runConduit $
         AWS.paginate (req bucketName) .| concatMapC (^. lovrsContents) .|
         mapC (\obj -> toText (obj ^. oKey)) .|
-        concatMapC (T.stripSuffix ".html") .|
-        concatMapC (T.stripPrefix prefix) .|
-        concatMapC pathToPackageModule .|
+        concatMapC (T.stripSuffix ".html" >=> T.stripPrefix prefix >=> pathToPackageModule) .|
         sinkList
     -- it is faster to download all modules in this snapshot, than process them with a conduit all
     -- the way to the database.
@@ -429,19 +457,15 @@ sourceSnapshots = do
                             "Error parsing snapshot file: " <> fromString fp <> "\n" <>
                             fromString (displayException exc)
                         return Nothing
-        lastGitFileUpdate gitDir fp >>= \case
-            Left err -> do
-                logError $ "Error parsing git commit date: " <> fromString err
-                return Nothing
-            Right updatedOn -> do
-                env <- lift ask
-                return $
-                    Just
-                        SnapshotFileInfo
-                            { sfiSnapName = snapName
-                            , sfiUpdatedOn = updatedOn
-                            , sfiSnapshotFileGetter = runRIO env (parseSnapshot updatedOn)
-                            }
+        mUpdatedOn <- lastGitFileUpdate gitDir fp
+        forM mUpdatedOn $ \updatedOn -> do
+            env <- lift ask
+            return $
+                SnapshotFileInfo
+                    { sfiSnapName = snapName
+                    , sfiUpdatedOn = updatedOn
+                    , sfiSnapshotFileGetter = runRIO env (parseSnapshot updatedOn)
+                    }
     getLtsParser gitDir fp =
         case mapM (BS8.readInt . BS8.pack) $ take 2 $ reverse (splitPath fp) of
             Just [(minor, ".yaml"), (major, "/")] ->
@@ -496,7 +520,7 @@ decideOnSnapshotUpdate SnapshotFileInfo {sfiSnapName, sfiUpdatedOn, sfiSnapshotF
         _ -> return Nothing
 
 type CorePackageGetter
-     = RIO StackageCron ( Maybe (Entity Tree)
+     = RIO StackageCron ( Either CabalFileIds (Entity Tree)
                         , Maybe HackageCabalId
                         , PackageIdentifierP
                         , GenericPackageDescription)
@@ -598,8 +622,8 @@ updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..
                     ]
         Just compilerCorePackages ->
             forM_ compilerCorePackages $ \getCorePackageInfo -> do
-                (mTree, mhcid, pid, gpd) <- getCorePackageInfo
-                run $ addSnapshotPackage snapshotId sfCompiler Core mTree mhcid False mempty pid gpd
+                (eTree, mhcid, pid, gpd) <- getCorePackageInfo
+                run $ addSnapshotPackage snapshotId sfCompiler Core eTree mhcid False mempty pid gpd
     return $ do
         checkForDocsSucceeded <-
             tryAny (checkForDocs snapshotId snapName) >>= \case
@@ -707,12 +731,8 @@ createHoogleDB snapshotId snapName =
             withResponseUnliftIO req {decompress = const True} man $ \res -> do
                 throwErrorStatusCodes req res
                 createDirectoryIfMissing True $ takeDirectory tarFP
-                --withBinaryFileDurableAtomic tarFP WriteMode $ \tarHandle ->
-                --FIXME: https://github.com/commercialhaskell/rio/issues/160
-                let tmpTarFP = tarFP <.> "tmp"
-                withBinaryFile tmpTarFP WriteMode $ \tarHandle ->
+                withBinaryFileDurableAtomic tarFP WriteMode $ \tarHandle ->
                     runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
-                renameFile tmpTarFP tarFP
         void $ tryIO $ removeDirectoryRecursive bindir
         void $ tryIO $ removeFile outname
         createDirectoryIfMissing True bindir

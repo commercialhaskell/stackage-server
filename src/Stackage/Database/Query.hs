@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections #-}
 module Stackage.Database.Query
     (
       -- * Snapshot
@@ -53,13 +53,15 @@ module Stackage.Database.Query
     , getTreeForKey
     , treeCabal
     -- ** Stackage server
+    , CabalFileIds
+    , addCabalFile
+    , getCabalFileIds
     , addSnapshotPackage
     , getHackageCabalByRev0
     , getHackageCabalByKey
     , snapshotMarkUpdated
     , insertSnapshotName
     , markModuleHasDocs
-    , insertSnapshotPackageModules
     , insertDeps
     -- ** For Hoogle db creation
     , lastLtsNightly
@@ -72,11 +74,14 @@ import qualified Data.List as L
 import Database.Esqueleto
 import Database.Esqueleto.Internal.Language (FromPreprocess)
 import Database.Esqueleto.Internal.Sql
+import Distribution.Types.PackageId (PackageIdentifier(PackageIdentifier))
+import Distribution.PackageDescription (packageDescription)
+import Distribution.Types.PackageDescription (PackageDescription(package))
 import qualified Database.Persist as P
-import Pantry.Internal.Stackage (EntityField(..), PackageName, Unique(..),
+import Pantry.Internal.Stackage (EntityField(..), PackageName,
                                  Version, getBlobKey, getPackageNameById,
                                  getPackageNameId, getTreeForKey, getVersionId,
-                                 loadBlobById, mkSafeFilePath, treeCabal)
+                                 loadBlobById, storeBlob, mkSafeFilePath)
 import RIO hiding (on, (^.))
 import qualified RIO.Map as Map
 import qualified RIO.Set as Set
@@ -365,7 +370,7 @@ getPackageVersionForSnapshot snapshotId pname =
              pure (v ^. VersionVersion))
 
 getLatest ::
-       FromPreprocess SqlQuery SqlExpr SqlBackend t
+       FromPreprocess t
     => PackageNameP
     -> (t -> SqlExpr (Value SnapshotId))
     -> (t -> SqlQuery ())
@@ -777,6 +782,75 @@ insertDeps pid snapshotPackageId dependencies =
                     display dep
                 return $ Just dep
 
+data CabalFileIds = CabalFileIds
+    { cfiPackageNameId :: !PackageNameId
+    , cfiVersionId :: !VersionId
+    , cfiCabalBlobId :: !(Maybe BlobId)
+    , cfiModuleNameIds :: ![ModuleNameId]
+    }
+
+getCabalFileIds ::
+       HasLogFunc env
+    => BlobId
+    -> GenericPackageDescription
+    -> ReaderT SqlBackend (RIO env) CabalFileIds
+getCabalFileIds cabalBlobId gpd = do
+    let PackageIdentifier name ver = package (packageDescription gpd)
+    packageNameId <- getPackageNameId name
+    versionId <- getVersionId ver
+    moduleNameIds <- mapM insertModuleSafe (extractModuleNames gpd)
+    pure
+        CabalFileIds
+            { cfiPackageNameId = packageNameId
+            , cfiVersionId = versionId
+            , cfiCabalBlobId = Just cabalBlobId
+            , cfiModuleNameIds = moduleNameIds
+            }
+
+addCabalFile ::
+       HasLogFunc env
+    => PackageIdentifierP
+    -> ByteString
+    -> ReaderT SqlBackend (RIO env) (Maybe (GenericPackageDescription, CabalFileIds))
+addCabalFile pid cabalBlob = do
+    mgpd <- lift $ parseCabalBlobMaybe pid cabalBlob
+    forM mgpd $ \gpd -> do
+        (cabalBlobId, _) <- storeBlob cabalBlob
+        cabalIds <- getCabalFileIds cabalBlobId gpd
+        pure (gpd, cabalIds)
+
+getPackageIds ::
+       GenericPackageDescription
+    -> Either CabalFileIds (Entity Tree)
+    -> ReaderT SqlBackend (RIO env) (CabalFileIds, Maybe (TreeId, BlobId))
+getPackageIds gpd =
+    \case
+        Left cabalFileIds -> pure (cabalFileIds, Nothing)
+        Right (Entity treeId tree)
+            -- -- TODO: Remove Maybe from cfiCabalBlobId and
+            -- --       Generate cabal file from package.yaml:
+            -- case treeCabal tree of
+            --   Just cabalBlobId -> pure cabalBlobId
+            --   Nothing -> do
+            --     let rawMetaData = RawPackageMetadata {
+            --           rpmName = Just pname
+            --           , rpmVersion = Just pver
+            --           , rpmTreeKey = treeKey tree
+            --           }
+            --         rpli = ... get
+            --     generateHPack (RPLIArchive / RPLIRepo ..) treeId treeVersion tree
+            --     ...
+         -> do
+            moduleNameIds <- mapM insertModuleSafe (extractModuleNames gpd)
+            let cabalFileIds =
+                    CabalFileIds
+                        { cfiPackageNameId = treeName tree
+                        , cfiVersionId = treeVersion tree
+                        , cfiCabalBlobId = treeCabal tree
+                        , cfiModuleNameIds = moduleNameIds
+                        }
+            pure (cabalFileIds, Just (treeId, treeKey tree))
+
 -- TODO: Optimize, whenever package is already in one snapshot only create the modules and new
 -- SnapshotPackage
 addSnapshotPackage ::
@@ -784,30 +858,27 @@ addSnapshotPackage ::
     => SnapshotId
     -> CompilerP
     -> Origin
-    -> Maybe (Entity Tree)
+    -> Either CabalFileIds (Entity Tree)
     -> Maybe HackageCabalId
     -> Bool
     -> Map FlagNameP Bool
     -> PackageIdentifierP
     -> GenericPackageDescription
     -> ReaderT SqlBackend (RIO env) ()
-addSnapshotPackage snapshotId compiler origin mTree mHackageCabalId isHidden flags pid gpd = do
-    let PackageIdentifierP pname pver = pid
-        mTreeId = entityKey <$> mTree
-    packageNameId <-
-        maybe (getPackageNameId (unPackageNameP pname)) (pure . treeName . entityVal) mTree
-    versionId <- maybe (getVersionId (unVersionP pver)) (pure . treeVersion . entityVal) mTree
+addSnapshotPackage snapshotId compiler origin eCabalTree mHackageCabalId isHidden flags pid gpd = do
+    (CabalFileIds{..}, mTree) <- getPackageIds gpd eCabalTree
+    let mTreeId = fst <$> mTree
     mrevision <- maybe (pure Nothing) getHackageRevision mHackageCabalId
     mreadme <- fromMaybe (pure Nothing) $ getContentTreeEntryId <$> mTreeId <*> mreadmeQuery
     mchangelog <- fromMaybe (pure Nothing) $ getContentTreeEntryId <$> mTreeId <*> mchangelogQuery
     let snapshotPackage =
             SnapshotPackage
                 { snapshotPackageSnapshot = snapshotId
-                , snapshotPackagePackageName = packageNameId
-                , snapshotPackageVersion = versionId
+                , snapshotPackagePackageName = cfiPackageNameId
+                , snapshotPackageVersion = cfiVersionId
                 , snapshotPackageRevision = mrevision
-                , snapshotPackageCabal = treeCabal =<< entityVal <$> mTree
-                , snapshotPackageTreeBlob = treeKey . entityVal <$> mTree
+                , snapshotPackageCabal = cfiCabalBlobId
+                , snapshotPackageTreeBlob = snd <$> mTree
                 , snapshotPackageOrigin = origin
                 , snapshotPackageOriginUrl = "" -- TODO: add
                 , snapshotPackageSynopsis = getSynopsis gpd
@@ -832,7 +903,8 @@ addSnapshotPackage snapshotId compiler origin mTree mHackageCabalId isHidden fla
     forM_ msnapshotPackageId $ \snapshotPackageId -> do
         _ <- insertDeps pid snapshotPackageId (extractDependencies compiler flags gpd)
         -- TODO: collect all missing dependencies and make a report
-        insertSnapshotPackageModules snapshotPackageId (extractModuleNames gpd)
+        forM_ cfiModuleNameIds $ \modNameId -> do
+            void $ P.insertBy (SnapshotPackageModule snapshotPackageId modNameId False)
 
 getContentTreeEntryId ::
        TreeId
@@ -978,16 +1050,6 @@ getSnapshotPackageCabalBlob snapshotId pname =
             ((sp ^. SnapshotPackageSnapshot ==. val snapshotId) &&.
              (pn ^. PackageNameName ==. val pname))
         return (blob ^. BlobContents)
-
-
--- | Add all modules available for the package in a particular snapshot. Initially they are marked
--- as without available documentation.
-insertSnapshotPackageModules ::
-       SnapshotPackageId -> [ModuleNameP] -> ReaderT SqlBackend (RIO env) ()
-insertSnapshotPackageModules snapshotPackageId =
-    mapM_ $ \modName -> do
-        moduleId <- insertModuleSafe modName
-        void $ P.insertBy (SnapshotPackageModule snapshotPackageId moduleId False)
 
 -- | Idempotent and thread safe way of adding a new module.
 insertModuleSafe :: ModuleNameP -> ReaderT SqlBackend (RIO env) ModuleNameId

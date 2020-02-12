@@ -8,7 +8,7 @@ module Handler.MirrorStatus
 import Import
 import Control.AutoUpdate
 import Network.HTTP.Simple
-import RIO.Time (parseTimeM, diffUTCTime, addUTCTime, getCurrentTime)
+import RIO.Time (diffUTCTime, addUTCTime, getCurrentTime)
 import Text.XML.Stream.Parse
 import Data.XML.Types (Event (EventContent), Content (ContentText))
 import qualified Prelude

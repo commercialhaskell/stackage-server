@@ -9,9 +9,7 @@ module Handler.PackageDeps
 
 import Handler.StackageSdist (pnvToSnapshotPackageInfo)
 import Import
-import Types (PackageVersionRev(..))
 import Stackage.Database
-import Stackage.Database.Types (SnapshotPackageInfo(..))
 
 getPackageDepsR :: PackageNameP -> Handler Html
 getPackageDepsR pname = do
