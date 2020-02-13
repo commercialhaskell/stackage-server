@@ -696,7 +696,7 @@ uploadFromRIO key po = do
 
 buildAndUploadHoogleDB :: RIO StackageCron ()
 buildAndUploadHoogleDB = do
-    snapshots <- lastLtsNightly 50 5
+    snapshots <- lastLtsNightly 80 5
     let snapshots' = sortBy (\x y -> compare (snd (snd y)) (snd (snd x))) $ Map.toList snapshots
     env <- ask
     locker <- newHoogleLocker (env ^. logFuncL) (env ^. envManager)
