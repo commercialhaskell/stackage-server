@@ -169,12 +169,12 @@ lastXLts5Nightly ltsCount = run $ do
     l (Entity _ x) = SNLts (ltsMajor x) (ltsMinor x)
     n (Entity _ x) = SNNightly (nightlyDay x)
 
-lastLtsNightly :: GetStackageDatabase env m => Int -> Int -> m (Map SnapshotId SnapName)
+lastLtsNightly :: GetStackageDatabase env m => Int -> Int -> m (Map SnapshotId (SnapName, Day))
 lastLtsNightly ltsCount nightlyCount =
     run $ do
         ls <- P.selectList [] [P.Desc LtsMajor, P.Desc LtsMinor, P.LimitTo ltsCount]
         ns <- P.selectList [] [P.Desc NightlyDay, P.LimitTo nightlyCount]
-        Map.map snapshotName <$>
+        Map.map (snapshotName &&& snapshotCreated) <$>
             P.getMany (map (ltsSnap . P.entityVal) ls <> map (nightlySnap . P.entityVal) ns)
 
 

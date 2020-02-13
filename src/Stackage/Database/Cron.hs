@@ -697,9 +697,10 @@ uploadFromRIO key po = do
 buildAndUploadHoogleDB :: RIO StackageCron ()
 buildAndUploadHoogleDB = do
     snapshots <- lastLtsNightly 50 5
+    let snapshots' = sortBy (\x y -> compare (snd (snd y)) (snd (snd x))) $ Map.toList snapshots
     env <- ask
     locker <- newHoogleLocker (env ^. logFuncL) (env ^. envManager)
-    void $ flip Map.traverseWithKey snapshots $ \snapshotId snapName -> do
+    for_ snapshots' $ \(snapshotId, (snapName, _created)) -> do
         logInfo $ "Starting Hoogle DB download: " <> display (hoogleKey snapName)
         mfp <- singleRun locker snapName
         case mfp of
