@@ -38,11 +38,11 @@ import Network.HTTP.Simple (getResponseBody, httpJSONEither)
 import Network.HTTP.Types (status200, status404)
 import Pantry (CabalFileInfo(..), DidUpdateOccur(..),
                HpackExecutable(HpackBundled), PackageIdentifierRevision(..),
-               defaultHackageSecurityConfig, defaultCasaRepoPrefix, defaultCasaMaxPerRequest)
-import Pantry.Internal.Stackage (HackageTarballResult(..),
-                                 PantryConfig(..), Storage(..),
-                                 forceUpdateHackageIndex, getHackageTarball,
-                                 packageTreeKey)
+               defaultCasaMaxPerRequest, defaultCasaRepoPrefix,
+               defaultHackageSecurityConfig)
+import Pantry.Internal.Stackage (HackageTarballResult(..), PantryConfig(..),
+                                 Storage(..), forceUpdateHackageIndex,
+                                 getHackageTarball, packageTreeKey)
 import Path (parseAbsDir, toFilePath)
 import RIO
 import RIO.Directory
@@ -171,7 +171,7 @@ stackageServerCron StackageCronOptions {..} = do
         gpdCache <- newIORef IntMap.empty
         defaultProcessContext <- mkDefaultProcessContext
         aws <- newEnv Discover
-        withLogFunc (setLogMinLevel scoLogLevel lo) $ \logFunc ->
+        withLogFunc (setLogMinLevel scoLogLevel lo) $ \logFunc -> do
             let pantryConfig =
                     PantryConfig
                         { pcHackageSecurity = defaultHackageSecurityConfig
@@ -185,7 +185,9 @@ stackageServerCron StackageCronOptions {..} = do
                         , pcCasaRepoPrefix = defaultCasaRepoPrefix
                         , pcCasaMaxPerRequest = defaultCasaMaxPerRequest
                         }
-                stackage =
+            currentHoogleVersionId <-
+                runRIO logFunc $ getCurrentHoogleVersionIdWithPantryConfig pantryConfig
+            let stackage =
                     StackageCron
                         { scPantryConfig = pantryConfig
                         , scStackageRoot = stackageRootDir
@@ -199,8 +201,9 @@ stackageServerCron StackageCronOptions {..} = do
                         , scSnapshotsRepo = scoSnapshotsRepo
                         , scReportProgress = scoReportProgress
                         , scCacheCabalFiles = scoCacheCabalFiles
+                        , scHoogleVersionId = currentHoogleVersionId
                         }
-             in runRIO stackage (runStackageUpdate scoDoNotUpload)
+            runRIO stackage (runStackageUpdate scoDoNotUpload)
 
 
 runStackageUpdate :: Bool -> RIO StackageCron ()
@@ -210,7 +213,7 @@ runStackageUpdate doNotUpload = do
     runStackageMigrations
     didUpdate <- forceUpdateHackageIndex (Just "stackage-server cron job")
     case didUpdate of
-        UpdateOccurred -> logInfo "Updated hackage index"
+        UpdateOccurred   -> logInfo "Updated hackage index"
         NoUpdateOccurred -> logInfo "No new packages in hackage index"
     logInfo "Getting deprecated info now"
     getHackageDeprecations >>= setDeprecations
@@ -218,10 +221,9 @@ runStackageUpdate doNotUpload = do
     runResourceT $
         join $
         runConduit $ sourceSnapshots .| foldMC (createOrUpdateSnapshot corePackageGetters) (pure ())
+    unless doNotUpload uploadSnapshotsJSON
+    buildAndUploadHoogleDB doNotUpload
     run $ mapM_ (`rawExecute` []) ["COMMIT", "VACUUM", "BEGIN"]
-    unless doNotUpload $ do
-        uploadSnapshotsJSON
-        buildAndUploadHoogleDB
 
 
 -- | This will look at 'global-hints.yaml' and will create core package getters that are reused
@@ -677,7 +679,6 @@ uploadHoogleDB fp key =
     withTempFile (takeDirectory fp) (takeFileName fp <.> "gz") $ \fpgz h -> do
         runConduitRes $ sourceFile fp .| compress 9 (WindowBits 31) .| CB.sinkHandle h
         hClose h
-        -- FIXME body <- chunkedFile defaultChunkSize fpgz
         body <- toBody <$> readFileBinary fpgz
         uploadBucket <- scUploadBucketName <$> ask
         uploadFromRIO key $
@@ -694,26 +695,30 @@ uploadFromRIO key po = do
             logError $ "Couldn't upload " <> displayShow key <> " to S3 becuase " <> displayShow e
         Right _ -> logInfo $ "Successfully uploaded " <> displayShow key <> " to S3"
 
-buildAndUploadHoogleDB :: RIO StackageCron ()
-buildAndUploadHoogleDB = do
-    snapshots <- lastLtsNightly 80 5
-    let snapshots' = sortBy (\x y -> compare (snd (snd y)) (snd (snd x))) $ Map.toList snapshots
+buildAndUploadHoogleDB :: Bool -> RIO StackageCron ()
+buildAndUploadHoogleDB doNotUpload = do
+    snapshots <- lastLtsNightlyWithoutHoogleDb 5 5
     env <- ask
     locker <- newHoogleLocker (env ^. logFuncL) (env ^. envManager)
-    for_ snapshots' $ \(snapshotId, (snapName, _created)) -> do
-        logInfo $ "Starting Hoogle DB download: " <> display (hoogleKey snapName)
-        mfp <- singleRun locker snapName
-        case mfp of
-            Just _ -> logInfo $ "Hoogle database exists for: " <> display snapName
-            Nothing -> do
-                logInfo $ "Hoogle database does not exist for: " <> display snapName
-                mfp' <- createHoogleDB snapshotId snapName
-                forM_ mfp' $ \fp -> do
-                    let key = hoogleKey snapName
-                    uploadHoogleDB fp (ObjectKey key)
-                    let dest = T.unpack key
-                    createDirectoryIfMissing True $ takeDirectory dest
-                    renamePath fp dest
+    for_ snapshots $ \(snapshotId, snapName) ->
+        unlessM (checkInsertSnapshotHoogleDb False snapshotId) $ do
+            logInfo $ "Starting Hoogle database download: " <> display (hoogleKey snapName)
+            mfp <- singleRun locker snapName
+            case mfp of
+                Just _ -> do
+                    logInfo $ "Current hoogle database exists for: " <> display snapName
+                    void $ checkInsertSnapshotHoogleDb True snapshotId
+                Nothing -> do
+                    logInfo $ "Current hoogle database does not yet exist for: " <> display snapName
+                    mfp' <- createHoogleDB snapshotId snapName
+                    forM_ mfp' $ \fp -> do
+                        let key = hoogleKey snapName
+                            dest = T.unpack key
+                        createDirectoryIfMissing True $ takeDirectory dest
+                        renamePath fp dest
+                        unless doNotUpload $ do
+                            uploadHoogleDB dest (ObjectKey key)
+                            void $ checkInsertSnapshotHoogleDb True snapshotId
 
 createHoogleDB :: SnapshotId -> SnapName -> RIO StackageCron (Maybe FilePath)
 createHoogleDB snapshotId snapName =
@@ -726,9 +731,11 @@ createHoogleDB snapshotId snapName =
             tarKey = toPathPiece snapName <> "/hoogle/orig.tar"
             tarUrl = "https://s3.amazonaws.com/" <> downloadBucket <> "/" <> tarKey
             tarFP = root </> T.unpack tarKey
-        req <- parseRequest $ T.unpack tarUrl
-        man <- view envManager
-        unlessM (doesFileExist tarFP) $
+        -- When tarball is downloaded it is saved with durability and atomicity, so if it
+        -- is present it is not in a corrupted state
+        unlessM (doesFileExist tarFP) $ do
+            req <- parseRequest $ T.unpack tarUrl
+            man <- view envManager
             withResponseUnliftIO req {decompress = const True} man $ \res -> do
                 throwErrorStatusCodes req res
                 createDirectoryIfMissing True $ takeDirectory tarFP
@@ -740,8 +747,9 @@ createHoogleDB snapshotId snapName =
         withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
             Any hasRestored <-
                 runConduitRes $
-                sourceFile tarFP .| untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
-                foldC
+                sourceFile tarFP .|
+                untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
+                foldMapC Any
             unless hasRestored $ error "No Hoogle .txt files found"
             let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
             logInfo $
@@ -758,12 +766,16 @@ createHoogleDB snapshotId snapName =
         logError ("Problem creating hoogle db for " <> display snapName <> ": " <> displayShow exc) $>
         Nothing
 
+
+-- | Grabs hoogle txt file from the tarball and a matching cabal file from pantry.  Writes
+-- them into supplied temp directory and yields the result of operation as a boolean for
+-- every tar entry.
 restoreHoogleTxtFileWithCabal ::
        FilePath
     -> SnapshotId
     -> SnapName
     -> FileInfo
-    -> ConduitM ByteString Any (ResourceT (RIO StackageCron)) ()
+    -> ConduitM ByteString Bool (ResourceT (RIO StackageCron)) ()
 restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName fileInfo =
     case fileType fileInfo of
         FTNormal -> do
@@ -776,12 +788,12 @@ restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName fileInfo =
                         "Unexpected hoogle filename: " <> display txtFileName <>
                         " in orig.tar for snapshot: " <>
                         display snapName
-                    yield $ Any False
+                    yield False
                 Just cabal -> do
                     writeFileBinary (tmpdir </> T.unpack txtPackageName <.> "cabal") cabal
                     sinkFile (tmpdir </> T.unpack txtFileName)
-                    yield $ Any True
-        _ -> yield $ Any False
+                    yield True
+        _ -> yield False
 
 
 pathToPackageModule :: Text -> Maybe (PackageIdentifierP, ModuleNameP)
