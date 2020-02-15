@@ -16,9 +16,9 @@ module Stackage.Database.Query
     , snapshotBefore
     , lookupSnapshot
     , snapshotTitle
-    , lastXLts5Nightly
     , snapshotsJSON
     , getLatestLtsByGhc
+    , getLatestLtsNameWithHoogle
 
     , getSnapshotModules
     , getSnapshotPackageModules
@@ -52,6 +52,7 @@ module Stackage.Database.Query
     , loadBlobById
     , getTreeForKey
     , treeCabal
+    , getVersionId
     -- ** Stackage server
     , CabalFileIds
     , addCabalFile
@@ -64,8 +65,9 @@ module Stackage.Database.Query
     , markModuleHasDocs
     , insertDeps
     -- ** For Hoogle db creation
-    , lastLtsNightly
+    , lastLtsNightlyWithoutHoogleDb
     , getSnapshotPackageCabalBlob
+    , checkInsertSnapshotHoogleDb
     ) where
 
 import qualified Data.Aeson as A
@@ -159,23 +161,29 @@ ltsBefore x y = do
     go (Entity _ lts) = (ltsSnap lts, SNLts (ltsMajor lts) (ltsMinor lts))
 
 
-
-lastXLts5Nightly :: GetStackageDatabase env m => Int -> m [SnapName]
-lastXLts5Nightly ltsCount = run $ do
-    ls <- P.selectList [] [P.Desc LtsMajor, P.Desc LtsMinor, P.LimitTo ltsCount]
-    ns <- P.selectList [] [P.Desc NightlyDay, P.LimitTo 5]
-    return $ map l ls <> map n ns
-  where
-    l (Entity _ x) = SNLts (ltsMajor x) (ltsMinor x)
-    n (Entity _ x) = SNNightly (nightlyDay x)
-
-lastLtsNightly :: GetStackageDatabase env m => Int -> Int -> m (Map SnapshotId (SnapName, Day))
-lastLtsNightly ltsCount nightlyCount =
+lastLtsNightlyWithoutHoogleDb :: Int -> Int -> RIO StackageCron [(SnapshotId, SnapName)]
+lastLtsNightlyWithoutHoogleDb ltsCount nightlyCount = do
+    currentHoogleVersionId <- scHoogleVersionId <$> ask
+    let getSnapshotsWithoutHoogeDb snapId snapCount =
+            map (unValue *** unValue) <$>
+            select
+                (from $ \(snap `InnerJoin` snapshot) -> do
+                     on $ snap ^. snapId ==. snapshot ^. SnapshotId
+                     where_ $
+                         notExists $
+                         from $ \snapshotHoogleDb ->
+                             where_ $
+                             (snapshotHoogleDb ^. SnapshotHoogleDbSnapshot ==. snapshot ^.
+                              SnapshotId) &&.
+                             (snapshotHoogleDb ^. SnapshotHoogleDbVersion ==.
+                              val currentHoogleVersionId)
+                     orderBy [desc (snapshot ^. SnapshotCreated)]
+                     limit $ fromIntegral snapCount
+                     pure (snapshot ^. SnapshotId, snapshot ^. SnapshotName))
     run $ do
-        ls <- P.selectList [] [P.Desc LtsMajor, P.Desc LtsMinor, P.LimitTo ltsCount]
-        ns <- P.selectList [] [P.Desc NightlyDay, P.LimitTo nightlyCount]
-        Map.map (snapshotName &&& snapshotCreated) <$>
-            P.getMany (map (ltsSnap . P.entityVal) ls <> map (nightlySnap . P.entityVal) ns)
+        lts <- getSnapshotsWithoutHoogeDb LtsSnap ltsCount
+        nightly <- getSnapshotsWithoutHoogeDb NightlySnap nightlyCount
+        pure $ lts ++ nightly
 
 
 snapshotsJSON :: GetStackageDatabase env m => m A.Value
@@ -221,6 +229,20 @@ getLatestLtsByGhc =
     dedupe (x:xs) = x : dedupe (dropWhile (\y -> thd x == thd y) xs)
     thd (_, _, x, _) = x
 
+getLatestLtsNameWithHoogle :: GetStackageDatabase env m => m Text
+getLatestLtsNameWithHoogle =
+    run $ do
+        currentHoogleVersionId <- getCurrentHoogleVersionId
+        maybe "lts" (textDisplay . unValue) . listToMaybe <$>
+            select
+                (from $ \(lts `InnerJoin` snapshot `InnerJoin` snapshotHoogleDb) -> do
+                     on $ snapshotHoogleDb ^. SnapshotHoogleDbSnapshot ==. snapshot ^. SnapshotId
+                     on $ lts ^. LtsSnap ==. snapshot ^. SnapshotId
+                     where_ $
+                         snapshotHoogleDb ^. SnapshotHoogleDbVersion ==. val currentHoogleVersionId
+                     orderBy [desc (lts ^. LtsMajor), desc (lts ^. LtsMinor)]
+                     limit 1
+                     return (snapshot ^. SnapshotName))
 
 -- | Count snapshots that belong to a specific SnapshotBranch
 countSnapshots :: (GetStackageDatabase env m) => Maybe SnapshotBranch -> m Int
@@ -1089,3 +1111,26 @@ markModuleHasDocs snapshotId pid mSnapshotPackageId modName =
             return $ Just snapshotPackageId
         Nothing -> return Nothing
 
+
+-- | We can either check or insert hoogle db for current hoogle version for current
+-- snapshot. Returns True if current hoogle version was not in the database.
+checkInsertSnapshotHoogleDb :: Bool -> SnapshotId -> RIO StackageCron Bool
+checkInsertSnapshotHoogleDb shouldInsert snapshotId = do
+    hoogleVersionId <- scHoogleVersionId <$> ask
+    let sh = SnapshotHoogleDb snapshotId hoogleVersionId
+    run $
+        if shouldInsert
+            then do
+                mhver <-
+                    (fmap unValue . listToMaybe) <$>
+                    select
+                        (from
+                             (\v -> do
+                                  where_ $ v ^. VersionId ==. val hoogleVersionId
+                                  pure (v ^. VersionVersion)))
+                forM_ mhver $ \hver ->
+                    lift $
+                    logInfo $
+                    "Marking hoogle database for version " <> display hver <> " as available."
+                isJust <$> P.insertUniqueEntity sh
+            else isJust <$> P.checkUnique sh

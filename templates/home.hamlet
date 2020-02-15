@@ -3,7 +3,7 @@
         <div .span6>
             <img src=@{StaticR img_logo_png} .logo>
         <div .span6>
-            <form class="hoogle" action="/lts/hoogle">
+            <form class="hoogle" action="/#{latestLtsNameWithHoogle}/hoogle">
               <div class="input-append hoogle-q">
                 <input class="search span3" type="search" autofocus="" name="q" value="" placeholder="E.g. map, a -> a, etc.">
                 <button class="btn" type="submit">

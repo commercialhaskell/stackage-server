@@ -17,7 +17,7 @@ import Data.Yaml.Config
 import Language.Haskell.TH.Syntax (Exp, Name, Q)
 import Network.Wai.Handler.Warp (HostPreference)
 import Text.Hamlet
-import Yesod.Default.Config2 (applyEnvValue, configSettingsYml)
+import Yesod.Default.Config2 (configSettingsYml)
 import Yesod.Default.Util (WidgetFileSettings, wfsHamletSettings,
                            widgetFileNoReload, widgetFileReload)
 

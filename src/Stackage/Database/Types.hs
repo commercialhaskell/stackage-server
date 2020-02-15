@@ -88,6 +88,7 @@ data StackageCron = StackageCron
     , scSnapshotsRepo      :: !GithubRepo
     , scReportProgress     :: !Bool
     , scCacheCabalFiles    :: !Bool
+    , scHoogleVersionId    :: !VersionId
     }
 
 instance HasEnv StackageCron where

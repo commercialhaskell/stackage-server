@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -21,12 +22,15 @@ module Stackage.Database.Schema
     , GetStackageDatabase(..)
     , withStackageDatabase
     , runStackageMigrations
+    , getCurrentHoogleVersionId
+    , getCurrentHoogleVersionIdWithPantryConfig
     -- * Tables
     , Unique(..)
     , EntityField(..)
     -- ** Snapshot
     , Snapshot(..)
     , SnapshotId
+    , SnapshotHoogleDb(..)
     , Lts(..)
     , Nightly(..)
     -- ** Package
@@ -48,12 +52,12 @@ import Data.Pool (destroyAllResources)
 import Database.Persist
 import Database.Persist.Postgresql
 import Database.Persist.TH
-import Pantry (HasPantryConfig(..), Revision)
+import Pantry (HasPantryConfig(..), Revision, parseVersionThrowing)
 import Pantry.Internal.Stackage as PS (BlobId, HackageCabalId, ModuleNameId,
                                        PackageNameId, Tree(..),
                                        TreeEntryId, TreeId, Unique(..),
                                        VersionId, unBlobKey)
-import Pantry.Internal.Stackage (PantryConfig(..), Storage(..))
+import Pantry.Internal.Stackage (PantryConfig(..), Storage(..), getVersionId)
 import qualified Pantry.Internal.Stackage as Pantry (migrateAll)
 import RIO
 import RIO.Time
@@ -82,6 +86,10 @@ Nightly
     snap SnapshotId
     day Day
     UniqueNightly day
+SnapshotHoogleDb
+    snapshot SnapshotId
+    version VersionId
+    UniqueSnapshotHoogleVersion snapshot version
 SnapshotPackage
     snapshot SnapshotId
     packageName PackageNameId
@@ -113,7 +121,7 @@ Deprecated
     UniqueDeprecated package
 |]
 
-_hideUnusedWarnings :: (SchemaId, LtsId, NightlyId) -> ()
+_hideUnusedWarnings :: (SchemaId, LtsId, NightlyId, SnapshotHoogleDbId) -> ()
 _hideUnusedWarnings _ = ()
 
 
@@ -146,12 +154,24 @@ class (MonadThrow m, MonadIO m) => GetStackageDatabase env m | m -> env where
 
 
 instance (HasLogFunc env, HasPantryConfig env) => GetStackageDatabase env (RIO env) where
-    getStackageDatabase = do
-      env <- view pantryConfigL
-      let Storage runStorage _ = pcStorage env
-      pure $ StackageDatabase runStorage
+    getStackageDatabase = view pantryConfigL >>= getStackageDatabaseFromPantry
     getLogFunc = view logFuncL
 
+getStackageDatabaseFromPantry :: PantryConfig -> RIO env StackageDatabase
+getStackageDatabaseFromPantry pc = do
+    let Storage runStorage _ = pcStorage pc
+    pure $ StackageDatabase runStorage
+
+
+getCurrentHoogleVersionId :: HasLogFunc env => ReaderT SqlBackend (RIO env) VersionId
+getCurrentHoogleVersionId = do
+    currentHoogleVersion <- parseVersionThrowing VERSION_hoogle
+    getVersionId currentHoogleVersion
+
+getCurrentHoogleVersionIdWithPantryConfig :: HasLogFunc env => PantryConfig -> RIO env VersionId
+getCurrentHoogleVersionIdWithPantryConfig pantryConfig = do
+    stackageDb <- getStackageDatabaseFromPantry pantryConfig
+    runDatabase stackageDb getCurrentHoogleVersionId
 
 
 run :: GetStackageDatabase env m => SqlPersistT (RIO RIO.LogFunc) a -> m a
