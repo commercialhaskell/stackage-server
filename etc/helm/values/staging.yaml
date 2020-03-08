@@ -28,9 +28,9 @@ cronResources:
   resources:
     requests:
       cpu: 150m
-      memory: 1048Mi
+      memory: 2Gi
     limits:
      cpu: 200m
-     memory: 2096Mi
+     memory: 4Gi
 
 registrySecretName: registry-key
