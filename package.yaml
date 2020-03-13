@@ -90,6 +90,7 @@ dependencies:
 - file-embed
 - resource-pool
 - containers
+- retry
 
 default-extensions:
 - OverloadedStrings

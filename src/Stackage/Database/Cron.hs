@@ -63,7 +63,7 @@ import Stackage.Database.Types
 import System.Environment (lookupEnv)
 import UnliftIO.Concurrent (getNumCapabilities)
 import Web.PathPieces (fromPathPiece, toPathPiece)
-
+import qualified Control.Retry as Retry
 
 
 hoogleKey :: SnapName -> Text
@@ -143,7 +143,9 @@ newHoogleLocker env man = mkSingleRun hoogleLocker
 getHackageDeprecations ::
        (HasLogFunc env, MonadReader env m, MonadIO m) => m [Deprecation]
 getHackageDeprecations = do
-    jsonResponseDeprecated <- httpJSONEither hackageDeprecatedUrl
+    let policy = Retry.exponentialBackoff 50 <> Retry.limitRetries 5
+    jsonResponseDeprecated <-
+      liftIO $ Retry.recoverAll policy $ const $ httpJSONEither hackageDeprecatedUrl
     case getResponseBody jsonResponseDeprecated of
         Left err -> do
             logError $
