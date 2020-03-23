@@ -20,27 +20,14 @@ variables:
     DEPLOYMENT_APP: "stackage-server-prod"
     CRON_DEPLOYMENT_APP: "stackage-server-cron-prod"
     HOOGLE_DEPLOYMENT_APP: "stackage-server-hoogle-prod"
-
-# This creates anchors for bits of script that are reused between builds
-.anchors:
-  # The KUBE_* variables are set by Gitlab's Kubernetes deployment service
-  - &KUBELOGIN
-    echo "$KUBE_CA_PEM" >"$HOME/ca.pem" &&
-    kubectl config set-cluster cluster --server="$KUBE_URL" --certificate-authority="$HOME/ca.pem" &&
-    kubectl config set-credentials cluster --token="$KUBE_TOKEN" && kubectl config set-context cluster --cluster=cluster --user=cluster --namespace="$KUBE_NAMESPACE" &&
-    kubectl config use-context cluster
-  - &HELMUPGRADE
-    helm --tiller-namespace ${KUBE_NAMESPACE} upgrade --install "${DEPLOYMENT_NAME}" etc/helm --set name="${DEPLOYMENT_NAME}" --set app="${DEPLOYMENT_APP}" --set hoogleName="${HOOGLE_DEPLOYMENT_NAME}" --set hoogleApp="${HOOGLE_DEPLOYMENT_APP}" --set cronName="${CRON_DEPLOYMENT_NAME}" --set cronApp="${HOOGLE_DEPLOYMENT_APP}" --set image.image="${DEPLOYMENT_IMAGE}" --values etc/helm/values/$CI_ENVIRONMENT_NAME.yaml --namespace ${KUBE_NAMESPACE}
-  - &HELMCHECK
-    helm --tiller-namespace ${KUBE_NAMESPACE} ls &&
-    helm --tiller-namespace ${KUBE_NAMESPACE} status "${DEPLOYMENT_NAME}"
+    KUBECONFIG: /etc/deploy/kubeconfig.yaml
 
 build:
   stage: build
   script:
     # Clear *_TOKEN variables during code build so that compile-time code can't access them
     - apt-get update && apt-get install -y --no-install-recommends libpq-dev git rsync
-    - CI_BUILD_TOKEN="" KUBE_TOKEN="" PROD_KUBE_TOKEN="" PROD_DOCKER_PASSWORD="" etc/scripts/stage_docker.sh --install-ghc --test
+    - CI_BUILD_TOKEN="" KUBECONFIG_YAML="" KUBE_TOKEN="" PROD_KUBE_TOKEN="" PROD_DOCKER_PASSWORD="" etc/scripts/stage_docker.sh --install-ghc --test
     - docker build -t "${DEPLOYMENT_IMAGE}" etc/docker
     - docker login -u gitlab-ci-token -p "${CI_BUILD_TOKEN}" "${CI_REGISTRY}"
     - docker push "${DEPLOYMENT_IMAGE}"
@@ -69,32 +56,12 @@ deploy_prod:
     KUBE_NAMESPACE: "${PROD_KUBE_NAMESPACE}"
     PROD_DEPLOYMENT_IMAGE: "fpco/stackage-server-prod:${CI_BUILD_REF_SLUG}_${CI_PIPELINE_ID}"
   script:
-    - export
-      KUBE_CA_PEM="$PROD_V2_KUBE_CA_PEM"
-      KUBE_URL="$PROD_V2_KUBE_URL"
-      KUBE_TOKEN="$PROD_V2_KUBE_TOKEN"
-      KUBE_NAMESPACE="$PROD_V2_KUBE_NAMESPACE"
-    - *KUBELOGIN
-    - *HELMUPGRADE
-    - *HELMCHECK
-
-deploy_ci:
-  stage: deploy
-  only:
-    - ci
-  environment:
-    name: staging
-    url: https://ci.stackage.org/
-  variables:
-    KUBE_NAMESPACE: "fpco-public"
-    DEPLOYMENT_NAME: "stackage-server-ci"
-    HOOGLE_DEPLOYMENT_NAME: "stackage-server-hoogle-ci"
-    CRON_DEPLOYMENT_NAME: "stackage-server-cron-ci"
-    DEPLOYMENT_APP: "stackage-server-ci"
-    CRON_DEPLOYMENT_APP: "stackage-server-cron-ci"
-    HOOGLE_DEPLOYMENT_APP: "stackage-server-hoogle-ci"
-    HOST: ci.stackage.org
-  script:
-    - *KUBELOGIN
-    - *HELMUPGRADE
-    - *HELMCHECK
+    - mkdir -p /etc/deploy
+    - echo "${KUBECONFIG_YAML}" > /etc/deploy/kubeconfig.enc
+    - base64 -d </etc/deploy/kubeconfig.enc > ${KUBECONFIG}
+    - kubectl set image "deployment/stackage-server-prod" stackage-server="$DEPLOYMENT_IMAGE"
+    - kubectl set image "deployment/stackage-server-cron-prod" stackage-server-cron="$DEPLOYMENT_IMAGE"
+    - kubectl set image "deployment/stackage-server-hoogle-prod" stackage-server-hoogle="$DEPLOYMENT_IMAGE"
+    - kubectl rollout status "deployment/stackage-server-prod"
+    - kubectl rollout status "deployment/stackage-server-hoogle-prod"
+    - kubectl rollout status "deployment/stackage-server-cron-prod"
