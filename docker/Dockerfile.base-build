@@ -6,6 +6,6 @@ RUN export DEBIAN_FRONTEND=noninteractive && \
     curl -sSL https://get.haskellstack.org/ | sh && \
     unset DEBIAN_FRONTEND
 RUN stack update
-COPY stack.yaml stackage-server.cabal /src/
+COPY stack.yaml package.yaml /src/
 RUN stack setup --stack-yaml /src/stack.yaml
 RUN stack build --only-snapshot --stack-yaml /src/stack.yaml
