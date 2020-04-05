@@ -1,6 +1,4 @@
-resolver: nightly-2020-02-08
-packages:
-  - '.'
+resolver: lts-15.6
 extra-deps:
 - barrier-0.1.1@sha256:2021f84c3aba67bb635d72825d3bc0371942444dc014bc307b875071e29eea98,3931
 - hackage-security-0.6.0.0@sha256:69987d46e7b55fe5f0fc537021c3873c5f6f44a6665d349ee6995fd593df8147,11976

@@ -1,0 +1,30 @@
+name: Base image
+
+on:
+  push:
+    branches: [base]
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Log into Github registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login docker.pkg.github.com -u ${{ github.actor }} --password-stdin
+
+      - name: Build base run image
+        run: |
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/base-run:$GITHUB_SHA
+          docker build etc/base-run --tag $IMAGE_ID
+          docker push $IMAGE_ID
+          echo Pushed new base image $IMAGE_ID
+
+      - name: Build base build image
+        run: |
+          IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/base-build:$GITHUB_SHA
+          docker build etc/base-build --tag $IMAGE_ID
+          docker push $IMAGE_ID
+          echo Pushed new base build image $IMAGE_ID
