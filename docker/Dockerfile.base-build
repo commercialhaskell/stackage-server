@@ -1,5 +1,10 @@
-FROM base-run
+FROM fpco/pid1:18.04
 
+RUN export DEBIAN_FRONTEND=noninteractive && \
+    apt-get update && \
+    apt-get install libpq-dev curl -y && \
+    curl -sSL https://get.haskellstack.org/ | sh && \
+    unset DEBIAN_FRONTEND
 RUN stack update
 COPY stack.yaml stackage-server.cabal /src/
 RUN stack setup --stack-yaml /src/stack.yaml
