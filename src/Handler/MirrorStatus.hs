@@ -38,10 +38,13 @@ mkUpdateMirrorStatus = mkAutoUpdate defaultUpdateSettings
 
     goHT hackageTime = do
         gitMods <- mapM (\(x, y, z) -> getLastModifiedGit x y z)
+            []
+            {- FIXME unreliable, and 00-index catches this anyway
             [ ("commercialhaskell", "all-cabal-files", "current-hackage")
             , ("commercialhaskell", "all-cabal-hashes", "current-hackage")
             , ("commercialhaskell", "all-cabal-metadata", "master")
             ]
+            -}
         tarballMods <- mapM getLastModifiedHTTP
             [ "http://hackage.fpcomplete.com/00-index.tar.gz"
             , "http://hackage.fpcomplete.com/01-index.tar.gz"
