@@ -1,5 +1,6 @@
-FROM fpco/stack-build:lts-15.5
+FROM base-run
 
 RUN stack update
 COPY stack.yaml stackage-server.cabal /src/
+RUN stack setup --stack-yaml /src/stack.yaml
 RUN stack build --only-snapshot --stack-yaml /src/stack.yaml

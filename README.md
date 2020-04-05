@@ -1,7 +1,7 @@
 stackage-server
 ===============
 
-[![Build Status](https://dev.azure.com/fpco/stackage-server/_apis/build/status/fpco.stackage-server?branchName=master)](https://dev.azure.com/fpco/stackage-server/_build/latest?definitionId=1&branchName=master)
+![Runtime image](https://github.com/fpco/stackage-server/workflows/Runtime%20image/badge.svg)
 
 Server for stable, curated Haskell package sets
 

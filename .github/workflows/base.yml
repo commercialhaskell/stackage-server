@@ -18,13 +18,14 @@ jobs:
       - name: Build base run image
         run: |
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/base-run:$GITHUB_SHA
-          docker build etc/base-run --tag $IMAGE_ID
+          docker build . -f docker/Dockerfile.base-run --tag base-run
+          docker tag base-run $IMAGE_ID
           docker push $IMAGE_ID
           echo Pushed new base image $IMAGE_ID
 
       - name: Build base build image
         run: |
           IMAGE_ID=docker.pkg.github.com/${{ github.repository }}/base-build:$GITHUB_SHA
-          docker build etc/base-build --tag $IMAGE_ID
+          docker build . -f docker/Dockerfile.base-build --tag $IMAGE_ID
           docker push $IMAGE_ID
           echo Pushed new base build image $IMAGE_ID
