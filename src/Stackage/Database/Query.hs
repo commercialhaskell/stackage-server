@@ -27,6 +27,7 @@ module Stackage.Database.Query
 
     , getAllPackages
     , getPackagesForSnapshot
+    , getPackagesForSnapshotDiff
     , getPackageVersionForSnapshot
 
     , getLatests
@@ -374,6 +375,22 @@ getPackagesForSnapshot snapshotId =
   where
     toPackageListingInfo (Value pliName, Value pliVersion, Value pliSynopsis, Value pliOrigin) =
         PackageListingInfo {pliName, pliVersion, pliSynopsis, pliOrigin}
+
+getPackagesForSnapshotDiff :: GetStackageDatabase env m => SnapshotId -> m [(PackageNameP, VersionP)]
+getPackagesForSnapshotDiff snapshotId =
+    run (map toPackageListingInfo <$>
+         select
+             (from $ \(sp `InnerJoin` pn `InnerJoin` v) -> do
+                  on (sp ^. SnapshotPackageVersion ==. v ^. VersionId)
+                  on (sp ^. SnapshotPackagePackageName ==. pn ^. PackageNameId)
+                  where_ (sp ^. SnapshotPackageSnapshot ==. val snapshotId)
+                  orderBy [asc (pn ^. PackageNameName)]
+                  pure
+                      ( pn ^. PackageNameName
+                      , v ^. VersionVersion
+                      )))
+  where
+    toPackageListingInfo (Value name, Value version) = (name, version)
 
 
 getPackageVersionForSnapshot

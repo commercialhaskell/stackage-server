@@ -39,7 +39,6 @@ dependencies:
 - persistent-template
 - resourcet
 - rio
-- semialign
 - shakespeare
 - tar-conduit
 - template-haskell

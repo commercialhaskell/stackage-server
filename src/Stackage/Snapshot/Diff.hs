@@ -15,14 +15,11 @@ module Stackage.Snapshot.Diff
 
 import ClassyPrelude (sortOn, toCaseFold)
 import Data.Aeson
-import Data.Align
-import qualified Data.HashMap.Strict as HashMap
 import qualified Data.Text as T (commonPrefixes)
 import Data.These
 import RIO
 import Stackage.Database (GetStackageDatabase, SnapshotId,
-                          getPackagesForSnapshot)
-import Stackage.Database.Types (PackageListingInfo(..))
+                          getPackagesForSnapshotDiff)
 import Types
 import Web.PathPieces
 
@@ -30,17 +27,14 @@ data WithSnapshotNames a
     = WithSnapshotNames SnapName SnapName a
 
 newtype SnapshotDiff
-    = SnapshotDiff { unSnapshotDiff :: HashMap PackageNameP VersionChange }
+    = SnapshotDiff { toDiffList :: [(PackageNameP, VersionChange)] }
     deriving (Show, Eq, Generic, Typeable)
 
 instance ToJSON (WithSnapshotNames SnapshotDiff) where
     toJSON (WithSnapshotNames nameA nameB (SnapshotDiff diff)) =
         object [ "comparing" .= [toPathPiece nameA, toPathPiece nameB]
-               , "diff"      .= toJSON (WithSnapshotNames nameA nameB <$> diff)
+               , "diff"      .= toJSON (map (second (WithSnapshotNames nameA nameB)) diff)
                ]
-
-toDiffList :: SnapshotDiff -> [(PackageNameP, VersionChange)]
-toDiffList = sortOn (toCaseFold . textDisplay . fst) . HashMap.toList . unSnapshotDiff
 
 versionPrefix :: VersionChange -> Maybe (Text, Text, Text)
 versionPrefix vc = case unVersionChange vc of
@@ -73,15 +67,24 @@ instance ToJSON (WithSnapshotNames VersionChange) where
             VersionChange (That b)    -> object [ bKey .= b ]
             VersionChange (These a b) -> object [ aKey .= a, bKey .= b ]
 
-changed :: VersionChange -> Bool
-changed = these (const True) (const True) (/=) . unVersionChange
-
 getSnapshotDiff :: GetStackageDatabase env m => SnapshotId -> SnapshotId -> m SnapshotDiff
-getSnapshotDiff a b = snapshotDiff <$> getPackagesForSnapshot a <*> getPackagesForSnapshot b
+getSnapshotDiff a b = snapshotDiff <$> getPackagesForSnapshotDiff a <*> getPackagesForSnapshotDiff b
 
-snapshotDiff :: [PackageListingInfo] -> [PackageListingInfo] -> SnapshotDiff
-snapshotDiff as bs =
-    SnapshotDiff $ HashMap.filter changed
-                 $ alignWith VersionChange (toMap as) (toMap bs)
+snapshotDiff
+  :: [(PackageNameP, VersionP)]
+  -> [(PackageNameP, VersionP)]
+  -> SnapshotDiff
+snapshotDiff as0 bs0 =
+    SnapshotDiff $ map (second VersionChange) $ go (sortEm as0) (sortEm bs0)
   where
-    toMap = HashMap.fromList . map (pliName &&& pliVersion)
+    sortEm = sortOn (toCaseFold . textDisplay . fst)
+
+    go as [] = map (second This) as
+    go [] bs = map (second That) bs
+    go (a:as) (b:bs) =
+      case compare (fst a) (fst b) of
+        EQ
+          | snd a == snd b -> go as bs
+          | otherwise -> (fst a, These (snd a) (snd b)) : go as bs
+        LT -> (fst a, This $ snd a) : go as (b:bs)
+        GT -> (fst b, That $ snd b) : go (a:as) bs
