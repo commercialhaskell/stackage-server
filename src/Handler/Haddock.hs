@@ -29,6 +29,7 @@ getHaddockR snapName rest
             Just route -> redirect route
             Nothing -> redirect $ makeURL snapName rest
     | Just docType <- mdocType = do
+        cacheSeconds $ 60 * 60 * 24 * 7
         result <- redirectWithVersion snapName rest
         case result of
             Just route -> redirect route

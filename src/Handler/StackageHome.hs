@@ -22,6 +22,7 @@ import Stackage.Snapshot.Diff
 getStackageHomeR :: SnapName -> Handler TypedContent
 getStackageHomeR name =
     track "Handler.StackageHome.getStackageHomeR" $ do
+        cacheSeconds $ 60 * 60 * 12
         Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
         previousSnapName <- fromMaybe name . map snd <$> snapshotBefore (snapshotName snapshot)
         let hoogleForm =
@@ -51,6 +52,7 @@ instance ToJSON SnapshotInfo where
 
 getStackageDiffR :: SnapName -> SnapName -> Handler TypedContent
 getStackageDiffR name1 name2 = track "Handler.StackageHome.getStackageDiffR" $ do
+    cacheSeconds $ 60 * 60 * 48
     Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
     Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
     let fixit = sortOn Down . map (snapshotName . entityVal)
@@ -66,6 +68,7 @@ getStackageDiffR name1 name2 = track "Handler.StackageHome.getStackageDiffR" $ d
 
 getStackageCabalConfigR :: SnapName -> Handler TypedContent
 getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfigR" $ do
+    cacheSeconds $ 60 * 60 * 48
     Entity sid _ <- lookupSnapshot name >>= maybe notFound return
     render <- getUrlRender
 
@@ -157,6 +160,7 @@ getSnapshotPackagesR name = track "Handler.StackageHome.getSnapshotPackagesR" $
 
 getDocsR :: SnapName -> Handler Html
 getDocsR name = track "Handler.StackageHome.getDocsR" $ do
+    cacheSeconds $ 60 * 60 * 48
     Entity sid _ <- lookupSnapshot name >>= maybe notFound return
     mlis <- getSnapshotModules sid
     render <- getUrlRender

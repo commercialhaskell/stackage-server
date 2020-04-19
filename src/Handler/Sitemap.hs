@@ -6,6 +6,7 @@ import Yesod.Sitemap
 
 getSitemapR :: Handler TypedContent
 getSitemapR = track "Handler.Sitemap.getSitemapR" $ sitemap $ do
+    cacheSeconds $ 60 * 60 * 6
     priority 1.0 $ HomeR
 
     priority 0.9 $ OldSnapshotBranchR LtsBranch []

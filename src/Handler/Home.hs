@@ -28,6 +28,7 @@ getHealthzR = return "This should never be used, we should use the middleware in
 -- inclined, or create a single monolithic file.
 getHomeR :: Handler Html
 getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
+    cacheSeconds $ 60 * 60
     now' <- getCurrentTime
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int

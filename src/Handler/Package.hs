@@ -148,6 +148,7 @@ handlePackage epi = do
 getPackageSnapshotsR :: PackageNameP -> Handler Html
 getPackageSnapshotsR pn =
     track "Handler.Package.getPackageSnapshotsR" $ do
+        cacheSeconds $ 60 * 60 * 24
         snapshots <- getSnapshotsForPackage pn Nothing
         defaultLayout
             (do setTitle ("Packages for " >> toHtml pn)

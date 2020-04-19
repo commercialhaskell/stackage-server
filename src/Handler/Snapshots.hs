@@ -22,6 +22,7 @@ snapshotsPerPage = 50
 -- inclined, or create a single monolithic file.
 getAllSnapshotsR :: Handler TypedContent
 getAllSnapshotsR = track "Handler.Snapshots.getAllSnapshotsR" $ do
+    cacheSeconds $ 60 * 60 * 6
     now' <- getCurrentTime
     currentPageMay <- lookupGetParam "page"
     let currentPage :: Int

@@ -12,6 +12,7 @@ getPackageListR :: Handler Html
 getPackageListR =
     track "Handler.PackageList.getPackageListR" $
     defaultLayout $ do
+        cacheSeconds $ 60 * 60 * 2
         setTitle "Package list"
         packages <- getAllPackages
         $(widgetFile "package-list")

@@ -41,6 +41,7 @@ postMonth p =
 
 getBlogHomeR :: Handler ()
 getBlogHomeR = do
+    cacheSeconds 3600
     posts <- getPosts
     case headMay posts of
         Nothing -> notFound
@@ -50,6 +51,7 @@ getBlogHomeR = do
 
 getBlogPostR :: Year -> Month -> Text -> Handler Html
 getBlogPostR year month slug = do
+    cacheSeconds 3600
     posts <- getPosts
     post <- maybe notFound return $ find matches posts
     now <- getCurrentTime
@@ -64,6 +66,7 @@ getBlogPostR year month slug = do
 
 getBlogFeedR :: Handler TypedContent
 getBlogFeedR = do
+    cacheSeconds 3600
     posts <- fmap (take 10) getPosts
     latest <- maybe notFound return $ headMay posts
     newsFeed
