@@ -38,7 +38,7 @@ import Network.Wai.Middleware.RequestLogger (Destination(Logger),
                                              IPAddrSource(..), OutputFormat(..),
                                              destination, mkRequestLogger,
                                              outputFormat)
-import RIO (LogFunc, LogOptions, logOptionsHandle, withLogFunc, runRIO, logError)
+import RIO (LogFunc, LogOptions, logOptionsHandle, withLogFunc, runRIO, logError, displayShow)
 import RIO.Prelude.Simple (runSimpleApp)
 import Stackage.Database (withStackageDatabase)
 import Stackage.Database.Cron (newHoogleLocker, singleRun)
@@ -152,11 +152,14 @@ withFoundation appLogFunc appSettings inner = do
                     grRefresh appWebsiteContent
     withStackageDatabase (appShouldLogAll appSettings) pgConf $ \appStackageDatabase -> do
         appLatestStackMatcher <-
-            mkAutoUpdate
+            mkAutoUpdateWithModify
                 defaultUpdateSettings
                     { updateFreq = 1000 * 1000 * 60 * 30 -- update every thirty minutes
                     , updateAction = getLatestMatcher appHttpManager
                     }
+                \oldMatcher -> getLatestMatcher appHttpManager `catchAny` \e -> do
+                  runRIO appLogFunc $ RIO.logError $ "Couldn't get Stack matcher: " <> displayShow e
+                  pure oldMatcher
         appHoogleLock <- newMVar ()
         appMirrorStatus <- mkUpdateMirrorStatus
         hoogleLocker <- newHoogleLocker appLogFunc appHttpManager
