@@ -249,11 +249,8 @@ data SnapshotPackagePageInfo = SnapshotPackagePageInfo
     -- ^ Limited list of packages in the snapshot that depend on this package
     , sppiReverseDepsCount       :: !Int
     -- ^ Count of all packages in the snapshot that depends on this package
-    , sppiLatestInfo             :: ![LatestInfo]
     , sppiModuleNames            :: !(Map ModuleNameP Bool)
     , sppiPantryCabal            :: !(Maybe PantryCabal)
-    , sppiVersion                :: !(Maybe VersionRev)
-    -- ^ Version on this page. Should be present only if different from latest
     }
 
 toRevMaybe :: Revision -> Maybe Revision

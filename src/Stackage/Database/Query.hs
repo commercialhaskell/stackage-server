@@ -497,7 +497,6 @@ getSnapshotPackagePageInfo spi maxDisplayedDeps =
             if reverseDepsCount > 0
                 then getReverseDeps spi (Just maxDisplayedDeps)
                 else pure []
-        latestInfo <- getLatests (spiPackageName spi)
         moduleNames <- getModuleNames (spiSnapshotPackageId spi)
         mcabalBlobKey <- traverse getBlobKey $ spiCabalBlobId spi
         pure
@@ -508,7 +507,6 @@ getSnapshotPackagePageInfo spi maxDisplayedDeps =
                 , sppiForwardDepsCount = forwardDepsCount
                 , sppiReverseDeps = map (first dropVersionRev) reverseDeps
                 , sppiReverseDepsCount = reverseDepsCount
-                , sppiLatestInfo = latestInfo
                 , sppiModuleNames = moduleNames
                 , sppiPantryCabal =
                       mcabalBlobKey RIO.<&> \cabalBlobKey ->
@@ -517,16 +515,6 @@ getSnapshotPackagePageInfo spi maxDisplayedDeps =
                               , pcVersion = spiVersion spi
                               , pcCabalKey = cabalBlobKey
                               }
-                , sppiVersion =
-                      listToMaybe
-                          [ spiVersionRev spi
-                          | VersionRev ver mrev <-
-                                maybe [] (pure . hciVersionRev) mhciLatest ++
-                                map liVersionRev latestInfo
-                          , ver > curVer ||
-                                (ver == curVer &&
-                                 fromMaybe (Revision 0) mrev > fromMaybe (Revision 0) mcurRev)
-                          ]
                 }
   where
     VersionRev curVer mcurRev = spiVersionRev spi
