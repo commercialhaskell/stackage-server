@@ -1,4 +1,4 @@
-FROM docker.pkg.github.com/fpco/stackage-server/base-build:a5562eea85c1b0646c35ad924511a90c2a40a2f3 as build-app
+FROM docker.pkg.github.com/fpco/stackage-server/base-build:08230664017cd58348d59f71c1dd2275b57813f2 as build-app
 
 RUN mkdir -p /artifacts/bin
 COPY . /src
