@@ -39,6 +39,8 @@ data AppSettings = AppSettings
     -- behind a reverse proxy.
     , appPostgresString         :: !Text
     -- ^ PostgreSQL connection string
+    , appPostgresPoolsize       :: !Int
+    -- ^ PostgreSQL poolsize
 
     , appDetailedRequestLogging :: Bool
     -- ^ Use detailed request logging system
@@ -71,6 +73,7 @@ instance FromJSON AppSettings where
         appPort                   <- o .: "port"
         appIpFromHeader           <- o .: "ip-from-header"
         appPostgresString         <- o .: "postgres-string"
+        appPostgresPoolsize       <- o .: "postgres-poolsize"
 
         dev                       <- o .:? "development" .!= defaultDev
 

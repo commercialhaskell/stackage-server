@@ -140,7 +140,7 @@ withFoundation appLogFunc appSettings inner = do
                 gitRepoDev fp loadWebsiteContent
             else gitRepo "https://github.com/fpco/stackage-content.git" "master" loadWebsiteContent
     let pgConf =
-            PostgresConf {pgPoolSize = 2, pgConnStr = encodeUtf8 $ appPostgresString appSettings}
+            PostgresConf {pgPoolSize = appPostgresPoolsize appSettings, pgConnStr = encodeUtf8 $ appPostgresString appSettings}
         -- Temporary workaround to force content updates regularly, until
         -- distribution of webhooks is handled via consul
         runContentUpdates =

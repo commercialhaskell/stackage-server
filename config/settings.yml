@@ -23,3 +23,4 @@ force-ssl: false
 # dev-download: false
 
 postgres-string: "_env:PGSTRING:host=localhost port=5432 user=stackage dbname=stackage password=stackage"
+postgres-poolsize: "_env:PGPOOLSIZE:8"

@@ -13,6 +13,9 @@ extra-deps:
   subdirs:
      - casa-client
      - casa-types
+- github: yesodweb/persistent
+  commit: f66ed6f472ff3faa140db37bf4649e5b80be4c57
+  subdirs: [persistent]
 
 drop-packages:
 - Cabal
