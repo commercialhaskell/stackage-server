@@ -33,9 +33,13 @@ module Stackage.Database.Query
     , getLatests
     , getHackageLatestVersion
     , getSnapshotPackageInfo
+    , getSnapshotPackageInfoQuery
     , getSnapshotPackageLatestVersion
+    , getSnapshotPackageLatestVersionQuery
     , getSnapshotPackagePageInfo
+    , getSnapshotPackagePageInfoQuery
     , getPackageInfo
+    , getPackageInfoQuery
     , getSnapshotsForPackage
     -- ** Dependencies
 
@@ -46,6 +50,7 @@ module Stackage.Database.Query
     -- ** Deprecations
 
     , getDeprecated
+    , getDeprecatedQuery
     , setDeprecations
 
     -- * Needed for Cron Job
@@ -474,17 +479,18 @@ getHackageLatestVersion pname =
 
 getSnapshotPackageInfo ::
        GetStackageDatabase env m => SnapName -> PackageNameP -> m (Maybe SnapshotPackageInfo)
-getSnapshotPackageInfo snapName pname =
+getSnapshotPackageInfo snapName pname = run $ getSnapshotPackageInfoQuery snapName pname
+
+getSnapshotPackageInfoQuery ::
+       SnapName -> PackageNameP -> ReaderT SqlBackend (RIO env) (Maybe SnapshotPackageInfo)
+getSnapshotPackageInfoQuery snapName pname =
     fmap snd . listToMaybe <$>
-    run (snapshotPackageInfoQuery $ \_sp s pn _v spiQ -> do
-             where_ ((s ^. SnapshotName ==. val snapName) &&. (pn ^. PackageNameName ==. val pname))
-             pure ((), spiQ))
+    (snapshotPackageInfoQuery $ \_sp s pn _v spiQ -> do
+         where_ ((s ^. SnapshotName ==. val snapName) &&. (pn ^. PackageNameName ==. val pname))
+         pure ((), spiQ))
 
-
-getSnapshotPackagePageInfo ::
-       GetStackageDatabase env m => SnapshotPackageInfo -> Int -> m SnapshotPackagePageInfo
-getSnapshotPackagePageInfo spi maxDisplayedDeps =
-    run $ do
+getSnapshotPackagePageInfoQuery :: SnapshotPackageInfo -> Int -> ReaderT SqlBackend (RIO env) SnapshotPackagePageInfo
+getSnapshotPackagePageInfoQuery spi maxDisplayedDeps = do
         mhciLatest <- getHackageLatestVersion $ spiPackageName spi
         -- TODO: check for `spiOrigin spi` once other than `Hackage` are implemented
         forwardDepsCount <- getForwardDepsCount spi
@@ -518,6 +524,10 @@ getSnapshotPackagePageInfo spi maxDisplayedDeps =
                 }
   where
     VersionRev curVer mcurRev = spiVersionRev spi
+
+getSnapshotPackagePageInfo ::
+       GetStackageDatabase env m => SnapshotPackageInfo -> Int -> m SnapshotPackagePageInfo
+getSnapshotPackagePageInfo spi maxDisplayedDeps = run $ getSnapshotPackagePageInfoQuery spi maxDisplayedDeps
 
 type SqlExprSPI
      = ( SqlExpr (Value SnapshotPackageId)
@@ -576,21 +586,21 @@ snapshotPackageInfoQuery customize =
             }
 
 
+getSnapshotPackageLatestVersionQuery ::
+       PackageNameP -> ReaderT SqlBackend (RIO env) (Maybe SnapshotPackageInfo)
+getSnapshotPackageLatestVersionQuery pname =
+    fmap snd . listToMaybe <$>
+    (snapshotPackageInfoQuery $ \_sp s pn v spiQ -> do
+         where_ (pn ^. PackageNameName ==. val pname)
+         orderBy [desc (versionArray v), desc (s ^. SnapshotCreated)]
+         limit 1
+         pure ((), spiQ))
+
 getSnapshotPackageLatestVersion ::
        GetStackageDatabase env m
     => PackageNameP
     -> m (Maybe SnapshotPackageInfo)
-getSnapshotPackageLatestVersion pname =
-    fmap snd . listToMaybe <$>
-    run (snapshotPackageInfoQuery $ \_sp s pn v spiQ -> do
-             where_ (pn ^. PackageNameName ==. val pname)
-             orderBy
-                 [ desc (versionArray v)
-                 , desc (s ^. SnapshotCreated)
-                 ]
-             limit 1
-             pure ((), spiQ))
-
+getSnapshotPackageLatestVersion pname = run (getSnapshotPackageLatestVersionQuery pname)
 
 -- | A helper function that expects at most one element to be returned by a `select` and applies a
 -- function to the returned result
@@ -628,15 +638,11 @@ getSnapshotsForPackage pname mlimit =
              pure (s ^. SnapshotCompiler, spiQ))
 
 
-
-getPackageInfo ::
-       GetStackageDatabase env m => Either HackageCabalInfo SnapshotPackageInfo -> m PackageInfo
-getPackageInfo (Left hci) =
-    run $ do
-        cabalBlob <- loadBlobById (hciCabalBlobId hci)
-        pure $ toPackageInfo (parseCabalBlob cabalBlob) Nothing Nothing
-getPackageInfo (Right spi) =
-    run $
+getPackageInfoQuery :: Either HackageCabalInfo SnapshotPackageInfo -> ReaderT SqlBackend (RIO env) PackageInfo
+getPackageInfoQuery (Left hci) = do
+  cabalBlob <- loadBlobById (hciCabalBlobId hci)
+  pure $ toPackageInfo (parseCabalBlob cabalBlob) Nothing Nothing
+getPackageInfoQuery (Right spi) = do
     case spiCabalBlobId spi of
         Just cabalBlobId -> do
             gpd <- parseCabalBlob <$> loadBlobById cabalBlobId
@@ -651,6 +657,10 @@ getPackageInfo (Right spi) =
   where
     toContentFile :: (ByteString -> Bool -> a) -> (SafeFilePath, ByteString) -> a
     toContentFile con (path, bs) = con bs (isMarkdownFilePath path)
+
+getPackageInfo ::
+       GetStackageDatabase env m => Either HackageCabalInfo SnapshotPackageInfo -> m PackageInfo
+getPackageInfo args = run $ getPackageInfoQuery args
 
 getFileByTreeEntryId ::
        TreeEntryId
@@ -753,10 +763,8 @@ getReverseDeps spi mlimit =
 
 ----- Deprecated
 
--- | See if a package is deprecated on hackage and in favour of which packages.
-getDeprecated :: GetStackageDatabase env m => PackageNameP -> m (Bool, [PackageNameP])
-getDeprecated pname =
-    run $
+getDeprecatedQuery :: PackageNameP -> ReaderT SqlBackend (RIO env) (Bool, [PackageNameP])
+getDeprecatedQuery pname =
     lookupPackageNameId pname >>= \case
         Just pnid ->
             P.getBy (UniqueDeprecated pnid) >>= \case
@@ -767,6 +775,10 @@ getDeprecated pname =
         Nothing -> return defRes
   where
     defRes = (False, [])
+
+-- | See if a package is deprecated on hackage and in favour of which packages.
+getDeprecated :: GetStackageDatabase env m => PackageNameP -> m (Bool, [PackageNameP])
+getDeprecated pname = run $ getDeprecatedQuery pname
 
 
 
