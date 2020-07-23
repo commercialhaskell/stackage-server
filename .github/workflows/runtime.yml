@@ -2,7 +2,7 @@ name: Runtime image
 
 on:
   push:
-    branches: [master]
+    branches: [master, bench]
 
 jobs:
   push:
