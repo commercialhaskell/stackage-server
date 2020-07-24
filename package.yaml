@@ -145,3 +145,16 @@ executables:
       buildable: false
     - condition: flag(dev)
       cpp-options: -DDEVELOPMENT
+
+benchmarks:
+  stackage-bench:
+    main: main.hs
+    source-dirs: bench
+    dependencies:
+    - stackage-server
+    - gauge
+    - deepseq
+    - path-io
+    - casa-client
+    ghc-options:
+    - -O2
