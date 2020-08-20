@@ -102,7 +102,7 @@ handlePackage epi = do
              in if ms == authors
                     then []
                     else ms
-        mdisplayedVersion = Nothing
+        mdisplayedVersion = msppi >>= sppiVersion
     defaultLayout $ do
         setTitle $ toHtml pname
         $(combineScripts 'StaticR [js_highlight_js])

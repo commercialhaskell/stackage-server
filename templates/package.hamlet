@@ -24,6 +24,21 @@ $newline never
                        #{url}
 
             <table>
+              $maybe displayedVersion <- mdisplayedVersion
+                <tr>
+                  <td align=right>Version on this page:
+                  <td>
+                    <span .version>#{displayedVersion}
+              $maybe sppi <- msppi
+                $forall li <- sppiLatestInfo sppi
+                   <tr>
+                     <td align="right">
+                       <a href=@{SnapshotR (liSnapName li) StackageHomeR}>
+                          #{snapshotPrettyNameShort (liSnapName li)}
+                       :
+                     <td>
+                       <span .version>
+                         <a href=@{SnapshotR (liSnapName li) (StackageSdistR (PNVName pname))}>#{liVersionRev li}
               $maybe hciLatest <- mhciLatest
                   <tr>
                     <td align="right">Latest on Hackage:
