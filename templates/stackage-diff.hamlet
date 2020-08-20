@@ -4,34 +4,9 @@
   <div .packages>
     <table .table>
       <thead>
-        <th>
-          <select .form-control onchange="document.location = this.value">
-            <optgroup label="LTS">
-              $forall name1' <- ltsSnaps
-                $if name1' == name1
-                  <option selected value=@{StackageDiffR name1' name2}>#{toPathPiece name1'}
-                $else
-                  <option value=@{StackageDiffR name1' name2}>#{toPathPiece name1'}
-            <optgroup label="Nightly">
-              $forall name1' <- nightlySnaps
-                $if name1' == name1
-                  <option selected value=@{StackageDiffR name1' name2}>#{toPathPiece name1'}
-                $else
-                  <option value=@{StackageDiffR name1' name2}>#{toPathPiece name1'}
-        <th>
-          <select .form-control onchange="document.location = this.value">
-            <optgroup label="LTS">
-              $forall name2' <- ltsSnaps
-                $if name2' == name2
-                  <option selected value=@{StackageDiffR name1 name2'}>#{toPathPiece name2'}
-                $else
-                  <option value=@{StackageDiffR name1 name2'}>#{toPathPiece name2'}
-            <optgroup label="Nightly">
-              $forall name2' <- nightlySnaps
-                $if name2' == name2
-                  <option selected value=@{StackageDiffR name1 name2'}>#{toPathPiece name2'}
-                $else
-                  <option value=@{StackageDiffR name1 name2'}>#{toPathPiece name2'}
+        <tr>
+          <th>#{name1}
+          <th>#{name2}
       <tbody>
         $forall (pkgname, VersionChange verChange, versionDiff) <- toVersionedDiffList snapDiff
           <tr>

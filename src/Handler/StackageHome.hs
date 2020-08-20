@@ -12,7 +12,6 @@ module Handler.StackageHome
     , getSnapshotPackagesR
     ) where
 
-import Data.Ord
 import Data.These
 import RIO.Time (FormatTime)
 import Import
@@ -55,9 +54,6 @@ getStackageDiffR name1 name2 = track "Handler.StackageHome.getStackageDiffR" $ d
     cacheSeconds $ 60 * 60 * 48
     Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
     Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
-    let fixit = sortOn Down . map (snapshotName . entityVal)
-    ltsSnaps <- fixit <$> getSnapshots (Just LtsBranch) 20 0
-    nightlySnaps <- fixit <$> getSnapshots (Just NightlyBranch) 20 0
     snapDiff <- getSnapshotDiff sid1 sid2
     selectRep $ do
         provideRep $ defaultLayout $ do
