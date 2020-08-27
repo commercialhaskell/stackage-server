@@ -110,8 +110,11 @@ withResponseUnliftIO req man f = withRunInIO $ \ runInIO -> withResponse req man
 
 newHoogleLocker ::
        (HasLogFunc env, MonadIO m) => env -> Manager -> m (SingleRun SnapName (Maybe FilePath))
-newHoogleLocker env man = mkSingleRun hoogleLocker
+newHoogleLocker env man = mkSingleRun hoogleLocker cleanup 10
   where
+    cleanup :: SnapName -> Maybe FilePath -> IO ()
+    cleanup _ mfp = for_ mfp removeFile
+
     hoogleLocker :: MonadIO n => SnapName -> n (Maybe FilePath)
     hoogleLocker name =
         runRIO env $ do
@@ -705,7 +708,7 @@ buildAndUploadHoogleDB doNotUpload = do
     for_ snapshots $ \(snapshotId, snapName) ->
         unlessM (checkInsertSnapshotHoogleDb False snapshotId) $ do
             logInfo $ "Starting Hoogle database download: " <> display (hoogleKey snapName)
-            mfp <- singleRun locker snapName
+            mfp <- liftIO $ singleRun locker snapName
             case mfp of
                 Just _ -> do
                     logInfo $ "Current hoogle database exists for: " <> display snapName
