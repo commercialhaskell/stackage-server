@@ -7,7 +7,7 @@ extra-deps:
 - yesod-gitrepo-0.3.0@sha256:7aad996935065726ce615c395d735cc01dcef3993b1788f670f6bfc866085e02,1191
 - lukko-0.1.1.1@sha256:5c674bdd8a06b926ba55d872abe254155ed49a58df202b4d842b643e5ed6bcc9,4289
 - github: commercialhaskell/pantry
-  commit: ed48bebc30e539280ad7e13680480be2b87b97ea
+  commit: c4e7c3dff9770e7937c93edfb6564dd6a1acd55e
 - github: fpco/casa
   commit: fc0ed26858bfc4f2966ed2dfb2871bae9266dda6
   subdirs:

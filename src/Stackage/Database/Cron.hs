@@ -39,7 +39,7 @@ import Network.HTTP.Types (status200, status404)
 import Pantry (CabalFileInfo(..), DidUpdateOccur(..),
                HpackExecutable(HpackBundled), PackageIdentifierRevision(..),
                defaultCasaMaxPerRequest, defaultCasaRepoPrefix,
-               defaultHackageSecurityConfig)
+               defaultHackageSecurityConfig, defaultSnapshotLocation)
 import Pantry.Internal.Stackage (HackageTarballResult(..), PantryConfig(..),
                                  Storage(..), forceUpdateHackageIndex,
                                  getHackageTarball, packageTreeKey)
@@ -189,6 +189,7 @@ stackageServerCron StackageCronOptions {..} = do
                         , pcConnectionCount = connectionCount
                         , pcCasaRepoPrefix = defaultCasaRepoPrefix
                         , pcCasaMaxPerRequest = defaultCasaMaxPerRequest
+                        , pcSnapshotLocation = defaultSnapshotLocation
                         }
             currentHoogleVersionId <-
                 runRIO logFunc $ getCurrentHoogleVersionIdWithPantryConfig pantryConfig
@@ -228,7 +229,7 @@ runStackageUpdate doNotUpload = do
         runConduit $ sourceSnapshots .| foldMC (createOrUpdateSnapshot corePackageGetters) (pure ())
     unless doNotUpload uploadSnapshotsJSON
     buildAndUploadHoogleDB doNotUpload
-    run $ mapM_ (`rawExecute` []) ["COMMIT", "VACUUM", "BEGIN"]
+    run $ mapM_ (`rawExecute` []) ["TRUNCATE TABLE latest_version", "COMMIT", "VACUUM", "BEGIN"]
 
 
 -- | This will look at 'global-hints.yaml' and will create core package getters that are reused

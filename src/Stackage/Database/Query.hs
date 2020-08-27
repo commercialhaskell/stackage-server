@@ -89,7 +89,7 @@ import qualified Database.Persist as P
 import Pantry.Internal.Stackage (EntityField(..), PackageName,
                                  Version, getBlobKey, getPackageNameById,
                                  getPackageNameId, getTreeForKey, getVersionId,
-                                 loadBlobById, storeBlob, mkSafeFilePath)
+                                 loadBlobById, storeBlob, mkSafeFilePath, versionVersion)
 import RIO hiding (on, (^.))
 import qualified RIO.Map as Map
 import qualified RIO.Set as Set
@@ -415,40 +415,54 @@ getPackageVersionForSnapshot snapshotId pname =
 
 getLatest ::
        FromPreprocess t
-    => PackageNameP
+    => PackageNameId
     -> (t -> SqlExpr (Value SnapshotId))
     -> (t -> SqlQuery ())
-    -> ReaderT SqlBackend (RIO env) (Maybe LatestInfo)
-getLatest pname onWhich orderWhich =
+    -> ReaderT SqlBackend (RIO env) (Maybe SnapshotPackageId)
+getLatest pnameid onWhich orderWhich =
     selectApplyMaybe
-        toLatestInfo
-        (from $ \(which `InnerJoin` snap `InnerJoin` sp `InnerJoin` pn `InnerJoin` v) -> do
-             on (sp ^. SnapshotPackageVersion ==. v ^. VersionId)
-             on (sp ^. SnapshotPackagePackageName ==. pn ^. PackageNameId)
+        unValue
+        (from $ \(which `InnerJoin` snap `InnerJoin` sp) -> do
              on (sp ^. SnapshotPackageSnapshot ==. snap ^. SnapshotId)
              on (snap ^. SnapshotId ==. onWhich which)
-             where_ (pn ^. PackageNameName ==. val pname)
+             where_ (sp ^. SnapshotPackagePackageName ==. val pnameid)
              orderWhich which
              limit 1
-             pure (snap ^. SnapshotName, v ^. VersionVersion, sp ^. SnapshotPackageRevision))
-  where
-    toLatestInfo (snapName, ver, mrev) =
-        LatestInfo (unValue snapName) $ toVersionMRev (unValue ver) (unValue mrev)
+             pure (sp ^. SnapshotPackageId))
 
 
 getLatests :: PackageNameP -> ReaderT SqlBackend (RIO env) [LatestInfo]
 getLatests pname = do
-    mLts <-
-        getLatest
-            pname
-            (^. LtsSnap)
-            (\lts -> orderBy [desc (lts ^. LtsMajor), desc (lts ^. LtsMinor)])
-    mNightly <-
-        getLatest
-            pname
-            (^. NightlySnap)
-            (\nightly -> orderBy [desc (nightly ^. NightlyDay)])
-    pure $ catMaybes [mLts, mNightly]
+    pid <- getPackageNameId $ unPackageNameP pname
+    mlatest <- getBy $ UniqueLatestVersion pid
+    (mlts, mnightly) <-
+      case mlatest of
+        Nothing -> do
+            mLts <-
+                getLatest
+                    pid
+                    (^. LtsSnap)
+                    (\lts -> orderBy [desc (lts ^. LtsMajor), desc (lts ^. LtsMinor)])
+            mNightly <-
+                getLatest
+                    pid
+                    (^. NightlySnap)
+                    (\nightly -> orderBy [desc (nightly ^. NightlyDay)])
+            insert_ LatestVersion
+              { latestVersionPackageName = pid
+              , latestVersionLts = mLts
+              , latestVersionNightly = mNightly
+              }
+            pure (mLts, mNightly)
+        Just (Entity _ (LatestVersion _name mlts mnightly)) -> pure (mlts, mnightly)
+    for (catMaybes [mlts, mnightly]) $ \spid -> do
+        sp <- maybe (error "impossible") id <$> get spid
+        snap <- maybe (error "impossible") id <$> get (snapshotPackageSnapshot sp)
+        version <- maybe (error "impossible") id <$> get (snapshotPackageVersion sp)
+        pure LatestInfo
+          { liSnapName = snapshotName snap
+          , liVersionRev = toVersionMRev (versionVersion version) (snapshotPackageRevision sp)
+          }
 
 -- | Looks up in pantry the latest information about the package on Hackage.
 getHackageLatestVersion ::
