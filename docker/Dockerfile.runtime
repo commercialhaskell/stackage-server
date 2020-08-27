@@ -1,10 +1,10 @@
-FROM docker.pkg.github.com/fpco/stackage-server/base-build:08230664017cd58348d59f71c1dd2275b57813f2 as build-app
+FROM docker.pkg.github.com/fpco/stackage-server/base-build:26d4a2312e2a7d7d4f08a26a03836631f68d1c82 as build-app
 
 RUN mkdir -p /artifacts/bin
 COPY . /src
 RUN stack install --stack-yaml /src/stack.yaml --local-bin-path /artifacts/bin
 
-FROM docker.pkg.github.com/fpco/stackage-server/base-run:c0e6c9d09198bb661919366a07351c334d7caeb0
+FROM docker.pkg.github.com/fpco/stackage-server/base-run:26d4a2312e2a7d7d4f08a26a03836631f68d1c82
 
 COPY --from=build-app /src/config/ /app/config/
 COPY --from=build-app /src/static/ /app/static/
