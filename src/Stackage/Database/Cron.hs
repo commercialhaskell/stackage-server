@@ -716,9 +716,7 @@ buildAndUploadHoogleDB doNotUpload = do
                     void $ checkInsertSnapshotHoogleDb True snapshotId
                 Nothing -> do
                     logInfo $ "Current hoogle database does not yet exist for: " <> display snapName
-                    mfp' <- createHoogleDB snapshotId snapName `catchAny` \e -> do
-                        logError $ displayShow e
-                        pure Nothing
+                    mfp' <- createHoogleDB snapshotId snapName
                     forM_ mfp' $ \fp -> do
                         let key = hoogleKey snapName
                             dest = T.unpack key
