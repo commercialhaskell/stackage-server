@@ -229,6 +229,7 @@ runStackageUpdate doNotUpload = do
         runConduit $ sourceSnapshots .| foldMC (createOrUpdateSnapshot corePackageGetters) (pure ())
     unless doNotUpload uploadSnapshotsJSON
     buildAndUploadHoogleDB doNotUpload
+    logInfo "Finished building and uploading Hoogle DBs"
     run $ mapM_ (`rawExecute` []) ["TRUNCATE TABLE latest_version", "COMMIT", "VACUUM", "BEGIN"]
 
 

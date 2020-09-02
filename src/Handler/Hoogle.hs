@@ -23,7 +23,12 @@ getHoogleDB name = track "Handler.Hoogle.getHoogleDB" do
     liftIO $ appGetHoogleDB app name
 
 getHoogleR :: SnapName -> Handler Html
-getHoogleR name = track "Handler.Hoogle.getHoogleR" do
+getHoogleR name0 = track "Handler.Hoogle.getHoogleR" do
+    let branch =
+          case name0 of
+            SNLts _ _ -> LtsBranch
+            SNNightly _ -> NightlyBranch
+    name <- newestSnapshot branch >>= maybe notFound return
     Entity _ snapshot <- lookupSnapshot name >>= maybe notFound return
     mquery <- lookupGetParam "q"
     mPackageName <- lookupGetParam "package"
