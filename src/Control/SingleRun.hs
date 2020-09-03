@@ -1,6 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE RecordWildCards #-}
 -- | Ensure that a function is only being run on a given input in one
 -- thread at a time. All threads trying to make the call at once
 -- return the same result.
@@ -20,20 +19,19 @@ data SingleRun k v = SingleRun
     -- computations. More ideal would be to use a Map, but we're
     -- avoiding dependencies outside of base in case this moves into
     -- auto-update.
-    , srFunc :: k -> IO v
-    , srCleanup :: k -> v -> IO ()
-    , srMax :: !Int
+    , srFunc :: forall m . MonadIO m => k -> m v
     }
 
 -- | Create a 'SingleRun' value out of a function.
 mkSingleRun :: MonadIO m => Eq k
-            => (k -> IO v) -- ^ allocate
-            -> (k -> v -> IO ()) -- ^ clean up
-            -> Int -- ^ max allowed
+            => (forall n . MonadIO n => k -> n v)
             -> m (SingleRun k v)
-mkSingleRun srFunc srCleanup srMax = do
-    srVar <- newMVar []
-    return SingleRun {..}
+mkSingleRun f = do
+    var <- newMVar []
+    return SingleRun
+        { srVar = var
+        , srFunc = f
+        }
 
 data Res v = SyncException SomeException
            | AsyncException SomeException
@@ -53,8 +51,8 @@ toRes se =
 -- exception, we will rethrow that same synchronous exception. If,
 -- however, that other thread dies from an asynchronous exception, we
 -- will retry.
-singleRun :: Eq k => SingleRun k v -> k -> IO v
-singleRun sr@(SingleRun var f cleanup maxHeld) k =
+singleRun :: (MonadUnliftIO m, Eq k) => SingleRun k v -> k -> m v
+singleRun sr@(SingleRun var f) k =
     -- Mask all exceptions so that we don't get killed between exiting
     -- the modifyMVar and entering the join, which could leave an
     -- empty MVar for a result that will never be filled.
@@ -99,8 +97,7 @@ singleRun sr@(SingleRun var f cleanup maxHeld) k =
                             -- and return it
                             Right v -> do
                                 putMVar resVar $ Success v
-                                void $ mkWeakMVar resVar $ cleanup k v
                                 return v
 
                 -- Modify pairs to include this variable.
-                return (take maxHeld $ (k, resVar) : pairs, action)
+                return ((k, resVar) : pairs, action)
