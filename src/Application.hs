@@ -160,7 +160,6 @@ withFoundation appLogFunc appSettings inner = do
                 \oldMatcher -> getLatestMatcher appHttpManager `catchAny` \e -> do
                   runRIO appLogFunc $ RIO.logError $ "Couldn't get Stack matcher: " <> displayShow e
                   pure oldMatcher
-        appHoogleLock <- newMVar ()
         appMirrorStatus <- mkUpdateMirrorStatus
         hoogleLocker <- newHoogleLocker appLogFunc appHttpManager
         let appGetHoogleDB = singleRun hoogleLocker

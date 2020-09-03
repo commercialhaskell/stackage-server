@@ -47,9 +47,6 @@ getHoogleR name0 = track "Handler.Hoogle.getHoogleR" do
     mdatabasePath <- getHoogleDB name
     dbPath <- maybe (hoogleDatabaseNotAvailableFor name) return mdatabasePath
 
-    -- Avoid concurrent Hoogle queries, see
-    -- https://github.com/fpco/stackage-server/issues/172
-    lock <- appHoogleLock <$> getYesod
     urlRender <- getUrlRender
     HoogleQueryOutput results mtotalCount <-
       case mquery of
@@ -64,9 +61,7 @@ getHoogleR name0 = track "Handler.Hoogle.getHoogleR" do
                     , hqiExact = exact
                     }
 
-            liftIO $ withMVar lock
-                   $ const
-                   $ Hoogle.withDatabase dbPath
+            liftIO $ Hoogle.withDatabase dbPath
                    -- NB! I got a segfault when I didn't force with $!
                    $ \db -> return $! runHoogleQuery urlRender name db input
         Nothing -> return $ HoogleQueryOutput [] Nothing

@@ -35,9 +35,6 @@ data App = App
     , appStackageDatabase   :: !StackageDatabase
     , appLatestStackMatcher :: !(IO (Text -> Maybe Text))
     -- ^ Give a pattern, get a URL
-    , appHoogleLock         :: !(MVar ())
-    -- ^ Avoid concurrent Hoogle queries, see
-    -- https://github.com/fpco/stackage-server/issues/172
     , appMirrorStatus       :: !(IO (Status, WidgetFor App ()))
     , appGetHoogleDB        :: !(SnapName -> IO (Maybe FilePath))
     , appGitRev             :: !GitRev
