@@ -227,7 +227,7 @@ runStackageUpdate doNotUpload = do
     unless doNotUpload uploadSnapshotsJSON
     buildAndUploadHoogleDB doNotUpload
     logInfo "Finished building and uploading Hoogle DBs"
-    run $ mapM_ (`rawExecute` []) ["TRUNCATE TABLE latest_version", "COMMIT", "VACUUM", "BEGIN"]
+    run $ rawExecute "TRUNCATE TABLE latest_version" []
 
 
 -- | This will look at 'global-hints.yaml' and will create core package getters that are reused
