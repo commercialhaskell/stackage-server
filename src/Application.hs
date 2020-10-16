@@ -69,6 +69,7 @@ import Handler.Snapshots
 import Handler.StackageHome
 import Handler.StackageIndex
 import Handler.StackageSdist
+import Handler.Stats
 import Handler.System
 
 --import Network.Wai.Middleware.Prometheus (prometheus)

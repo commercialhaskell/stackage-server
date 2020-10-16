@@ -61,3 +61,5 @@
 /blog BlogHomeR GET
 /blog/#Year/#Month/#Text BlogPostR GET
 /blog/feed BlogFeedR GET
+
+/stats StatsR GET
