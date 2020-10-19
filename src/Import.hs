@@ -9,13 +9,14 @@ import Settings as Import
 import Settings.StaticFiles as Import
 import Types as Import
 import Yesod.Auth as Import
-import Data.WebsiteContent as Import (WebsiteContent (..))
+import Data.WebsiteContent as Import (WebsiteContent (..), Post (..))
 import Data.Text.Read (decimal)
-import RIO.Time (diffUTCTime)
+import RIO.Time (diffUTCTime, getCurrentTime)
 --import qualified Prometheus as P
 import Stackage.Database.Types (ModuleListingInfo(..))
 import Formatting (format)
 import Formatting.Time (diff)
+import Yesod.GitRepo (grContent)
 
 parseLtsPair :: Text -> Maybe (Int, Int)
 parseLtsPair t1 = do
@@ -72,3 +73,22 @@ dateDiff (UTCTime now' _) target
     | otherwise = format (diff True) $ diffUTCTime
         (UTCTime target 0)
         (UTCTime now' 0)
+
+getPosts :: Handler (Vector Post)
+getPosts = do
+    now <- getCurrentTime
+    posts <- getYesod >>= fmap wcPosts . liftIO . grContent . appWebsiteContent
+    mpreview <- lookupGetParam "preview"
+    case mpreview of
+        Just "true" -> return posts
+        _ -> return $ filter (\p -> postTime p <= now) posts
+
+postYear :: Post -> Year
+postYear p =
+    let (y, _, _) = toGregorian $ utctDay $ postTime p
+     in fromInteger y
+
+postMonth :: Post -> Month
+postMonth p =
+    let (_, m, _) = toGregorian $ utctDay $ postTime p
+     in Month m

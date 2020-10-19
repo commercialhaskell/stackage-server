@@ -83,7 +83,13 @@
 
       <div .span6>
         <h3>News
-        <a href="/blog">Blog
+        $maybe post <- mrecentBlog
+            <p>
+              <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}
+            <p>
+              <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}
+        $nothing
+            <a href="/blog">Blog
         <h3>Snapshots
         $forall stackages <- groups
             $forall (_, _, uploaded) <- take 1 stackages

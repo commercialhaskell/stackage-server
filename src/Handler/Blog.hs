@@ -10,17 +10,7 @@ module Handler.Blog
 import Data.WebsiteContent
 import Import
 import Yesod.AtomFeed (atomLink)
-import Yesod.GitRepo (grContent)
 import RIO.Time (getCurrentTime)
-
-getPosts :: Handler (Vector Post)
-getPosts = do
-    now <- getCurrentTime
-    posts <- getYesod >>= fmap wcPosts . liftIO . grContent . appWebsiteContent
-    mpreview <- lookupGetParam "preview"
-    case mpreview of
-        Just "true" -> return posts
-        _ -> return $ filter (\p -> postTime p <= now) posts
 
 getAddPreview :: Handler (Route App -> (Route App, [(Text, Text)]))
 getAddPreview = do
@@ -28,16 +18,6 @@ getAddPreview = do
   case mpreview of
     Just "true" -> return $ \route -> (route, [("preview", "true")])
     _           -> return $ \route -> (route, [])
-
-postYear :: Post -> Year
-postYear p =
-    let (y, _, _) = toGregorian $ utctDay $ postTime p
-     in fromInteger y
-
-postMonth :: Post -> Month
-postMonth p =
-    let (_, m, _) = toGregorian $ utctDay $ postTime p
-     in Month m
 
 getBlogHomeR :: Handler ()
 getBlogHomeR = do

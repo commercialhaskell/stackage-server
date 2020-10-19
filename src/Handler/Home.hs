@@ -39,6 +39,9 @@ getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
     let groups = groupUp now' snapshots
     latestLtsNameWithHoogle <- getLatestLtsNameWithHoogle
     latestLtsByGhc <- getLatestLtsByGhc
+
+    mrecentBlog <- headMay <$> getPosts
+
     defaultLayout $ do
         setTitle "Stackage Server"
         $(widgetFile "home")
