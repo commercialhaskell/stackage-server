@@ -26,7 +26,6 @@ import Control.AutoUpdate
 import Control.Concurrent (threadDelay)
 import Control.Monad.Logger (liftLoc)
 import Data.WebsiteContent
-import Database.Persist.Postgresql (PostgresConf(..))
 import Import hiding (catch)
 import Language.Haskell.TH.Syntax (qLocation)
 import Network.Wai (Middleware, rawPathInfo, pathInfo, responseBuilder)
@@ -140,18 +139,14 @@ withFoundation appLogFunc appSettings inner = do
                 fp <- runSimpleApp $ getStackageContentDir "."
                 gitRepoDev fp loadWebsiteContent
             else gitRepo "https://github.com/fpco/stackage-content.git" "master" loadWebsiteContent
-    let pgConf =
-            PostgresConf {pgPoolSize = appPostgresPoolsize appSettings, pgConnStr = encodeUtf8 $ appPostgresString appSettings}
-        -- Temporary workaround to force content updates regularly, until
-        -- distribution of webhooks is handled via consul
-        runContentUpdates =
+    let runContentUpdates =
             Concurrently $
             forever $
             void $ do
                 threadDelay $ 1000 * 1000 * 60 * 5
                 handleAny (runRIO appLogFunc . RIO.logError . fromString . displayException) $
                     grRefresh appWebsiteContent
-    withStackageDatabase (appShouldLogAll appSettings) pgConf $ \appStackageDatabase -> do
+    withStackageDatabase (appShouldLogAll appSettings) (appDatabase appSettings) $ \appStackageDatabase -> do
         appLatestStackMatcher <-
             mkAutoUpdateWithModify
                 defaultUpdateSettings

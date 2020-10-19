@@ -79,6 +79,7 @@ dependencies:
 - classy-prelude-conduit
 - path-pieces
 - persistent-postgresql
+- persistent-sqlite
 - filepath
 - http-client
 - http-types

@@ -48,11 +48,12 @@ module Stackage.Database.Schema
     , module PS
     ) where
 
-import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
+import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT, MonadLogger)
 import qualified Data.Aeson as A
-import Data.Pool (destroyAllResources)
+import Data.Pool (destroyAllResources, Pool)
 import Database.Persist
 import Database.Persist.Postgresql
+import Database.Persist.Sqlite (createSqlitePool)
 import Database.Persist.TH
 import Pantry (HasPantryConfig(..), Revision, parseVersionThrowing)
 import Pantry.Internal.Stackage as PS (BlobId, HackageCabalId, ModuleNameId,
@@ -64,6 +65,7 @@ import qualified Pantry.Internal.Stackage as Pantry (migrateAll)
 import RIO
 import RIO.Time
 import Types (CompilerP(..), FlagNameP, Origin, SnapName, VersionRangeP)
+import Settings (DatabaseSettings (..))
 
 currentSchema :: Int
 currentSchema = 1
@@ -190,15 +192,25 @@ run inner = do
     runRIO logFunc $ runDatabase stackageDatabase inner
 
 
-withStackageDatabase :: MonadUnliftIO m => Bool -> PostgresConf -> (StackageDatabase -> m a) -> m a
-withStackageDatabase shouldLog pg inner = do
-    let getPoolIO =
+withStackageDatabase :: MonadUnliftIO m => Bool -> DatabaseSettings -> (StackageDatabase -> m a) -> m a
+withStackageDatabase shouldLog dbs inner = do
+    let makePool :: (MonadUnliftIO m, MonadLogger m) => m (Pool SqlBackend)
+        makePool =
+            case dbs of
+                DSPostgres connStr size -> createPostgresqlPool (encodeUtf8 connStr) size
+                DSSqlite connStr size -> do
+                    pool <- createSqlitePool connStr size
+                    runSqlPool (do
+                        runMigration Pantry.migrateAll
+                        runMigration migrateAll
+                        ) pool
+                    pure pool
+        getPoolIO =
             if shouldLog
-                then runStdoutLoggingT $ createPostgresqlPool (pgConnStr pg) (pgPoolSize pg)
-                else runNoLoggingT $ createPostgresqlPool (pgConnStr pg) (pgPoolSize pg)
-    bracket (liftIO getPoolIO) (liftIO . destroyAllResources) $ \pool ->
+                then runStdoutLoggingT makePool
+                else runNoLoggingT makePool
+    bracket (liftIO getPoolIO) (liftIO . destroyAllResources) $ \pool -> do
         inner (StackageDatabase (`runSqlPool` pool))
-
 
 getSchema :: (HasLogFunc env, GetStackageDatabase env (RIO env)) => RIO env (Maybe Int)
 getSchema =

@@ -60,7 +60,6 @@ import Stackage.Database.PackageInfo
 import Stackage.Database.Query
 import Stackage.Database.Schema
 import Stackage.Database.Types
-import System.Environment (lookupEnv)
 import UnliftIO.Concurrent (getNumCapabilities)
 import Web.PathPieces (fromPathPiece, toPathPiece)
 import qualified Control.Retry as Retry
@@ -87,17 +86,10 @@ hoogleUrl n = T.concat
 hackageDeprecatedUrl :: Request
 hackageDeprecatedUrl = "https://hackage.haskell.org/packages/deprecated.json"
 
-withStorage :: Int -> (Storage -> IO a) -> IO a
-withStorage poolSize inner = do
-    connstr <-
-        lookupEnv "PGSTRING" >>= \case
-            Just connstr -> pure (T.pack connstr)
-            Nothing -> appPostgresString <$> getAppSettings
-    withStackageDatabase
-        False
-        PostgresConf {pgPoolSize = poolSize, pgConnStr = encodeUtf8 connstr}
-        (\ db -> inner (Storage (runDatabase db) id))
-
+withStorage :: (Storage -> IO a) -> IO a
+withStorage inner = do
+    as <- getAppSettings
+    withStackageDatabase False (appDatabase as) (\db -> inner (Storage (runDatabase db) id))
 
 getStackageSnapshotsDir :: RIO StackageCron FilePath
 getStackageSnapshotsDir = do
@@ -162,7 +154,7 @@ stackageServerCron StackageCronOptions {..} = do
         catchIO (bindPortTCP 17834 "127.0.0.1") $
         const $ throwString "Stackage Cron loader process already running, exiting."
     connectionCount <- getNumCapabilities
-    withStorage connectionCount $ \storage -> do
+    withStorage $ \storage -> do
         lo <- logOptionsHandle stdout True
         stackageRootDir <- getAppUserDataDirectory "stackage"
         pantryRootDir <- parseAbsDir (stackageRootDir </> "pantry")

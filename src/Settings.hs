@@ -12,7 +12,7 @@ module Settings where
 import ClassyPrelude.Yesod
 import Data.Aeson (Result(..), fromJSON, withObject, (.!=), (.:?))
 import Data.FileEmbed (embedFile)
-import Data.Yaml (decodeEither')
+import Data.Yaml (decodeEither', Parser)
 import Data.Yaml.Config
 import Language.Haskell.TH.Syntax (Exp, Name, Q)
 import Network.Wai.Handler.Warp (HostPreference)
@@ -37,10 +37,7 @@ data AppSettings = AppSettings
     , appIpFromHeader           :: Bool
     -- ^ Get the IP address from the header when logging. Useful when sitting
     -- behind a reverse proxy.
-    , appPostgresString         :: !Text
-    -- ^ PostgreSQL connection string
-    , appPostgresPoolsize       :: !Int
-    -- ^ PostgreSQL poolsize
+    , appDatabase               :: !DatabaseSettings
 
     , appDetailedRequestLogging :: Bool
     -- ^ Use detailed request logging system
@@ -58,6 +55,27 @@ data AppSettings = AppSettings
     -- ^ Controls how Git and database resources are downloaded (True means less downloading)
     }
 
+data DatabaseSettings
+    = DSPostgres !Text !Int
+    | DSSqlite !Text !Int
+
+parseDatabase
+  :: Bool -- ^ is this dev? if so, allow default of SQLite
+  -> HashMap Text Value
+  -> Parser DatabaseSettings
+parseDatabase isDev o =
+    if isDev
+       then postgres
+       else sqlite <|> postgres
+  where
+      postgres = DSPostgres
+        <$> o .: "postgres-string"
+        <*> o .: "postgres-poolsize"
+
+      sqlite = do
+          True <- o .: "sqlite"
+          pure $ DSSqlite "test.sqlite3" 1
+
 instance FromJSON AppSettings where
     parseJSON = withObject "AppSettings" $ \o -> do
         let defaultDev =
@@ -72,10 +90,10 @@ instance FromJSON AppSettings where
         appHost                   <- fromString <$> o .: "host"
         appPort                   <- o .: "port"
         appIpFromHeader           <- o .: "ip-from-header"
-        appPostgresString         <- o .: "postgres-string"
-        appPostgresPoolsize       <- o .: "postgres-poolsize"
 
         dev                       <- o .:? "development" .!= defaultDev
+
+        appDatabase               <- if dev then pure (DSSqlite "test.sqlite3" 7) else parseDatabase dev o
 
         appDetailedRequestLogging <- o .:? "detailed-logging" .!= dev
         appShouldLogAll           <- o .:? "should-log-all"   .!= dev
