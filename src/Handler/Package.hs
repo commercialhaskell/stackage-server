@@ -76,11 +76,19 @@ checkSpam pname inner = do
 packagePage :: Maybe SnapshotPackageInfo -> PackageNameP -> Handler Html
 packagePage mspi pname =
     track "Handler.Package.packagePage" $
-    checkSpam pname $
-        maybe (getSnapshotPackageLatestVersion pname) (return . Just) mspi >>= \case
+    checkSpam pname $ do
+        mspi' <-
+          case mspi of
+            Just spi -> pure $ Just spi
+            Nothing ->
+              fmap join $ timeout 2000000 $ getSnapshotPackageLatestVersion pname
+        case mspi' of
           Nothing -> do
-            hci <- run (getHackageLatestVersion pname) >>= maybe notFound pure
-            handlePackage $ Left hci
+            mmhci <- timeout 2000000 $ run $ getHackageLatestVersion pname
+            case mmhci of
+              Nothing -> error "Getting latest version timed out"
+              Just Nothing -> notFound
+              Just (Just hci) -> handlePackage $ Left hci
           Just spi -> handlePackage $ Right spi
 
 
