@@ -1,8 +1,9 @@
 <div .container>
     <div .row .header>
-        <div .span6>
+        <div .span4>
             <img src=@{StaticR img_logo_png} .logo>
-        <div .span6>
+            <h4><a href="#about">Stable Haskell package sets
+        <div .span3>
             <form class="hoogle" action="/#{latestLtsNameWithHoogle}/hoogle">
               <div class="input-append hoogle-q">
                 <input class="search span3" type="search" autofocus="" name="q" value="" placeholder="E.g. map, a -> a, etc.">
@@ -17,90 +18,56 @@
                 Exact lookup
 
     <div .row>
-        <div .span12>
-            <p>
-                Stackage is a stable source of Haskell packages. It guarantees that packages build consistently and pass tests before generating nightly and Long Term Support (LTS) releases.
-            <p>
-                A Stackage snapshot includes pinned package versions from <a href="https://hackage.haskell.org">Hackage</a> (the index of all Haskell packages in all versions).
-                It is a curated set of packages that work well together, similar to how a <a href="https://www.debian.org">Debian</a> release is a curated snapshot of most of the open-source software in the world.
-            <p>
-                <a href="https://haskellstack.org">Stack</a> is a tool made specifically to make using Stackage snapshots easy and convenient.
-                We recommend you to use it.
-                But you can also use Stackage in other ways: as a source for packages that work well together, or to ensure that Haskell packages you author or care about work well with others.
-            <p>
-                Stackage is a community project: Haskell users around the world work together to create the stable snapshots.
-                <br />
-                Stackage itself and all tools surrounding it are open-source.
-            <p>
-                Stackage's infrastructure, build machines, initial creation and ongoing maintenance, are proudly sponsored by <a href="https://www.fpcomplete.com">FP Complete</a>.
+        <div .span6>
+            <h4><a href="blog">Recent News</a>
+            $maybe post <- mrecentBlog
+              <p>
+                <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}</a>,
+                <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}</abbr>
 
     <div .row>
         <div .span6>
             <h3>
-                Latest releases
-
-            <p>
-                You browse the latest long term support (#
-                <a href="https://github.com/fpco/lts-haskell#readme">what are Long Term Support releases?#
-                ) release, or the latest
-                bleeding-edge nightly release.
-
-            <p>
-                <a href="/lts">
-                    LTS Haskell
-            <p>
-                <a href="/nightly">
-                    Stackage Nightly
-
-            <p>
-                Have more questions? We have a #
-                <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github#
-                \.
-            <h3>
-                Related initiatives
-            <p>
-                Stack is the recommended way to use Stackage.
-            <p>
-                <a href="https://haskell.fpcomplete.com/get-started">
-                    Get started with Stack
-                on
-                <a href="https://haskell.fpcomplete.com/">#
-                    haskell.fpcomplete.com#
-                \.
-
-            <h3>
-                Latest LTS per GHC version
+                Latest LTS release per GHC version
             <ul>
                 $forall (major, minor, ghc, date) <- latestLtsByGhc
                   <li>
                     <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for #{ghc}#
                     \, published #{dateDiff now' date}
-            <h3>
-                Package Maintainers
-            <p>
-                <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package">
-                  Add your maintained packages to stackage
 
-      <div .span6>
-        <h3>News
-        $maybe post <- mrecentBlog
+        <div .span6>
+            <h3>Recent Snapshots
+            $forall stackages <- groups
+              <ul .snapshots>
+                  $forall (ident, title, uploaded) <- stackages
+                      <li>
+                          <strong>
+                              <a href=@{SnapshotR ident StackageHomeR}>#{title}</a>, #{uploaded}
+              <p>
+                <a href=@{AllSnapshotsR}>
+                    Snapshots archive
+
+    <div .row>
+        <div .span6>
+            <h3 id="about">
+                About Stackage
             <p>
-              <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}
+                Stackage provides consistent sets of Haskell packages, known to build together and pass their tests before becoming <a href="/nightly">Stackage Nightly</a> snapshots and <a href="/lts">LTS</a>
+                (<a href="https://github.com/fpco/lts-haskell#readme">Long Term Support</a>) releases.
             <p>
-              <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}
-        $nothing
-            <a href="/blog">Blog
-        <h3>Snapshots
-        $forall stackages <- groups
-            $forall (_, _, uploaded) <- take 1 stackages
-                <h5>
-                    #{uploaded}
-            <ul .snapshots>
-                $forall (ident, title, _uploaded) <- stackages
-                    <li>
-                        <strong>
-                            <a href=@{SnapshotR ident StackageHomeR}>
-                                #{title}
-        <p>
-            <a href=@{AllSnapshotsR}>
-                Snapshots archive
+                It is a distribution of a subset packages from <a href="https://hackage.haskell.org">Hackage</a>, each package chosen at a version to make the set self-consistent. Note that Stackage does not patch any packages.
+            <p>
+                We recommend using the <a href="https://haskellstack.org">stack</a> tool, which makes using Stackage snapshots easy and convenient.
+                But Stackage can also be used in other ways: as a source of consistent packages that work well together, or to ensure that Haskell packages you author or care about work well with others.
+                <a href="https://haskell.fpcomplete.com/get-started">Get started with Stack</a>
+            <p>
+                Stackage is a community project: Haskell users around the world work together to keep Stackage snapshots up to date with recent package versions:
+                Stackage itself and all the tools surrounding it are open-source.
+                See <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package">
+                  <b>how to add packages to Stackage</b></a>
+            <p>
+                Have more questions? We have a #
+                <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github</a>.
+
+            <p>
+                Stackage's infrastructure, build machines, initial creation and ongoing maintenance, are proudly sponsored by <a href="https://www.fpcomplete.com">FP Complete</a>.

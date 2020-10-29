@@ -30,12 +30,8 @@ getHomeR :: Handler Html
 getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
     cacheSeconds $ 60 * 60
     now' <- getCurrentTime
-    currentPageMay <- lookupGetParam "page"
-    let currentPage :: Int
-        currentPage = fromMaybe 1 (currentPageMay >>= readMay)
     (map entityVal -> snapshots) <-
-        getSnapshots Nothing snapshotsPerPage
-                             ((fromIntegral currentPage - 1) * snapshotsPerPage)
+        getSnapshots Nothing snapshotsPerPage 0
     let groups = groupUp now' snapshots
     latestLtsNameWithHoogle <- getLatestLtsNameWithHoogle
     latestLtsByGhc <- getLatestLtsByGhc

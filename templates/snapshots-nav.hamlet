@@ -1,12 +1,10 @@
 <div .snapshot-nav>
-  $if isFirstPage
-    at newest --
-  $else
+  $if not isFirstPage
     <a href=@{AllSnapshotsR}?page=#{currentPage - 1}>
-      see newer --
+      \< newer
+    <span .separator>
   \ Page #{currentPage} #
-  $if isLastPage
-    ++ at oldest
-  $else
+  $if not isLastPage
+    <span .separator>
     <a href=@{AllSnapshotsR}?page=#{currentPage + 1}>
-      ++ see older
+      older \>
