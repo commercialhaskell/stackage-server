@@ -10,7 +10,7 @@
             <li> <a href="/nightly">Nightly</a>
             <li> <a href="/snapshots">Snapshots</a>
             <li> <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ</a>
-            <li> <a href="/blog">Blog</a>
+            <li> <a href="/blog">News</a>
 
 $maybe msg <- mmsg
     <div .container>

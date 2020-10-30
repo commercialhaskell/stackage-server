@@ -1,30 +1,31 @@
 <div .container>
     <div .row .header>
-        <div .span4>
+        <div .span5>
             <img src=@{StaticR img_logo_png} .logo>
-            <h4><a href="#about">Stable Haskell package sets
         <div .span3>
+            <p>
             <form class="hoogle" action="/#{latestLtsNameWithHoogle}/hoogle">
               <div class="input-append hoogle-q">
-                <input class="search span3" type="search" autofocus="" name="q" value="" placeholder="E.g. map, a -> a, etc.">
+                <input class="search span3" type="search" autofocus="" name="q" value="" placeholder="Hoogle search LTS">
                 <button class="btn" type="submit">
                     Search
-                <span class="brws-pkgs">
-                    or
-                    <a href="/lts">
-                        browse packages
               <label class="checkbox exact-lookup" for="exact" title="Only find identifiers matching your search term precisely">
                 <input type="checkbox" name="exact" id="exact">
                 Exact lookup
-
     <div .row>
         <div .span6>
-            <h4><a href="blog">Recent News</a>
+            <h3>Stable Haskell package sets
+            <ul>
+              <li>A distribution of compatible Haskell packages from <a href="https://hackage.haskell.org">Hackage</a> that build together
+              <li><a href="https://haskellstack.org">stack</a> makes using Stackage easy
+              <li>Stackage is a community project: <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>
+        <div .span6>
+            <h3>Recent News
             $maybe post <- mrecentBlog
               <p>
                 <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}</a>,
                 <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}</abbr>
-
+              <p><a href="blog">other posts</a>
     <div .row>
         <div .span6>
             <h3>
