@@ -5,7 +5,7 @@
         <img src="/static/img/stackage.png" title="Stackage">
       <div class="nav-collapse collapse">
         <ul class="nav">
-            <li> <a href="/#about">about</a>
+            <li> <a href="/#about">About</a>
             <li> <a href="/lts">LTS</a>
             <li> <a href="/nightly">Nightly</a>
             <li> <a href="/snapshots">Snapshots</a>
