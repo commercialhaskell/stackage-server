@@ -10,7 +10,6 @@ html {
 body {
   background: #f0f0f0;
   font-family: 'Lato', sans-serif;
-  text-shadow: 1px 1px 1px #ffffff;
   margin-bottom: 4em;
   padding-bottom: 2em;
 }
@@ -43,7 +42,6 @@ code,pre {
 .navbar-inner { border-color: #06537d !important; }
 
 .footer {
-  text-shadow: none;
   background: #0981c3;
   border-top: 1px solid #ddd;
   color: #fff;

@@ -239,7 +239,6 @@ h2.changes-title {
 }
 .tag-count {
   border: 0.1em solid #d8d8d8;
-  text-shadow: none;
   padding: 0 0.25em;
   border-radius: 0.25em;
   color: #999;
@@ -290,4 +289,3 @@ div.plain-text {
   padding: 0.5em;
   background: #eef;
 }
-
