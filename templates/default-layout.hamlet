@@ -1,6 +1,10 @@
 <div class="navbar navbar-inverse navbar-static-top">
   <div class="navbar-inner">
     <div class="container">
+      <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+        <span class="icon-bar">
+        <span class="icon-bar">
+        <span class="icon-bar">
       <a class="brand" href="/">
         <img src="/static/img/stackage.png" title="Stackage">
       <div class="nav-collapse collapse">
