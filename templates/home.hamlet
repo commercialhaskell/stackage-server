@@ -17,8 +17,8 @@
             <h3>Stable Haskell package sets
             <ul>
               <li>A distribution of compatible Haskell packages from <a href="https://hackage.haskell.org">Hackage</a> that build together
-              <li><a href="https://haskellstack.org">stack</a> makes using Stackage easy
               <li>Stackage is a community project: <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>
+              <li><a href="https://haskellstack.org">stack</a> makes using Stackage easy
         <div .span6>
             <h3>News</h3>
               <ul .snapshots>
