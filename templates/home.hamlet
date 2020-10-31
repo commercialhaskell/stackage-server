@@ -20,7 +20,7 @@
               <li><a href="https://haskellstack.org">stack</a> makes using Stackage easy
               <li>Stackage is a community project: <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>
         <div .span6>
-            <h3>News
+            <h3>News</h3>
               <ul .snapshots>
               $forall stackages <- latestNightly
                   $forall (ident, title, uploaded) <- stackages
@@ -32,10 +32,10 @@
                       <li>
                           <strong>
                               <a href=@{SnapshotR ident StackageHomeR}>#{title}</a>, #{uploaded}
-            $maybe post <- mrecentBlog
-              <p>
-                <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}</a>,
-                <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}</abbr>
+              $maybe post <- mrecentBlog
+                <p>
+                  <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}</a>,
+                  <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}</abbr>
         <div .span6>
             <h3>
                 Latest LTS release per GHC version
