@@ -1,5 +1,5 @@
 <div .container>
-    <div .row .header>
+    <div .header>
         <div .span5>
             <img src=@{StaticR img_logo_png} .logo>
         <div .span3>
@@ -12,7 +12,7 @@
               <label class="checkbox exact-lookup" for="exact" title="Only find identifiers matching your search term precisely">
                 <input type="checkbox" name="exact" id="exact">
                 Exact lookup
-    <div .row>
+    <div>
         <div .span6>
             <h3>Stable Haskell package sets
             <ul>
@@ -20,13 +20,22 @@
               <li><a href="https://haskellstack.org">stack</a> makes using Stackage easy
               <li>Stackage is a community project: <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>
         <div .span6>
-            <h3>Recent News
+            <h3>News
+              <ul .snapshots>
+              $forall stackages <- latestNightly
+                  $forall (ident, title, uploaded) <- stackages
+                      <li>
+                          <strong>
+                              <a href=@{SnapshotR ident StackageHomeR}>#{title}</a>, #{uploaded}
+              $forall stackages <- latestLts
+                  $forall (ident, title, uploaded) <- stackages
+                      <li>
+                          <strong>
+                              <a href=@{SnapshotR ident StackageHomeR}>#{title}</a>, #{uploaded}
             $maybe post <- mrecentBlog
               <p>
                 <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}</a>,
                 <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}</abbr>
-              <p><a href="blog">other posts</a>
-    <div .row>
         <div .span6>
             <h3>
                 Latest LTS release per GHC version
@@ -36,19 +45,6 @@
                     <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for #{ghc}#
                     \, published #{dateDiff now' date}
 
-        <div .span6>
-            <h3>Recent Snapshots
-            $forall stackages <- groups
-              <ul .snapshots>
-                  $forall (ident, title, uploaded) <- stackages
-                      <li>
-                          <strong>
-                              <a href=@{SnapshotR ident StackageHomeR}>#{title}</a>, #{uploaded}
-              <p>
-                <a href=@{AllSnapshotsR}>
-                    Snapshots archive
-
-    <div .row>
         <div .span6>
             <h3 id="about">
                 About Stackage

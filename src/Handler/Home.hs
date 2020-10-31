@@ -30,9 +30,12 @@ getHomeR :: Handler Html
 getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
     cacheSeconds $ 60 * 60
     now' <- getCurrentTime
-    (map entityVal -> snapshots) <-
-        getSnapshots Nothing snapshotsPerPage 0
-    let groups = groupUp now' snapshots
+    (map entityVal -> nightly) <-
+        getSnapshots (Just  NightlyBranch) 1 0
+    let latestNightly = groupUp now' nightly
+    (map entityVal -> lts) <-
+        getSnapshots (Just  LtsBranch) 1 0
+    let latestLts = groupUp now' lts
     latestLtsNameWithHoogle <- getLatestLtsNameWithHoogle
     latestLtsByGhc <- getLatestLtsByGhc
 
@@ -48,9 +51,6 @@ getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
             )
         groupUp now' = groupBy (on (==) (\(_,_,uploaded) -> uploaded))
                      . map (uncrapify now')
-
-snapshotsPerPage :: Int
-snapshotsPerPage = 8
 
 getAuthorsR :: Handler Html
 getAuthorsR = contentHelper "Library Authors" wcAuthors
