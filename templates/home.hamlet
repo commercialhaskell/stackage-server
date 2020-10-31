@@ -1,5 +1,5 @@
 <div .container>
-    <div .header>
+    <div>
         <div .span5>
             <img src=@{StaticR img_logo_png} .logo>
         <div .span3>
