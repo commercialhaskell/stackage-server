@@ -50,7 +50,6 @@ module Types
 
 import ClassyPrelude.Yesod (ToBuilder(..))
 import Data.Aeson
-import Data.Bifunctor (bimap)
 import Data.Char (ord)
 import Data.Hashable (hashUsing, hashWithSalt)
 import qualified Data.Text as T

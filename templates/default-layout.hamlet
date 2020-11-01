@@ -6,12 +6,15 @@
         <span class="icon-bar">
         <span class="icon-bar">
       <a class="brand" href="/">
-        <img src="/static/img/stackage.png" title="FP Complete">
+        <img src="/static/img/stackage.png" title="Stackage">
       <div class="nav-collapse collapse">
         <ul class="nav">
-          $forall route <- [AllSnapshotsR, BlogHomeR]
-            <li :Just route == cur:.active>
-              <a href=@{route}>#{route}
+            <li> <a href="/#about">About</a>
+            <li> <a href="/lts">LTS</a>
+            <li> <a href="/nightly">Nightly</a>
+            <li> <a href="/snapshots">Snapshots</a>
+            <li> <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ</a>
+            <li> <a href="/blog">Blog</a>
 
 $maybe msg <- mmsg
     <div .container>

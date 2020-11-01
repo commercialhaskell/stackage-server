@@ -77,7 +77,6 @@ module Stackage.Database.Query
     ) where
 
 import qualified Data.Aeson as A
-import Data.Bifunctor (bimap)
 import qualified Data.List as L
 import Database.Esqueleto
 import Database.Esqueleto.Internal.Language (FromPreprocess)

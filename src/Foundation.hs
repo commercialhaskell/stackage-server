@@ -11,7 +11,6 @@ import Data.WebsiteContent
 import Settings
 import Settings.StaticFiles
 import Stackage.Database
-import Text.Blaze
 import Text.Hamlet (hamletFile)
 import Types
 import Yesod.AtomFeed
@@ -68,7 +67,6 @@ defaultLayoutWithContainer insideContainer widget = do
     -- value passed to hamletToRepHtml cannot be a widget, this allows
     -- you to use normal widget features in default-layout.
 
-    cur <- getCurrentRoute
     pc <- widgetToPageContent $ do
         $(combineStylesheets 'StaticR
             [ css_normalize_css
@@ -145,13 +143,6 @@ instance Yesod App where
     makeLogger = return . appLogger
 
     maximumContentLength _ _ = Just 2000000
-
-instance ToMarkup (Route App) where
-    toMarkup c =
-        case c of
-          AllSnapshotsR{} -> "Snapshots"
-          BlogHomeR       -> "Blog"
-          _               -> ""
 
 -- This instance is required to use forms. You can modify renderMessage to
 -- achieve customized and internationalized form validation messages.

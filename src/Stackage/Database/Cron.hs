@@ -15,7 +15,6 @@ module Stackage.Database.Cron
 
 import Conduit
 import Control.DeepSeq
-import Control.Lens ((.~))
 import qualified Control.Monad.Trans.AWS as AWS (paginate)
 import Control.SingleRun
 import qualified Data.ByteString.Char8 as BS8
@@ -800,6 +799,3 @@ pathToPackageModule txt =
              pkgId :: PackageIdentifierP <- fromPathPiece pkgIdentifier
              Just (pkgId, modName)
         _ -> Nothing
-
-
-

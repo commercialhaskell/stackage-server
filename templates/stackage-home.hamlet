@@ -7,19 +7,14 @@ $newline never
         <span .separator>
         <span>
             <a href=@{StackageDiffR previousSnapName name}>View changes
-        <span .separator>
-        <span>
-            stack #
-            <code>resolver: #{toPathPiece name}
-    <h3>Setup guide
 
-    <p>Edit your stack.yaml and set the following:
-    <p .stack-resolver-yaml>resolver: #{toPathPiece name}
-    <p>You can also use <code>stack --resolver #{toPathPiece name}</code> on the command line
+    <p>To use this resolver:
+      <p>edit your stack.yaml and set the following:
+      <p .stack-resolver-yaml>resolver: #{toPathPiece name}
+    <p>or on the command line use:
+      <code>stack --resolver #{toPathPiece name}</code>
 
-    <p>
-        <b>New to stack?
-        \ Check out <a href="http://docs.haskellstack.org">the stack homepage</a>
+    <p>For more details see <a href="http://docs.haskellstack.org">the stack homepage</a>
 
     <h3>Hoogle
     ^{hoogleForm}
