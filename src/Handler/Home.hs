@@ -33,9 +33,6 @@ getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
     (map entityVal -> nightly) <-
         getSnapshots (Just  NightlyBranch) 1 0
     let latestNightly = groupUp now' nightly
-    (map entityVal -> lts) <-
-        getSnapshots (Just  LtsBranch) 1 0
-    let latestLts = groupUp now' lts
     latestLtsNameWithHoogle <- getLatestLtsNameWithHoogle
     latestLtsByGhc <- getLatestLtsByGhc
 
