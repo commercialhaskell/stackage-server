@@ -21,25 +21,18 @@
               <li><a href="https://haskellstack.org">stack</a> makes using Stackage easy
         <div .span6>
             <h3>News</h3>
-              <ul .snapshots>
-              $forall stackages <- latestNightly
-                  $forall (ident, title, uploaded) <- stackages
-                      <li>
-                          <strong>
-                              <a href=@{SnapshotR ident StackageHomeR}>#{title}</a>, #{uploaded}
-              $forall stackages <- latestLts
-                  $forall (ident, title, uploaded) <- stackages
-                      <li>
-                          <strong>
-                              <a href=@{SnapshotR ident StackageHomeR}>#{title}</a>, #{uploaded}
               $maybe post <- mrecentBlog
                 <p>
                   <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}</a>,
                   <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}</abbr>
         <div .span6>
             <h3>
-                Latest LTS release per GHC version
+                Latest releases per GHC version
             <ul>
+                $forall stackages <- latestNightly
+                 $forall (ident, title, uploaded) <- stackages
+                  <li>
+                    <a href=@{SnapshotR ident StackageHomeR}>#{title}</a>, #{uploaded}
                 $forall (major, minor, ghc, date) <- latestLtsByGhc
                   <li>
                     <a href=@{SnapshotR (SNLts major minor) StackageHomeR}>LTS #{major}.#{minor} for #{ghc}#

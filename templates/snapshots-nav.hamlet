@@ -7,4 +7,4 @@
   $if not isLastPage
     <span .separator>
     <a href=@{AllSnapshotsR}?page=#{currentPage + 1}>
-      older \>
+      older >
