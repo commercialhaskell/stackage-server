@@ -10,9 +10,9 @@
       <div class="nav-collapse collapse">
         <ul class="nav">
             <li> <a href="/#about">About</a>
+            <li> <a href="/snapshots">Snapshots</a>
             <li> <a href="/lts">LTS</a>
             <li> <a href="/nightly">Nightly</a>
-            <li> <a href="/snapshots">Snapshots</a>
             <li> <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ</a>
             <li> <a href="/blog">Blog</a>
 
