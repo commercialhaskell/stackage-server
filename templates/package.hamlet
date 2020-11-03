@@ -18,10 +18,8 @@ $newline never
                #{pname}
             <p .synopsis>
                 #{piSynopsis}
-               \ #
-               $maybe url <- piHomepage
-                   <a href="#{url}">
-                       #{url}
+            $maybe url <- piHomepage
+                <p><a href="#{url}">#{url}</a>
 
             <table>
               $maybe displayedVersion <- mdisplayedVersion
@@ -99,51 +97,20 @@ $newline never
                                      <a href="mailto:#{renderEmail email}">
                                          #{renderEmail email}
 
-
             $maybe sppi <- msppi
                 $with spi <- sppiSnapshotPackageInfo sppi
+                    $maybe pantryCabal <- sppiPantryCabal sppi
+                        <div .pantry-version>
+                            This version can be pinned in stack with:
+                            <code>#{pantryCabal}
                     <div .docs>
                         <h4>
                             Module documentation for #{spiVersion spi}
-                        $maybe pantryCabal <- sppiPantryCabal sppi
-                            <div .pantry-version>
-                                This version can be pinned in stack with:
-                                <code>#{pantryCabal}
                         $if null (sppiModuleNames sppi)
                             <p>There are no documented modules for this package.
                         $else
                             ^{hoogleForm (spiSnapName spi)}
                             ^{renderModules sppi}
-
-$if not (LT.null (LT.renderHtml piReadme))
-    <div .markdown-container .readme-container>
-        <div .container .content>
-            <div .row>
-                <div .span12 .expanding>
-                    #{piReadme}
-                    <div .bottom-gradient>
-                        <i class="fa fa-angle-down">
-$elseif not (LT.null (LT.renderHtml piDescription))
-    <div .markdown-container .readme-container>
-        <div .container .content>
-            <div .row>
-                <div .span12 .expanding>
-                    #{piDescription}
-                    <div .bottom-gradient>
-                        <i class="fa fa-angle-down">
-
-$if not (LT.null (LT.renderHtml piChangelog))
-    <div .container .content id=changes>
-       <div .row>
-           <div .span12>
-               <h2 .changes-title>Changes
-    <div .markdown-container .changelog-container .content>
-        <div .container>
-            <div .row>
-                <div .span12 .expanding>
-                    #{piChangelog}
-                    <div .bottom-gradient>
-                        <i class="fa fa-angle-down">
 
 <div .container #snapshot-home .content>
     <div .row>
@@ -175,15 +142,32 @@ $if not (LT.null (LT.renderHtml piChangelog))
                               $if (sppiReverseDepsCount sppi > maxDisplayedDeps)
                                 , <em>and many more</em>
 
+$if not (LT.null (LT.renderHtml piReadme))
+    <div .markdown-container .readme-container>
+        <div .container .content>
+            <div .row>
+                <div .span12 .expanding>
+                    #{piReadme}
+                    <div .bottom-gradient>
+                        <i class="fa fa-angle-down">
+$elseif not (LT.null (LT.renderHtml piDescription))
+    <div .markdown-container .readme-container>
+        <div .container .content>
+            <div .row>
+                <div .span12 .expanding>
+                    #{piDescription}
+                    <div .bottom-gradient>
+                        <i class="fa fa-angle-down">
 
-$# Too much spam on Disqus, remove it
-
-$#<div .container .content>
-$#    <div .row>
-$#        <div .span12>
-$#          <div id="disqus_thread">
-$#              <script>
-$#                  var disqus_shortname = "fpcomplete"; (function() { var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true; dsq.src = 'https://' + disqus_shortname + '.disqus.com/embed.js'; (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq); })();
-$#              <a class="dsq-brlink" href="https://disqus.com">
-$#                  comments powered by
-$#                  <span class="logo-disqus">Disqus
+$if not (LT.null (LT.renderHtml piChangelog))
+    <div .container .content id=changes>
+       <div .row>
+           <div .span12>
+               <h2 .changes-title>Changes
+    <div .markdown-container .changelog-container .content>
+        <div .container>
+            <div .row>
+                <div .span12 .expanding>
+                    #{piChangelog}
+                    <div .bottom-gradient>
+                        <i class="fa fa-angle-down">

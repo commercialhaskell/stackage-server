@@ -45,7 +45,7 @@
                 Stackage provides consistent sets of Haskell packages, known to build together and pass their tests before becoming <a href="/nightly">Stackage Nightly</a> snapshots and <a href="/lts">LTS</a>
                 (<a href="https://github.com/fpco/lts-haskell#readme">Long Term Support</a>) releases.
             <p>
-                It is a distribution of a subset packages from <a href="https://hackage.haskell.org">Hackage</a>, each package chosen at a version to make the set self-consistent. Note that Stackage does not patch any packages.
+                It is a distribution of a subset of packages from <a href="https://hackage.haskell.org">Hackage</a>, each package chosen at a version to make the set self-consistent. Note that Stackage does not patch any packages.
             <p>
                 We recommend using the <a href="https://haskellstack.org">stack</a> tool, which makes using Stackage snapshots easy and convenient.
                 But Stackage can also be used in other ways: as a source of consistent packages that work well together, or to ensure that Haskell packages you author or care about work well with others.

@@ -10,6 +10,7 @@ html {
 body {
   background: #f0f0f0;
   font-family: 'Lato', sans-serif;
+  font-size: 16px;
   margin-bottom: 4em;
   padding-bottom: 2em;
 }
@@ -75,6 +76,5 @@ h1,h2,h3,h4,h5 {
 }
 
 .content {
-  font-size: 16px;
   line-height: 30px;
 }
