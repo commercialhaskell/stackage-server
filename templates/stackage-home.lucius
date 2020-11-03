@@ -11,11 +11,6 @@ h2 {
   color: #555 !important;
 }
 
-.date {
-  font-size: 15px;
-  line-height: 15px;
-}
-
 hr {
   border: 1px solid #ddd
 }
@@ -87,8 +82,4 @@ p + ul {
 .stack-resolver-yaml {
     font-size: 1.3em;
     font-weight: 600;
-}
-
-.cabal {
-    font-size: 0.9em;
 }
