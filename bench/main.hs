@@ -1,6 +1,7 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
@@ -10,7 +11,7 @@ import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool)
 import Gauge
 import Pantry.Internal.Stackage (PackageNameP(..))
 import RIO
-import Settings (getAppSettings, AppSettings(..), configSettingsYmlValue)
+import Settings (getAppSettings, AppSettings(..), DatabaseSettings(..), configSettingsYmlValue)
 import Stackage.Database.Query
 import Stackage.Database.Schema (withStackageDatabase, runDatabase)
 import Stackage.Database.Types (LatestInfo, SnapName(..), SnapshotPackageInfo(..))
@@ -19,17 +20,12 @@ import Yesod.Default.Config2
 main :: IO ()
 main = do
     appSettings <- getAppSettings
-    let pgConf =
-            PostgresConf
-                { pgPoolSize = appPostgresPoolsize appSettings
-                , pgConnStr = encodeUtf8 $ appPostgresString appSettings
-                }
     let snapName = SNLts 16 4
     mSnapInfo <-
         runSimpleApp $
         withStackageDatabase
             True
-            pgConf
+            (appDatabase appSettings)
             (\db -> runDatabase db $ getSnapshotPackageInfoQuery snapName (PackageNameP "yesod"))
     let snapInfo = fromMaybe (error "snapInfo not retrieved") mSnapInfo
     defaultMain [benchs snapInfo]
@@ -39,13 +35,10 @@ runBenchApp pool m = runSimpleApp $ runSqlPool m pool
 
 createBenchPool :: IO ConnectionPool
 createBenchPool = do
-    baSettings <- loadYamlSettingsArgs [configSettingsYmlValue] useEnv
-    pool <-
-        runNoLoggingT $
-        createPostgresqlPool
-            (encodeUtf8 $ appPostgresString baSettings)
-            (appPostgresPoolsize baSettings)
-    pure pool
+    loadYamlSettingsArgs [configSettingsYmlValue] useEnv >>= \case
+        AppSettings{appDatabase = DSPostgres pgString pgPoolSize} ->
+            runNoLoggingT $ createPostgresqlPool (encodeUtf8 pgString) pgPoolSize
+        _ -> throwString "Benchmarks are crafted for PostgreSQL"
 
 releasePool :: ConnectionPool -> IO ()
 releasePool = destroyAllResources
