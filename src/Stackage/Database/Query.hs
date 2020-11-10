@@ -516,7 +516,8 @@ getSnapshotPackagePageInfoQuery spi maxDisplayedDeps = do
             if reverseDepsCount > 0
                 then getReverseDeps spi (Just maxDisplayedDeps)
                 else pure []
-        latestInfo <- getLatests (spiPackageName spi)
+        -- latestInfo <- getLatests (spiPackageName spi)
+        let latestInfo = [] -- FIXME!
         moduleNames <- getModuleNames (spiSnapshotPackageId spi)
         mcabalBlobKey <- traverse getBlobKey $ spiCabalBlobId spi
         pure
