@@ -17,6 +17,7 @@ import RIO.Time (FormatTime)
 import Import
 import Stackage.Database
 import Stackage.Snapshot.Diff
+import Text.Blaze
 
 getStackageHomeR :: SnapName -> Handler TypedContent
 getStackageHomeR name =
@@ -155,12 +156,19 @@ getSnapshotPackagesR name = track "Handler.StackageHome.getSnapshotPackagesR" $
     redirect $ SnapshotR name StackageHomeR
 
 getDocsR :: SnapName -> Handler Html
-getDocsR name = track "Handler.StackageHome.getDocsR" $ do
-    cacheSeconds $ 60 * 60 * 48
-    Entity sid _ <- lookupSnapshot name >>= maybe notFound return
-    mlis <- getSnapshotModules sid
-    render <- getUrlRender
-    let mliUrl mli = render $ haddockUrl name mli
-    defaultLayout $ do
-        setTitle $ toHtml $ "Module list for " ++ toPathPiece name
-        $(widgetFile "doc-list")
+getDocsR _name = do
+    sendResponseStatus status404 =<<
+        defaultLayout
+            (toWidget (preEscapedText
+                 ("Page has been disabled, see: " <>
+                   "<a href=\"https://github.com/fpco/stackage-server/issues/300\">" <>
+                   "github:fpco/stackage-server#300</a>")))
+  -- track "Handler.StackageHome.getDocsR" $ do
+  --   cacheSeconds $ 60 * 60 * 48
+  --   Entity sid _ <- lookupSnapshot name >>= maybe notFound return
+  --   mlis <- getSnapshotModules sid
+  --   render <- getUrlRender
+  --   let mliUrl mli = render $ haddockUrl name mli
+  --   defaultLayout $ do
+  --       setTitle $ toHtml $ "Module list for " ++ toPathPiece name
+  --       $(widgetFile "doc-list")
