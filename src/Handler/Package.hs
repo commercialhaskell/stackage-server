@@ -80,15 +80,13 @@ packagePage mspi pname =
         mspi' <-
           case mspi of
             Just spi -> pure $ Just spi
-            Nothing ->
-              fmap join $ timeout 2000000 $ getSnapshotPackageLatestVersion pname
+            Nothing -> getSnapshotPackageLatestVersion pname
         case mspi' of
           Nothing -> do
-            mmhci <- timeout 2000000 $ run $ getHackageLatestVersion pname
-            case mmhci of
-              Nothing -> error "Getting latest version timed out"
-              Just Nothing -> notFound
-              Just (Just hci) -> handlePackage $ Left hci
+            mhci <- run $ getHackageLatestVersion pname
+            case mhci of
+              Nothing -> notFound
+              (Just hci) -> handlePackage $ Left hci
           Just spi -> handlePackage $ Right spi
 
 
@@ -97,14 +95,13 @@ handlePackage epi = do
     (isDeprecated, inFavourOf, snapInfo, PackageInfo{..}) <- do
         (isDeprecated, inFavourOf) <- run $ getDeprecatedQuery pname
         snapInfo <- case epi of
-          Right spi -> Right <$> timeout 2000000 (run $ getSnapshotPackagePageInfoQuery spi maxDisplayedDeps)
+          Right spi -> Right <$> run (getSnapshotPackagePageInfoQuery spi maxDisplayedDeps)
           Left hci -> pure $ Left hci
         pinfo <- run $ getPackageInfoQuery epi
         pure (isDeprecated, inFavourOf, snapInfo, pinfo)
     (msppi, mhciLatest) <- case snapInfo of
                              Left hci -> pure (Nothing, Just hci)
-                             Right (Just sppi) -> pure (Just sppi, sppiLatestHackageCabalInfo sppi)
-                             Right Nothing -> pure (Nothing, Nothing)
+                             Right sppi -> pure (Just sppi, sppiLatestHackageCabalInfo sppi)
     let authors = enumerate piAuthors
         maintainers =
             let ms = enumerate piMaintainers
