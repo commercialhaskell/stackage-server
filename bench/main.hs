@@ -36,8 +36,8 @@ runBenchApp pool m = runSimpleApp $ runSqlPool m pool
 createBenchPool :: IO ConnectionPool
 createBenchPool = do
     loadYamlSettingsArgs [configSettingsYmlValue] useEnv >>= \case
-        AppSettings{appDatabase = DSPostgres pgString pgPoolSize} ->
-            runNoLoggingT $ createPostgresqlPool (encodeUtf8 pgString) pgPoolSize
+        AppSettings{appDatabase = DSPostgres pgString _} ->
+            runNoLoggingT $ createPostgresqlPool (encodeUtf8 pgString) 1
         _ -> throwString "Benchmarks are crafted for PostgreSQL"
 
 releasePool :: ConnectionPool -> IO ()

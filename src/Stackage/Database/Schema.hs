@@ -66,6 +66,7 @@ import RIO
 import RIO.Time
 import Types (CompilerP(..), FlagNameP, Origin, SnapName, VersionRangeP)
 import Settings (DatabaseSettings (..))
+import UnliftIO.Concurrent (getNumCapabilities)
 
 currentSchema :: Int
 currentSchema = 1
@@ -197,7 +198,9 @@ withStackageDatabase shouldLog dbs inner = do
     let makePool :: (MonadUnliftIO m, MonadLogger m) => m (Pool SqlBackend)
         makePool =
             case dbs of
-                DSPostgres connStr size -> createPostgresqlPool (encodeUtf8 connStr) size
+                DSPostgres connStr mSize -> do
+                  size <- maybe getNumCapabilities pure mSize
+                  createPostgresqlPool (encodeUtf8 connStr) size
                 DSSqlite connStr size -> do
                     pool <- createSqlitePool connStr size
                     runSqlPool (do
