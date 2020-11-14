@@ -611,16 +611,23 @@ snapshotPackageInfoQuery customize =
             , spiChangelog = unValue cl
             }
 
-
 getSnapshotPackageLatestVersionQuery ::
        PackageNameP -> ReaderT SqlBackend (RIO env) (Maybe SnapshotPackageInfo)
-getSnapshotPackageLatestVersionQuery pname =
-    fmap snd . listToMaybe <$>
-    (snapshotPackageInfoQuery $ \_sp s pn v spiQ -> do
-         where_ (pn ^. PackageNameName ==. val pname)
-         orderBy [desc (versionArray v), desc (s ^. SnapshotCreated)]
-         limit 1
-         pure ((), spiQ))
+getSnapshotPackageLatestVersionQuery pname = do
+    versions <-
+        select $
+        from $ \(sp `InnerJoin` pn `InnerJoin` v) -> do
+            on (sp ^. SnapshotPackageVersion ==. v ^. VersionId)
+            on (sp ^. SnapshotPackagePackageName ==. pn ^. PackageNameId)
+            where_ $ pn ^. PackageNameName ==. val pname
+            pure (v ^. VersionVersion, sp ^. SnapshotPackageId)
+    case L.sortOn Down [(v, spid) | (Value v, Value spid) <- versions] of
+        [] -> pure Nothing
+        (_, spid):_ ->
+            fmap snd . listToMaybe <$>
+            (snapshotPackageInfoQuery $ \sp _s _pn _v spiQ -> do
+                 where_ $ sp ^. SnapshotPackageId ==. val spid
+                 pure ((), spiQ))
 
 getSnapshotPackageLatestVersion ::
        GetStackageDatabase env m
