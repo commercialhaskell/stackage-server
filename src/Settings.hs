@@ -56,7 +56,7 @@ data AppSettings = AppSettings
     }
 
 data DatabaseSettings
-    = DSPostgres !Text !Int
+    = DSPostgres !Text !(Maybe Int)
     | DSSqlite !Text !Int
 
 parseDatabase
