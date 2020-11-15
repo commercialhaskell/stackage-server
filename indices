@@ -1,2 +1,3 @@
 create index nightly_snap on nightly(snap);
 create index snapshot_package_snapshot on snapshot_package(snapshot);
+create index snapshot_created on snapshot (created desc);
