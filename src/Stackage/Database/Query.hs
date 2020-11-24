@@ -433,27 +433,16 @@ getLatest pnameid onWhich orderWhich =
 getLatests :: PackageNameP -> ReaderT SqlBackend (RIO env) [LatestInfo]
 getLatests pname = do
     pid <- getPackageNameId $ unPackageNameP pname
-    mlatest <- getBy $ UniqueLatestVersion pid
-    (mlts, mnightly) <-
-      case mlatest of
-        Nothing -> do
-            mLts <-
-                getLatest
-                    pid
-                    (^. LtsSnap)
-                    (\lts -> orderBy [desc (lts ^. LtsMajor), desc (lts ^. LtsMinor)])
-            mNightly <-
-                getLatest
-                    pid
-                    (^. NightlySnap)
-                    (\nightly -> orderBy [desc (nightly ^. NightlyDay)])
-            insert_ LatestVersion
-              { latestVersionPackageName = pid
-              , latestVersionLts = mLts
-              , latestVersionNightly = mNightly
-              }
-            pure (mLts, mNightly)
-        Just (Entity _ (LatestVersion _name mlts mnightly)) -> pure (mlts, mnightly)
+    mlts <-
+        getLatest
+            pid
+            (^. LtsSnap)
+            (\lts -> orderBy [desc (lts ^. LtsMajor), desc (lts ^. LtsMinor)])
+    mnightly <-
+        getLatest
+            pid
+            (^. NightlySnap)
+            (\nightly -> orderBy [desc (nightly ^. NightlyDay)])
     for (catMaybes [mlts, mnightly]) $ \spid -> do
         sp <- maybe (error "impossible") id <$> get spid
         snap <- maybe (error "impossible") id <$> get (snapshotPackageSnapshot sp)

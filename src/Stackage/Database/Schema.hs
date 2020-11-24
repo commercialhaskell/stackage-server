@@ -42,8 +42,6 @@ module Stackage.Database.Schema
     , DepId
     , Deprecated(..)
     , DeprecatedId
-    , LatestVersion(..)
-    , LatestVersionId
     -- ** Pantry
     , module PS
     ) where
@@ -124,13 +122,6 @@ Deprecated
     package PackageNameId
     inFavourOf [PackageNameId]
     UniqueDeprecated package
-
--- Cache table for efficiency
-LatestVersion
-    packageName PackageNameId
-    lts SnapshotPackageId Maybe
-    nightly SnapshotPackageId Maybe
-    UniqueLatestVersion packageName
 |]
 
 _hideUnusedWarnings :: (SchemaId, LtsId, NightlyId, SnapshotHoogleDbId) -> ()
