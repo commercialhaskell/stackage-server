@@ -10,7 +10,7 @@ $newline never
 
     <p>To use this resolver, edit your stack.yaml and set the following:
       <p .stack-resolver-yaml>resolver: #{toPathPiece name}
-    <p>or on the command line use: <code>stack --resolver #{toPathPiece name}</code>
+    <p>or on the command line you can use: <code>stack --resolver #{toPathPiece name} ...</code>
     <p>For more details see <a href="http://docs.haskellstack.org">the stack homepage</a>
 
     <h3>Hoogle
