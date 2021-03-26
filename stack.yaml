@@ -1,4 +1,4 @@
-resolver: lts-16.20
+resolver: lts-16.31
 extra-deps:
 - barrier-0.1.1@sha256:2021f84c3aba67bb635d72825d3bc0371942444dc014bc307b875071e29eea98,3931
 - hackage-security-0.6.0.1

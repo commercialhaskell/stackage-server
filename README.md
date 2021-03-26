@@ -1,5 +1,4 @@
-stackage-server
-===============
+# stackage-server
 
 ![Runtime image](https://github.com/fpco/stackage-server/workflows/Runtime%20image/badge.svg)
 
@@ -16,6 +15,13 @@ Build locally by passing the `dev` flag to it:
 $ stack build . --flag stackage-server:dev
 ```
 
+## Simple testing with sqlite:
+To test the UI without real data, just run:
+```
+$ yesod devel
+```
+
+## Testing with postgresql
 Now, initially you need to run the cron job to create and populate the database:
 
 ``` shellsession
