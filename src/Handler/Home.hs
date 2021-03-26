@@ -35,8 +35,8 @@ getHomeR = track "Handler.Snapshots.getAllSnapshotsR" $ do
     let latestNightly = groupUp now' nightly
     latestLtsNameWithHoogle <- getLatestLtsNameWithHoogle
     latestLtsByGhc <- getLatestLtsByGhc
-
-    mrecentBlog <- headMay <$> getPosts
+    let sixMonthsAgo = addUTCTime (-180 * nominalDay) now'
+    mrecentBlog <- headMay . filter (\p -> postTime p > sixMonthsAgo) <$> getPosts
 
     defaultLayout $ do
         setTitle "Stackage Server"
