@@ -8,10 +8,7 @@ $newline never
         <span>
             <a href=@{StackageDiffR previousSnapName name}>View changes
 
-    <p>To use this resolver, edit your stack.yaml and set the following:
-      <p .stack-resolver-yaml>resolver: #{toPathPiece name}
-    <p>or on the command line you can use: <code>stack --resolver #{toPathPiece name} ...</code>
-    <p>For more details see <a href="http://docs.haskellstack.org">the stack homepage</a>
+    <p .stack-resolver-yaml><a href="https://docs.haskellstack.org/en/stable/GUIDE/#resolvers-and-changing-your-compiler-version">resolver</a>: #{toPathPiece name}
 
     <h3>Hoogle
     ^{hoogleForm}
