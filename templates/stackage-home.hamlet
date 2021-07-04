@@ -10,7 +10,6 @@ $newline never
 
     <p .stack-resolver-yaml><a href="https://docs.haskellstack.org/en/stable/GUIDE/#resolvers-and-changing-your-compiler-version">resolver</a>: #{toPathPiece name}
 
-    <h3>Hoogle
     ^{hoogleForm}
 
     <h3>Packages (#{packageCount})
