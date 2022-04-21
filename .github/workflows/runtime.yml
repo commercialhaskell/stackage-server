@@ -2,8 +2,7 @@ name: Runtime image
 
 on:
   push:
-    branches: [master, bench]
-  pull_request:
+    branches: [master, bench, 311-less-snapshots]
 
 jobs:
   push:
