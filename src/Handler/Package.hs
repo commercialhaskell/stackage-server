@@ -157,7 +157,7 @@ getPackageSnapshotsR :: PackageNameP -> Handler Html
 getPackageSnapshotsR pn =
     track "Handler.Package.getPackageSnapshotsR" $ do
         cacheSeconds $ 60 * 60 * 24
-        snapshots <- getLtsSnapshotsForPackage pn (Just 100)
+        snapshots <- getSnapshotsForPackage pn Nothing
         defaultLayout
             (do setTitle ("Packages for " >> toHtml pn)
                 $(combineStylesheets 'StaticR [css_font_awesome_min_css])

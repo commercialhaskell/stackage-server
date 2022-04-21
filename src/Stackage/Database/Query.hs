@@ -638,17 +638,15 @@ stringToArray ::
     -> SqlExpr (Value [String])
 stringToArray s1 s2 = unsafeSqlFunction "string_to_array" (s1, s2)
 
-getLtsSnapshotsForPackage
+getSnapshotsForPackage
     :: GetStackageDatabase env m
     => PackageNameP
     -> Maybe Int
     -> m [(CompilerP, SnapshotPackageInfo)]
-getLtsSnapshotsForPackage pname mlimit =
+getSnapshotsForPackage pname mlimit =
     fmap (first unValue) <$>
     run (snapshotPackageInfoQuery $ \_sp s pn _v spiQ -> do
-             where_ $
-               pn ^. PackageNameName ==. val pname &&.
-               (s ^. snapshotName `ilike` val "lts%")
+             where_ (pn ^. PackageNameName ==. val pname)
              orderBy [desc (s ^. SnapshotCreated)]
              forM_ mlimit (limit . fromIntegral)
              pure (s ^. SnapshotCompiler, spiQ))
