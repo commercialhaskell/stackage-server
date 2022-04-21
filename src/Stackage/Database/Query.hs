@@ -648,7 +648,7 @@ getLtsSnapshotsForPackage pname mlimit =
     run (snapshotPackageInfoQuery $ \_sp s pn _v spiQ -> do
              where_ $
                pn ^. PackageNameName ==. val pname &&.
-               (s ^. SnapshotName `ilike` val "lts%")
+               (s ^. snapshotName `ilike` val "lts%")
              orderBy [desc (s ^. SnapshotCreated)]
              forM_ mlimit (limit . fromIntegral)
              pure (s ^. SnapshotCompiler, spiQ))
