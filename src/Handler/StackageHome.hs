@@ -13,6 +13,7 @@ module Handler.StackageHome
     ) where
 
 import Data.These
+import RIO (textDisplay)
 import RIO.Time (FormatTime)
 import Import
 import Stackage.Database
@@ -65,7 +66,7 @@ getStackageDiffR name1 name2 = track "Handler.StackageHome.getStackageDiffR" $ d
 getStackageCabalConfigR :: SnapName -> Handler TypedContent
 getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfigR" $ do
     cacheSeconds $ 60 * 60 * 48
-    Entity sid _ <- lookupSnapshot name >>= maybe notFound return
+    Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
     render <- getUrlRender
 
     mdownload <- lookupGetParam "download"
@@ -79,16 +80,18 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
 
     respondSource typePlain $ yieldMany plis .|
         if isGlobal
-            then conduitGlobal render
-            else conduitLocal render
+            then conduitGlobal (snapshotCompiler snapshot) render
+            else conduitLocal (snapshotCompiler snapshot) render
   where
     -- FIXME move this stuff into stackage-common
-    conduitGlobal render = do
+    conduitGlobal compiler render = do
         headerGlobal render
+        compilerVersion compiler
         mapC (Chunk . showPackageGlobal)
 
-    conduitLocal render = do
+    conduitLocal compiler render = do
         headerLocal render
+        compilerVersion compiler
         goFirst
         mapC (Chunk . showPackageLocal)
         yield $ Chunk $ toBuilder '\n'
@@ -114,6 +117,11 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
         toBuilder (toPathPiece name) ++
         toBuilder ':' ++
         toBuilder (snapshotUrl render) ++
+        toBuilder '\n'
+
+    compilerVersion compiler = yield $ Chunk $
+        toBuilder (asText "with-compiler: ") ++
+        toBuilder (textDisplay compiler) ++
         toBuilder '\n'
 
     oldSnapshotUrl render = asHttp $ render $ OldSnapshotR (toPathPiece name) []
