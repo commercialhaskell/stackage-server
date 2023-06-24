@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 module Stackage.Database.Haddock
     ( renderHaddock
@@ -8,6 +9,9 @@ import qualified Documentation.Haddock.Parser as Haddock
 import Documentation.Haddock.Types (DocH(..), Example(..), Header(..),
                                     Hyperlink(..), MetaDoc(..), Picture(..),
                                     Table(..), TableCell(..), TableRow(..))
+#if MIN_VERSION_haddock_library(1,10,0)
+import Documentation.Haddock.Types (ModLink(modLinkName))
+#endif
 import Text.Blaze.Html (Html, toHtml)
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as A
@@ -27,13 +31,21 @@ hToHtml =
     go (DocParagraph x) = H.p $ go x
     go (DocIdentifier s) = H.code $ toHtml s
     go (DocIdentifierUnchecked s) = H.code $ toHtml s
+#if MIN_VERSION_haddock_library(1,10,0)
+    go (DocModule modLink) = H.code $ toHtml $ modLinkName modLink
+#else
     go (DocModule s) = H.code $ toHtml s
+#endif
     go (DocWarning x) = H.span H.! A.class_ "warning" $ go x
     go (DocEmphasis x) = H.em $ go x
     go (DocMonospaced x) = H.code $ go x
     go (DocBold x) = H.strong $ go x
     go (DocUnorderedList xs) = H.ul $ foldMap (H.li . go) xs
+#if MIN_VERSION_haddock_library(1,11,0)
+    go (DocOrderedList xs) = H.ol $ foldMap (H.li . go . snd) xs
+#else
     go (DocOrderedList xs) = H.ol $ foldMap (H.li . go) xs
+#endif
     go (DocDefList xs) = H.dl $ flip foldMap xs $ \(x, y) ->
         H.dt (go x) ++ H.dd (go y)
     go (DocCodeBlock x) = H.pre $ H.code $ go x
