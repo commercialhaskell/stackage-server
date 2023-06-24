@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -46,7 +47,12 @@ module Stackage.Database.Schema
     , module PS
     ) where
 
-import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT, MonadLogger)
+import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
+#if MIN_VERSION_monad_logger(0,3,10) && MIN_VERSION_persistent_postgresql(2,12,0)
+import Control.Monad.Logger (MonadLoggerIO)
+#else
+import Control.Monad.Logger (MonadLogger)
+#endif
 import qualified Data.Aeson as A
 import Data.Pool (destroyAllResources, Pool)
 import Database.Persist
@@ -186,7 +192,12 @@ run inner = do
 
 withStackageDatabase :: MonadUnliftIO m => Bool -> DatabaseSettings -> (StackageDatabase -> m a) -> m a
 withStackageDatabase shouldLog dbs inner = do
-    let makePool :: (MonadUnliftIO m, MonadLogger m) => m (Pool SqlBackend)
+    let
+#if MIN_VERSION_monad_logger(0,3,10) && MIN_VERSION_persistent_postgresql(2,12,0)
+        makePool :: (MonadUnliftIO m, MonadLoggerIO m) => m (Pool SqlBackend)
+#else
+        makePool :: (MonadUnliftIO m, MonadLogger   m) => m (Pool SqlBackend)
+#endif
         makePool =
             case dbs of
                 DSPostgres connStr mSize -> do
