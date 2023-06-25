@@ -20,6 +20,7 @@ To test the UI without real data, just run:
 ```
 $ yesod devel
 ```
+(install the yesod executable from yesod-bin).
 
 ## Testing with postgresql
 Now, initially you need to run the cron job to create and populate the database:
@@ -29,7 +30,7 @@ $ export PGSTRING=postgresql://postgres:password@localhost:5432/stackage
 $ stack exec stackage-server-cron
 ```
 
-Note that you need to modify the PGSTRING environment variable according to your actual database configuration. Also, you need to create an empty database before running the cron job. Note that it takes quites some time for it to load your database.
+Note that you need to modify the PGSTRING environment variable according to your actual database configuration. Also, you need to create an empty database before running the cron job. Note that it takes quite some time for it to load your database.
 
 After this, run the stackage server:
 
