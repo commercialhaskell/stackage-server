@@ -25,8 +25,8 @@ import qualified Data.IntMap.Strict as IntMap
 import Data.Monoid (Any(..))
 import Data.Streaming.Network (bindPortTCP)
 import Data.Yaml (decodeFileEither)
-import Database.Persist
-import Database.Persist.Postgresql
+import Database.Persist hiding (exists)
+import Database.Persist.Postgresql hiding (exists)
 import qualified Hoogle
 import Network.AWS hiding (Request, Response)
 import Network.AWS.Data.Text (toText)

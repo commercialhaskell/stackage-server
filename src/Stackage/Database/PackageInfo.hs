@@ -38,6 +38,7 @@ import Distribution.Types.Library (exposedModules)
 import Distribution.Types.PackageDescription (PackageDescription(package))
 import Distribution.Types.VersionRange (VersionRange, intersectVersionRanges,
                                         normaliseVersionRange, withinRange)
+import Distribution.Utils.ShortText (fromShortText)
 import Distribution.Version (simplifyVersionRange)
 import RIO
 import qualified RIO.Map as Map
@@ -71,15 +72,15 @@ toPackageInfo ::
     -> PackageInfo
 toPackageInfo gpd mreadme mchangelog =
     PackageInfo
-        { piSynopsis = T.pack $ synopsis pd
-        , piDescription = renderHaddock (description pd)
+        { piSynopsis = T.pack $ fromShortText $ synopsis pd
+        , piDescription = renderHaddock $ fromShortText (description pd)
         , piReadme = maybe mempty (\(Readme bs isMarkdown) -> renderContent bs isMarkdown) mreadme
         , piChangelog =
               maybe mempty (\(Changelog bs isMarkdown) -> renderContent bs isMarkdown) mchangelog
-        , piAuthors = parseIdentitiesLiberally $ T.pack $ author pd
-        , piMaintainers = parseIdentitiesLiberally $ T.pack $ maintainer pd
+        , piAuthors = parseIdentitiesLiberally $ T.pack . fromShortText $ author pd
+        , piMaintainers = parseIdentitiesLiberally $ T.pack . fromShortText $ maintainer pd
         , piHomepage =
-              case T.strip $ T.pack $ homepage pd of
+              case T.strip . T.pack . fromShortText $ homepage pd of
                   "" -> Nothing
                   x  -> Just x
         , piLicenseName = T.pack $ prettyShow $ license pd
@@ -93,7 +94,7 @@ toPackageInfo gpd mreadme mchangelog =
                 else toHtml $ Textarea txt
 
 getSynopsis :: GenericPackageDescription -> Text
-getSynopsis = T.pack . synopsis . packageDescription
+getSynopsis = T.pack . fromShortText . synopsis . packageDescription
 
 extractModuleNames :: GenericPackageDescription -> [ModuleNameP]
 extractModuleNames = maybe [] (coerce . exposedModules . condTreeData) . condLibrary

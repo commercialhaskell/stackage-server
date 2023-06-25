@@ -62,7 +62,7 @@ dependencies:
 - zlib
 - unordered-containers
 - hashable
-- Cabal
+- Cabal >= 3.2
 - mono-traversable
 - process
 - cmark-gfm
