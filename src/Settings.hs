@@ -11,6 +11,9 @@ module Settings where
 
 import ClassyPrelude.Yesod
 import Data.Aeson (Result(..), fromJSON, withObject, (.!=), (.:?))
+#if MIN_VERSION_aeson(2,0,0)
+import Data.Aeson.KeyMap (KeyMap)
+#endif
 import Data.FileEmbed (embedFile)
 import Data.Yaml (decodeEither', Parser)
 import Data.Yaml.Config
@@ -61,7 +64,11 @@ data DatabaseSettings
 
 parseDatabase
   :: Bool -- ^ is this dev? if so, allow default of SQLite
+#if MIN_VERSION_aeson(2,0,0)
+  -> KeyMap Value
+#else
   -> HashMap Text Value
+#endif
   -> Parser DatabaseSettings
 parseDatabase isDev o =
     if isDev
