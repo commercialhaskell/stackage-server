@@ -55,7 +55,7 @@ import Data.Hashable (hashUsing, hashWithSalt)
 import qualified Data.Text as T
 import qualified Data.Text.Read as Reader
 import Data.Typeable
-import Database.Esqueleto.Internal.Language
+import Database.Esqueleto.Internal.Internal
 import Database.Persist
 import Database.Persist.Sql (PersistFieldSql(sqlType))
 import qualified Distribution.ModuleName as DT (components, fromComponents,

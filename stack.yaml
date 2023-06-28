@@ -1,19 +1,10 @@
-resolver: lts-16.31
+resolver: lts-18.28
 extra-deps:
-- barrier-0.1.1@sha256:2021f84c3aba67bb635d72825d3bc0371942444dc014bc307b875071e29eea98,3931
-- hackage-security-0.6.0.1
-- hoogle-5.0.18
-- yesod-gitrepo-0.3.0@sha256:7aad996935065726ce615c395d735cc01dcef3993b1788f670f6bfc866085e02,1191
-- github: commercialhaskell/pantry
-  commit: c4e7c3dff9770e7937c93edfb6564dd6a1acd55e
-- github: fpco/casa
-  commit: fc0ed26858bfc4f2966ed2dfb2871bae9266dda6
-  subdirs:
-     - casa-client
-     - casa-types
-- github: yesodweb/persistent
-  commit: f66ed6f472ff3faa140db37bf4649e5b80be4c57
-  subdirs: [persistent]
+- amazonka-1.6.1
+- barrier-0.1.1
+- classy-prelude-yesod-1.5.0
+- unliftio-core-0.1.2.0
+- yesod-gitrepo-0.3.0
 
 drop-packages:
 - Cabal

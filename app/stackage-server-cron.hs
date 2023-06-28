@@ -81,7 +81,7 @@ main = do
         execParser $
         info
             (optsParser <*
-             abortOption ShowHelpText (long "help" <> short 'h' <> help "Display this message."))
+             abortOption (ShowHelpText Nothing) (long "help" <> short 'h' <> help "Display this message."))
             (header "stackage-cron - Keep stackage.org up to date" <>
              progDesc
                  "Uses github.com/commercialhaskell/stackage-snapshots repository as a source \

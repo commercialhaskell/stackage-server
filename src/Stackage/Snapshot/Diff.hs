@@ -75,14 +75,14 @@ snapshotDiff
   -> [(PackageNameP, VersionP)]
   -> SnapshotDiff
 snapshotDiff as0 bs0 =
-    SnapshotDiff $ map (second VersionChange) $ go (sortEm as0) (sortEm bs0)
+    SnapshotDiff $ map (second VersionChange) $ go (sortOn cmp as0) (sortOn cmp bs0)
   where
-    sortEm = sortOn (toCaseFold . textDisplay . fst)
+    cmp = toCaseFold . textDisplay . fst
 
     go as [] = map (second This) as
     go [] bs = map (second That) bs
     go (a:as) (b:bs) =
-      case compare (fst a) (fst b) of
+      case (compare `on` cmp) a b of
         EQ
           | snd a == snd b -> go as bs
           | otherwise -> (fst a, These (snd a) (snd b)) : go as bs

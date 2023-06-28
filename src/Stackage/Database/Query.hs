@@ -78,9 +78,10 @@ module Stackage.Database.Query
 
 import qualified Data.Aeson as A
 import qualified Data.List as L
-import Database.Esqueleto
-import Database.Esqueleto.Internal.Language (FromPreprocess)
-import Database.Esqueleto.Internal.Sql
+import Database.Esqueleto.Legacy
+import Database.Esqueleto.Internal.Internal (FromPreprocess, SqlSelect,
+                                             unsafeSqlCastAs,
+                                             unsafeSqlFunction)
 import Distribution.Types.PackageId (PackageIdentifier(PackageIdentifier))
 import Distribution.PackageDescription (packageDescription)
 import Distribution.Types.PackageDescription (PackageDescription(package))
@@ -604,7 +605,7 @@ getSnapshotPackageLatestVersionQuery ::
        PackageNameP -> ReaderT SqlBackend (RIO env) (Maybe SnapshotPackageInfo)
 getSnapshotPackageLatestVersionQuery pname =
     fmap snd . listToMaybe <$>
-    (snapshotPackageInfoQuery $ \_sp s pn v spiQ -> do
+    (snapshotPackageInfoQuery $ \_sp s pn _v spiQ -> do
          where_ (pn ^. PackageNameName ==. val pname)
          orderBy [desc (s ^. SnapshotId)]
          limit 1
