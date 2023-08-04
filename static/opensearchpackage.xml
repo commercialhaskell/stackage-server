@@ -8,8 +8,8 @@
     <Language>en-us</Language>
     <InputEncoding>UTF-8</InputEncoding>
     <OutputEncoding>UTF-8</OutputEncoding>
-    <Image width="222" height="222" type="image/x-icon">http://www.stackage.org/static/img/stackage.png</Image>
-    <Url type="text/html" method="GET" template="http://www.stackage.org/package/{searchTerms}"/>
+    <Image width="222" height="222" type="image/x-icon">https://www.stackage.org/static/img/stackage.png</Image>
+    <Url type="text/html" method="GET" template="https://www.stackage.org/package/{searchTerms}"/>
     <Query role="example" searchTerms="E.g. bytestring"/>
-    <moz:SearchForm>http://www.stackage.org</moz:SearchForm>
+    <moz:SearchForm>https://www.stackage.org</moz:SearchForm>
 </OpenSearchDescription>
