@@ -2,7 +2,7 @@ name: Runtime image
 
 on:
   push:
-    branches: [master, bench, 311-less-snapshots]
+    branches: [master, bench, 311-less-snapshots, update-pantry]
 
 jobs:
   push:
