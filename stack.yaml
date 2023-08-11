@@ -6,5 +6,9 @@ extra-deps:
 - unliftio-core-0.1.2.0
 - yesod-gitrepo-0.3.0
 
+extra-deps:
+- git: https://github.com/commercialhaskell/pantry.git
+  commit: 0b01e48c1856c5e8fe227495e075d324b7f0a613
+
 drop-packages:
 - Cabal
