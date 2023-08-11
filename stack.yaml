@@ -5,10 +5,11 @@ extra-deps:
 - classy-prelude-yesod-1.5.0
 - unliftio-core-0.1.2.0
 - yesod-gitrepo-0.3.0
-
-extra-deps:
+- static-bytes-0.1.0
+- companion-0.1.0
+- aeson-warning-parser-0.1.0
 - git: https://github.com/commercialhaskell/pantry.git
-  commit: 0b01e48c1856c5e8fe227495e075d324b7f0a613
+  commit: ca136d1737a88773c4b0c8d28e73739f56e7b241
 
 drop-packages:
 - Cabal
