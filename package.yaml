@@ -159,3 +159,12 @@ benchmarks:
     - casa-client
     ghc-options:
     - -O2
+
+tests:
+  unit-tests:
+    main: main.hs
+    source-dirs: unit-tests
+    dependencies:
+    - stackage-server
+    - hspec
+    - pantry
