@@ -9,7 +9,7 @@ extra-deps:
 - companion-0.1.0
 - aeson-warning-parser-0.1.0
 - git: https://github.com/commercialhaskell/pantry.git
-  commit: ca136d1737a88773c4b0c8d28e73739f56e7b241
+  commit: 8e771ed7178d3b0948cba06f307455c2ca1b5e53
 
 drop-packages:
 - Cabal
