@@ -2,7 +2,7 @@ name: Base image
 
 on:
   push:
-    branches: [base, update-pantry]
+    branches: [base]
 
 jobs:
   push:
