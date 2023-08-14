@@ -1,10 +1,10 @@
-FROM ghcr.io/fpco/stackage-server/base-build:37eb5f3da608d3796a5176a3c27fe83f340690e7 as build-app
+FROM ghcr.io/fpco/stackage-server/base-build:02cdb54683a9c8feec125bbdc9aa36f9700dad17 as build-app
 
 RUN mkdir -p /artifacts/bin
 COPY . /src
 RUN stack install --stack-yaml /src/stack.yaml --local-bin-path /artifacts/bin
 
-FROM ghcr.io/fpco/stackage-server/base-run:37eb5f3da608d3796a5176a3c27fe83f340690e7
+FROM ghcr.io/fpco/stackage-server/base-run:02cdb54683a9c8feec125bbdc9aa36f9700dad17
 
 COPY --from=build-app /src/config/ /app/config/
 COPY --from=build-app /src/static/ /app/static/
