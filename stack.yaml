@@ -14,6 +14,3 @@ extra-deps:
 
 drop-packages:
 - Cabal
-
-nix:
-  shell-file: shell.nix
