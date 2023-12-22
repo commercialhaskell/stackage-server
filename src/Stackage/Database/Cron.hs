@@ -59,6 +59,7 @@ import Stackage.Database.PackageInfo
 import Stackage.Database.Query
 import Stackage.Database.Schema
 import Stackage.Database.Types
+import System.Environment (getEnvironment)
 import UnliftIO.Concurrent (getNumCapabilities)
 import Web.PathPieces (fromPathPiece, toPathPiece)
 import qualified Control.Retry as Retry
@@ -163,7 +164,12 @@ stackageServerCron StackageCronOptions {..} = do
         cabalMutable <- newIORef Map.empty
         gpdCache <- newIORef IntMap.empty
         defaultProcessContext <- mkDefaultProcessContext
-        aws <- newEnv Discover
+        aws <- do
+            aws' <- newEnv Discover
+            endpoint <- lookup "AWS_S3_ENDPOINT" <$> getEnvironment
+            pure $ case endpoint of
+                Nothing -> aws'
+                Just ep -> configure (setEndpoint True (BS8.pack ep) 443 s3) aws'
         withLogFunc (setLogMinLevel scoLogLevel lo) $ \logFunc -> do
             let pantryConfig =
                     PantryConfig
