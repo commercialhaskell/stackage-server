@@ -179,8 +179,9 @@ stackageServerCron StackageCronOptions {..} = do
                         , pcCasaMaxPerRequest = defaultCasaMaxPerRequest
                         , pcSnapshotLocation = defaultSnapshotLocation
                         }
-            currentHoogleVersionId <-
-                runRIO logFunc $ getCurrentHoogleVersionIdWithPantryConfig pantryConfig
+            currentHoogleVersionId <- runRIO logFunc $ do
+                runStackageMigrations' pantryConfig
+                getCurrentHoogleVersionIdWithPantryConfig pantryConfig
             let stackage =
                     StackageCron
                         { scPantryConfig = pantryConfig
