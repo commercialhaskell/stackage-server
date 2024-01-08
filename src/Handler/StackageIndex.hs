@@ -2,13 +2,12 @@
 module Handler.StackageIndex where
 
 import Import
-import Stackage.Database.Types (haddockBucketName)
 
 getStackageIndexR :: SnapName -> Handler TypedContent
-getStackageIndexR slug =
+getStackageIndexR slug = do
+    bucketUrl <- getsYesod (appDownloadBucketUrl . appSettings)
     redirect $ concat
-        [ "https://s3.amazonaws.com/"
-        , haddockBucketName
+        [ bucketUrl
         , "/package-index/"
         , toPathPiece slug
         , ".tar.gz"

@@ -10,7 +10,8 @@ module Stackage.Database.Cron
     , newHoogleLocker
     , singleRun
     , StackageCronOptions(..)
-    , haddockBucketName
+    , defHaddockBucketName
+    , defHaddockBucketUrl
     ) where
 
 import Conduit
@@ -74,10 +75,9 @@ hoogleKey name = T.concat
     , ".hoo"
     ]
 
-hoogleUrl :: SnapName -> Text
-hoogleUrl n = T.concat
-    [ "https://s3.amazonaws.com/"
-    , haddockBucketName
+hoogleUrl :: SnapName -> Text -> Text
+hoogleUrl n haddockBucketUrl = T.concat
+    [ haddockBucketUrl
     , "/"
     , hoogleKey n
     ]
@@ -101,8 +101,8 @@ withResponseUnliftIO :: MonadUnliftIO m => Request -> Manager -> (Response BodyR
 withResponseUnliftIO req man f = withRunInIO $ \ runInIO -> withResponse req man (runInIO . f)
 
 newHoogleLocker ::
-       (HasLogFunc env, MonadIO m) => env -> Manager -> m (SingleRun SnapName (Maybe FilePath))
-newHoogleLocker env man = mkSingleRun hoogleLocker
+       (HasLogFunc env, MonadIO m) => env -> Manager -> Text -> m (SingleRun SnapName (Maybe FilePath))
+newHoogleLocker env man bucketUrl = mkSingleRun hoogleLocker
   where
     hoogleLocker :: MonadIO n => SnapName -> n (Maybe FilePath)
     hoogleLocker name =
@@ -112,7 +112,7 @@ newHoogleLocker env man = mkSingleRun hoogleLocker
             if exists
                 then return $ Just fp
                 else do
-                    req' <- parseRequest $ T.unpack $ hoogleUrl name
+                    req' <- parseRequest $ T.unpack $ hoogleUrl name bucketUrl
                     let req = req' {decompress = const False}
                     withResponseUnliftIO req man $ \res ->
                         case responseStatus res of
@@ -125,7 +125,7 @@ newHoogleLocker env man = mkSingleRun hoogleLocker
                                         sinkHandle h
                                     return $ Just fp
                                 | status == status404 -> do
-                                    logDebug $ "NotFound: " <> display (hoogleUrl name)
+                                    logDebug $ "NotFound: " <> display (hoogleUrl name bucketUrl)
                                     return Nothing
                                 | otherwise -> do
                                     body <- liftIO $ brConsume $ responseBody res
@@ -198,6 +198,7 @@ stackageServerCron StackageCronOptions {..} = do
                         , scCachedGPD = gpdCache
                         , scEnvAWS = aws
                         , scDownloadBucketName = scoDownloadBucketName
+                        , scDownloadBucketUrl = scoDownloadBucketUrl
                         , scUploadBucketName = scoUploadBucketName
                         , scSnapshotsRepo = scoSnapshotsRepo
                         , scReportProgress = scoReportProgress
@@ -700,7 +701,8 @@ buildAndUploadHoogleDB :: Bool -> RIO StackageCron ()
 buildAndUploadHoogleDB doNotUpload = do
     snapshots <- lastLtsNightlyWithoutHoogleDb 5 5
     env <- ask
-    locker <- newHoogleLocker (env ^. logFuncL) (env ^. envManager)
+    bucketUrl <- asks scDownloadBucketUrl
+    locker <- newHoogleLocker (env ^. logFuncL) (env ^. envManager) bucketUrl
     for_ snapshots $ \(snapshotId, snapName) ->
         unlessM (checkInsertSnapshotHoogleDb False snapshotId) $ do
             logInfo $ "Starting Hoogle database download: " <> display (hoogleKey snapName)
@@ -725,12 +727,12 @@ createHoogleDB :: SnapshotId -> SnapName -> RIO StackageCron (Maybe FilePath)
 createHoogleDB snapshotId snapName =
     handleAny logException $ do
         logInfo $ "Creating Hoogle DB for " <> display snapName
-        downloadBucket <- scDownloadBucketName <$> ask
+        downloadBucketUrl <- scDownloadBucketUrl <$> ask
         let root = "hoogle-gen"
             bindir = root </> "bindir"
             outname = root </> "output.hoo"
             tarKey = toPathPiece snapName <> "/hoogle/orig.tar"
-            tarUrl = "https://s3.amazonaws.com/" <> downloadBucket <> "/" <> tarKey
+            tarUrl = downloadBucketUrl <> "/" <> tarKey
             tarFP = root </> T.unpack tarKey
         -- When tarball is downloaded it is saved with durability and atomicity, so if it
         -- is present it is not in a corrupted state

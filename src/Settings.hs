@@ -56,6 +56,8 @@ data AppSettings = AppSettings
     -- ^ Force redirect to SSL
     , appDevDownload            :: Bool
     -- ^ Controls how Git and database resources are downloaded (True means less downloading)
+    , appDownloadBucketUrl      :: Text
+    -- ^ Publicly-accessible URL for the bucket holding Haddock contents.
     }
 
 data DatabaseSettings
@@ -109,6 +111,7 @@ instance FromJSON AppSettings where
         appSkipCombining          <- o .:? "skip-combining"   .!= dev
         appForceSsl               <- o .:? "force-ssl"        .!= not dev
         appDevDownload            <- o .:? "dev-download"     .!= dev
+        appDownloadBucketUrl      <- o .:? "download-bucket-url" .!= "https://s3.amazonaws.com/haddock.stackage.org"
 
         return AppSettings {..}
 

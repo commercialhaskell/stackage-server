@@ -157,7 +157,7 @@ withFoundation appLogFunc appSettings inner = do
                   runRIO appLogFunc $ RIO.logError $ "Couldn't get Stack matcher: " <> displayShow e
                   pure oldMatcher
         appMirrorStatus <- mkUpdateMirrorStatus
-        hoogleLocker <- newHoogleLocker appLogFunc appHttpManager
+        hoogleLocker <- newHoogleLocker appLogFunc appHttpManager (appDownloadBucketUrl appSettings)
         let appGetHoogleDB = singleRun hoogleLocker
         let appGitRev = $$tGitRev
         runConcurrently $ runContentUpdates *> Concurrently (inner App {..})

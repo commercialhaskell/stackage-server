@@ -40,7 +40,8 @@ module Stackage.Database.Types
     , Origin(..)
     , LatestInfo(..)
     , Deprecation(..)
-    , haddockBucketName
+    , defHaddockBucketName
+    , defHaddockBucketUrl
     , Changelog(..)
     , Readme(..)
     , StackageCronOptions(..)
@@ -61,12 +62,16 @@ import Stackage.Database.Schema
 import Text.Blaze (ToMarkup(..))
 import Types
 
-haddockBucketName :: Text
-haddockBucketName = "haddock.stackage.org"
+defHaddockBucketName :: Text
+defHaddockBucketName = "haddock.stackage.org"
+
+defHaddockBucketUrl :: Text
+defHaddockBucketUrl = "https://s3.amazonaws.com/" <> defHaddockBucketName
 
 data StackageCronOptions = StackageCronOptions
   { scoForceUpdate        :: !Bool
   , scoDownloadBucketName :: !Text
+  , scoDownloadBucketUrl  :: !Text
   , scoUploadBucketName   :: !Text
   , scoDoNotUpload        :: !Bool
   , scoLogLevel           :: !LogLevel
@@ -84,6 +89,7 @@ data StackageCron = StackageCron
     , scCachedGPD          :: !(IORef (IntMap GenericPackageDescription))
     , scEnvAWS             :: !Env
     , scDownloadBucketName :: !Text
+    , scDownloadBucketUrl  :: !Text
     , scUploadBucketName   :: !Text
     , scSnapshotsRepo      :: !GithubRepo
     , scReportProgress     :: !Bool
