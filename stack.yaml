@@ -1,6 +1,9 @@
 resolver: lts-18.28
 extra-deps:
 - amazonka-1.6.1
+- github: chreekat/amazonka
+  commit: b/1.6.1-r2-compat
+  subdirs: [core]
 - barrier-0.1.1
 - classy-prelude-yesod-1.5.0
 - unliftio-core-0.1.2.0
@@ -9,6 +12,7 @@ extra-deps:
 - companion-0.1.0
 - aeson-warning-parser-0.1.0
 - hpack-0.35.0
+- http-client-0.5.14@sha256:4880b27d6741e331454a1d4c887d96ce3d7d625322c8433983a4b1cd08538577,5348
 - git: https://github.com/commercialhaskell/pantry.git
   commit: 5df643cc1deb561d9c52a9cb6f593aba2bc4c08e
 
