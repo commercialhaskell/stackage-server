@@ -125,11 +125,11 @@ newHoogleLocker env man bucketUrl = mkSingleRun hoogleLocker
                                         sinkHandle h
                                     return $ Just fp
                                 | status == status404 -> do
-                                    logDebug $ "NotFound: " <> display (hoogleUrl name bucketUrl)
+                                    logWarn $ "NotFound: " <> display (hoogleUrl name bucketUrl)
                                     return Nothing
                                 | otherwise -> do
                                     body <- liftIO $ brConsume $ responseBody res
-                                    mapM_ (logDebug . displayBytesUtf8) body
+                                    mapM_ (logWarn . displayBytesUtf8) body
                                     return Nothing
 
 getHackageDeprecations ::
