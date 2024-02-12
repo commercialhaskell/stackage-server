@@ -50,7 +50,7 @@ module Stackage.Database.Types
 import Data.Aeson
 import qualified Data.Text as T
 import Data.Text.Read (decimal)
-import Network.AWS (Env, HasEnv(..))
+import Amazonka (Env)
 import Pantry (BlobKey(..), CabalFileInfo(..), FileSize(..),
                HasPantryConfig(..), PantryConfig, PackageIdentifierRevision(..), TreeKey(..))
 import Pantry.SHA256 (fromHexText)
@@ -96,9 +96,6 @@ data StackageCron = StackageCron
     , scCacheCabalFiles    :: !Bool
     , scHoogleVersionId    :: !VersionId
     }
-
-instance HasEnv StackageCron where
-    environment = lens scEnvAWS (\c f -> c {scEnvAWS = f})
 
 instance HasLogFunc StackageCron where
     logFuncL = lens scLogFunc (\c f -> c {scLogFunc = f})

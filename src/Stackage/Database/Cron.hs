@@ -5,6 +5,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Stackage.Database.Cron
     ( stackageServerCron
     , newHoogleLocker
@@ -16,7 +17,6 @@ module Stackage.Database.Cron
 
 import Conduit
 import Control.DeepSeq
-import qualified Control.Monad.Trans.AWS as AWS (paginate)
 import Control.SingleRun
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Conduit.Binary as CB
@@ -29,9 +29,12 @@ import Data.Yaml (decodeFileEither)
 import Database.Persist hiding (exists)
 import Database.Persist.Postgresql hiding (exists)
 import qualified Hoogle
-import Network.AWS hiding (Request, Response)
-import Network.AWS.Data.Text (toText)
-import Network.AWS.S3
+import Amazonka hiding (Request, length, error)
+import Amazonka.Data.Text (toText)
+import Amazonka.S3
+import Amazonka.S3.ListObjectsV2
+import Amazonka.S3.Lens
+import Amazonka.Lens
 import Network.HTTP.Client
 import Network.HTTP.Client.Conduit (bodyReaderSource)
 import Network.HTTP.Simple (getResponseBody, httpJSONEither)
@@ -39,9 +42,9 @@ import Network.HTTP.Types (status200, status404)
 import Pantry (CabalFileInfo(..), DidUpdateOccur(..),
                HpackExecutable(HpackBundled), PackageIdentifierRevision(..),
                defaultCasaMaxPerRequest, defaultCasaRepoPrefix,
-               defaultHackageSecurityConfig, defaultSnapshotLocation)
-import Pantry.Internal.Stackage (HackageTarballResult(..), PantryConfig(..),
-                                 Storage(..), forceUpdateHackageIndex,
+               defaultPackageIndexConfig,
+               defaultSnapshotLocation, withPantryConfig, PantryConfig)
+import Pantry.Internal.Stackage (HackageTarballResult(..), forceUpdateHackageIndex,
                                  getHackageTarball, packageTreeKey)
 import Path (parseAbsDir, toFilePath)
 import RIO
@@ -54,7 +57,6 @@ import RIO.Process (mkDefaultProcessContext)
 import qualified RIO.Set as Set
 import qualified RIO.Text as T
 import RIO.Time
-import Settings
 import Stackage.Database.Github
 import Stackage.Database.PackageInfo
 import Stackage.Database.Query
@@ -85,11 +87,6 @@ hoogleUrl n haddockBucketUrl = T.concat
 
 hackageDeprecatedUrl :: Request
 hackageDeprecatedUrl = "https://hackage.haskell.org/packages/deprecated.json"
-
-withStorage :: (Storage -> IO a) -> IO a
-withStorage inner = do
-    as <- getAppSettings
-    withStackageDatabase False (appDatabase as) (\db -> inner (Storage (runDatabase db) id))
 
 getStackageSnapshotsDir :: RIO StackageCron FilePath
 getStackageSnapshotsDir = do
@@ -154,58 +151,52 @@ stackageServerCron StackageCronOptions {..} = do
         catchIO (bindPortTCP 17834 "127.0.0.1") $
         const $ throwString "Stackage Cron loader process already running, exiting."
     connectionCount <- getNumCapabilities
-    withStorage $ \storage -> do
-        lo <- logOptionsHandle stdout True
-        stackageRootDir <- getAppUserDataDirectory "stackage"
-        pantryRootDir <- parseAbsDir (stackageRootDir </> "pantry")
-        createDirectoryIfMissing True (toFilePath pantryRootDir)
-        updateRef <- newMVar True
-        cabalImmutable <- newIORef Map.empty
-        cabalMutable <- newIORef Map.empty
-        gpdCache <- newIORef IntMap.empty
-        defaultProcessContext <- mkDefaultProcessContext
-        aws <- do
-            aws' <- newEnv Discover
-            endpoint <- lookup "AWS_S3_ENDPOINT" <$> getEnvironment
-            pure $ case endpoint of
-                Nothing -> aws'
-                Just ep -> configure (setEndpoint True (BS8.pack ep) 443 s3) aws'
-        withLogFunc (setLogMinLevel scoLogLevel lo) $ \logFunc -> do
-            let pantryConfig =
-                    PantryConfig
-                        { pcHackageSecurity = defaultHackageSecurityConfig
-                        , pcHpackExecutable = HpackBundled
-                        , pcRootDir = pantryRootDir
-                        , pcStorage = storage
-                        , pcUpdateRef = updateRef
-                        , pcParsedCabalFilesRawImmutable = cabalImmutable
-                        , pcParsedCabalFilesMutable = cabalMutable
-                        , pcConnectionCount = connectionCount
-                        , pcCasaRepoPrefix = defaultCasaRepoPrefix
-                        , pcCasaMaxPerRequest = defaultCasaMaxPerRequest
-                        , pcSnapshotLocation = defaultSnapshotLocation
-                        }
-            currentHoogleVersionId <- runRIO logFunc $ do
+    lo <- logOptionsHandle stdout True
+    stackageRootDir <- getAppUserDataDirectory "stackage"
+    pantryRootDir <- parseAbsDir (stackageRootDir </> "pantry")
+    createDirectoryIfMissing True (toFilePath pantryRootDir)
+    gpdCache <- newIORef IntMap.empty
+    defaultProcessContext <- mkDefaultProcessContext
+    aws <- do
+        aws' <- newEnv discover
+        endpoint <- lookup "AWS_S3_ENDPOINT" <$> getEnvironment
+        pure $ case endpoint of
+            Nothing -> aws'
+            Just ep -> configureService (setEndpoint True (BS8.pack ep) 443 Amazonka.S3.defaultService) aws'
+    withLogFunc (setLogMinLevel scoLogLevel lo) $ \logFunc -> do
+        let cronWithPantryConfig :: HasLogFunc env => (PantryConfig -> RIO env a) -> RIO env a
+            cronWithPantryConfig =
+                withPantryConfig
+                    pantryRootDir
+                    defaultPackageIndexConfig
+                    HpackBundled
+                    connectionCount
+                    defaultCasaRepoPrefix
+                    defaultCasaMaxPerRequest
+                    defaultSnapshotLocation
+
+        currentHoogleVersionId <- runRIO logFunc $ do
+            cronWithPantryConfig $ \pantryConfig -> do
                 runStackageMigrations' pantryConfig
                 getCurrentHoogleVersionIdWithPantryConfig pantryConfig
-            let stackage =
-                    StackageCron
-                        { scPantryConfig = pantryConfig
-                        , scStackageRoot = stackageRootDir
-                        , scProcessContext = defaultProcessContext
-                        , scLogFunc = logFunc
-                        , scForceFullUpdate = scoForceUpdate
-                        , scCachedGPD = gpdCache
-                        , scEnvAWS = aws
-                        , scDownloadBucketName = scoDownloadBucketName
-                        , scDownloadBucketUrl = scoDownloadBucketUrl
-                        , scUploadBucketName = scoUploadBucketName
-                        , scSnapshotsRepo = scoSnapshotsRepo
-                        , scReportProgress = scoReportProgress
-                        , scCacheCabalFiles = scoCacheCabalFiles
-                        , scHoogleVersionId = currentHoogleVersionId
-                        }
-            runRIO stackage (runStackageUpdate scoDoNotUpload)
+        let stackage pantryConfig =
+                StackageCron
+                    { scPantryConfig = pantryConfig
+                    , scStackageRoot = stackageRootDir
+                    , scProcessContext = defaultProcessContext
+                    , scLogFunc = logFunc
+                    , scForceFullUpdate = scoForceUpdate
+                    , scCachedGPD = gpdCache
+                    , scEnvAWS = aws
+                    , scDownloadBucketName = scoDownloadBucketName
+                    , scDownloadBucketUrl = scoDownloadBucketUrl
+                    , scUploadBucketName = scoUploadBucketName
+                    , scSnapshotsRepo = scoSnapshotsRepo
+                    , scReportProgress = scoReportProgress
+                    , scCacheCabalFiles = scoCacheCabalFiles
+                    , scHoogleVersionId = currentHoogleVersionId
+                    }
+        runRIO logFunc $ cronWithPantryConfig $ \pantryConfig -> runRIO (stackage pantryConfig) (runStackageUpdate scoDoNotUpload)
 
 
 runStackageUpdate :: Bool -> RIO StackageCron ()
@@ -393,10 +384,11 @@ addPantryPackage sid compiler isHidden flags (PantryPackage pc treeKey) = do
 checkForDocs :: SnapshotId -> SnapName -> ResourceT (RIO StackageCron) ()
 checkForDocs snapshotId snapName = do
     bucketName <- lift (scDownloadBucketName <$> ask)
+    env <- asks scEnvAWS
     mods <-
         runConduit $
-        AWS.paginate (req bucketName) .| concatMapC (^. lovrsContents) .|
-        mapC (\obj -> toText (obj ^. oKey)) .|
+        paginate env (req bucketName) .| concatMapC (fromMaybe [] . (^. listObjectsV2Response_contents)) .|
+        mapC (\obj -> toText (obj ^. object_key)) .|
         concatMapC (T.stripSuffix ".html" >=> T.stripPrefix prefix >=> pathToPackageModule) .|
         sinkList
     -- it is faster to download all modules in this snapshot, than process them with a conduit all
@@ -414,7 +406,7 @@ checkForDocs snapshotId snapName = do
         display snapName
   where
     prefix = textDisplay snapName <> "/"
-    req bucketName = listObjectsV2 (BucketName bucketName) & lovPrefix .~ Just prefix
+    req bucketName = newListObjectsV2 (BucketName bucketName) & listObjectsV2_prefix .~ Just prefix
     -- | This function records all package modules that have documentation available, the ones
     -- that are not found in the snapshot reported back as an error.  Besides being run
     -- concurrently this function optimizes the SnapshotPackageId lookup as well, since that can
@@ -670,9 +662,9 @@ uploadSnapshotsJSON = do
     uploadBucket <- scUploadBucketName <$> ask
     let key = ObjectKey "snapshots.json"
     uploadFromRIO key $
-        set poACL (Just OPublicRead) $
-        set poContentType (Just "application/json") $
-        putObject (BucketName uploadBucket) key (toBody snapshots)
+        set putObject_acl (Just ObjectCannedACL_Public_read) $
+        set putObject_contentType (Just "application/json") $
+        newPutObject (BucketName uploadBucket) key (toBody snapshots)
 
 -- | Writes a gzipped version of hoogle db into temporary file onto the file system and then uploads
 -- it to S3. Temporary file is removed upon completion
@@ -684,14 +676,14 @@ uploadHoogleDB fp key =
         body <- toBody <$> readFileBinary fpgz
         uploadBucket <- scUploadBucketName <$> ask
         uploadFromRIO key $
-            set poACL (Just OPublicRead) $ putObject (BucketName uploadBucket) key body
+            set putObject_acl (Just ObjectCannedACL_Public_read) $ newPutObject (BucketName uploadBucket) key body
 
 
-uploadFromRIO :: AWSRequest a => ObjectKey -> a -> RIO StackageCron ()
+uploadFromRIO :: (AWSRequest a, Typeable a,  Typeable (AWSResponse a)) => ObjectKey -> a -> RIO StackageCron ()
 uploadFromRIO key po = do
     logInfo $ "Uploading " <> displayShow key <> " to S3 bucket."
-    env <- ask
-    eres <- runResourceT $ runAWS env $ trying _Error $ send po
+    env <- asks scEnvAWS
+    eres <- runResourceT $ trying _Error $ send env po
     case eres of
         Left e ->
             logError $ "Couldn't upload " <> displayShow key <> " to S3 becuase " <> displayShow e
@@ -701,8 +693,9 @@ buildAndUploadHoogleDB :: Bool -> RIO StackageCron ()
 buildAndUploadHoogleDB doNotUpload = do
     snapshots <- lastLtsNightlyWithoutHoogleDb 5 5
     env <- ask
+    awsEnv <- asks scEnvAWS
     bucketUrl <- asks scDownloadBucketUrl
-    locker <- newHoogleLocker (env ^. logFuncL) (env ^. envManager) bucketUrl
+    locker <- newHoogleLocker (env ^. logFuncL) (awsEnv ^. env_manager) bucketUrl
     for_ snapshots $ \(snapshotId, snapName) ->
         unlessM (checkInsertSnapshotHoogleDb False snapshotId) $ do
             logInfo $ "Starting Hoogle database download: " <> display (hoogleKey snapName)
@@ -738,7 +731,8 @@ createHoogleDB snapshotId snapName =
         -- is present it is not in a corrupted state
         unlessM (doesFileExist tarFP) $ do
             req <- parseRequest $ T.unpack tarUrl
-            man <- view envManager
+            env <- asks scEnvAWS
+            let man = env ^. env_manager
             withResponseUnliftIO req {decompress = const True} man $ \res -> do
                 throwErrorStatusCodes req res
                 createDirectoryIfMissing True $ takeDirectory tarFP

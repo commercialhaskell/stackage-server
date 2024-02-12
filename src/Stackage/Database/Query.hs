@@ -206,7 +206,7 @@ snapshotsJSON = do
                 Just n  -> (("nightly" A..= printNightly n) :)
     return $ A.object $ nightly lts
   where
-    toObj lts@(major, _) = T.pack ("lts-" <> show major) A..= printLts lts
+    toObj lts@(major, _) = fromString ("lts-" <> show major) A..= printLts lts
     printLts (major, minor) = "lts-" <> show major <> "." <> show minor
     printNightly day = "nightly-" <> T.pack (show day)
 
