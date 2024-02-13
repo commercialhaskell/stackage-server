@@ -407,7 +407,25 @@ instance ToMarkup VersionRangeP where
 instance PersistField VersionRangeP where
     toPersistValue = PersistText . textDisplay
     fromPersistValue v =
-        fromPersistValue v >>= bimap (T.pack . displayException) VersionRangeP . dtParse
+        fromPersistValue v >>= bimap (T.pack . displayException) VersionRangeP . dtParse . hackwardCompat_3_4
+      where
+        -- We use parseSimple under the hood, which always parses using
+        -- the latest version of the Cabal spec. In practice, this hasn't
+        -- been a problem. Until now.
+        --
+        -- Cabal spec 3.4 dropped support for "-any" as a version range, and the
+        -- database is full of such values. Luckily, ">=0" is a
+        -- backward-compatible synonym for "-any". New versions of this app will
+        -- write ">=0" instead of "-any", which old versions of this app will
+        -- understand just fine. We just need to substitute on read.
+        --
+        -- FIXME: strictly speaking, VersionRange cannot be parsed without
+        -- knowing the Cabal spec version of the package that used it. There's
+        -- nothing *wrong* with "-any". That means we probably need to decode it
+        -- no further than Text and do further processing outside of the
+        -- PersistField instance.
+        hackwardCompat_3_4 "-any" = ">=0"
+        hackwardCompat_3_4 t      = t
 instance PersistFieldSql VersionRangeP where
     sqlType _ = SqlString
 
