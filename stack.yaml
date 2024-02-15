@@ -6,6 +6,11 @@ extra-deps:
 - Cabal-syntax-3.8.1.0@sha256:ed2d937ba6c6a20b75850349eedd41374885fc42369ef152d69e2ba70f44f593,7620
 - git: https://github.com/commercialhaskell/pantry.git
   commit: 5df643cc1deb561d9c52a9cb6f593aba2bc4c08e
+# This amazonka patched to support Cloudflare, which kinda has a bug. See
+# https://github.com/brendanhay/amazonka/issues/975 for details.
+- github: chreekat/amazonka
+  commit: b/r2-compat
+  subdirs: [lib/amazonka-core]
 
 nix:
   packages:
