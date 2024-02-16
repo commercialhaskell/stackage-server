@@ -103,6 +103,11 @@ getStackageSnapshotsDir = do
 withResponseUnliftIO :: MonadUnliftIO m => Request -> Manager -> (Response BodyReader -> m b) -> m b
 withResponseUnliftIO req man f = withRunInIO $ \ runInIO -> withResponse req man (runInIO . f)
 
+-- | Under the SingleRun wrapper that ensures only one thing at a time is
+-- writing the file in question, ensure that a Hoogle database exists on the
+-- filesystem for the given SnapName. But only going so far as downloading it
+-- from the haddock bucket. See 'createHoogleDB' for the function that puts it
+-- there in the first place.
 newHoogleLocker ::
        (HasLogFunc env, MonadIO m) => env -> Manager -> Text -> m (SingleRun SnapName (Maybe FilePath))
 newHoogleLocker env man bucketUrl = mkSingleRun hoogleLocker
@@ -704,20 +709,30 @@ uploadFromRIO key po = do
 buildAndUploadHoogleDB :: Bool -> RIO StackageCron ()
 buildAndUploadHoogleDB doNotUpload = do
     snapshots <- lastLtsNightlyWithoutHoogleDb 5 5
+    -- currentHoogleVersionId <- scHoogleVersionId <$> ask
     env <- ask
     awsEnv <- asks scEnvAWS
     bucketUrl <- asks scDownloadBucketUrl
+    -- locker is an action that returns the path to a hoogle db, if one exists
+    -- in the haddock bucket already.
     locker <- newHoogleLocker (env ^. logFuncL) (awsEnv ^. env_manager) bucketUrl
+    let insertH = checkInsertSnapshotHoogleDb True
+        checkH = checkInsertSnapshotHoogleDb False
     for_ snapshots $ \(snapshotId, snapName) ->
-        unlessM (checkInsertSnapshotHoogleDb False snapshotId) $ do
+        -- Even though we just got a list of snapshots that don't have hoogle
+        -- databases, we check again. For some reason. I don't see how this can
+        -- actually be useful. both lastLtsNightlyWithoutHoogleDb and
+        -- checkInsertSnapshotHoogleDb just check against SnapshotHoogleDb.
+        -- Perhaps the check can be removed.
+        unlessM (checkH snapshotId) $ do
             logInfo $ "Starting Hoogle database download: " <> display (hoogleKey snapName)
             mfp <- singleRun locker snapName
             case mfp of
                 Just _ -> do
                     logInfo $ "Current hoogle database exists for: " <> display snapName
-                    void $ checkInsertSnapshotHoogleDb True snapshotId
+                    void $ insertH snapshotId
                 Nothing -> do
-                    logInfo $ "Current hoogle database does not yet exist for: " <> display snapName
+                    logInfo $ "Current hoogle database does not yet exist in the bucket for: " <> display snapName
                     mfp' <- createHoogleDB snapshotId snapName
                     forM_ mfp' $ \fp -> do
                         let key = hoogleKey snapName
@@ -726,8 +741,10 @@ buildAndUploadHoogleDB doNotUpload = do
                         renamePath fp dest
                         unless doNotUpload $ do
                             uploadHoogleDB dest (ObjectKey key)
-                            void $ checkInsertSnapshotHoogleDb True snapshotId
+                            void $ insertH snapshotId
 
+-- | Create a hoogle db from haddocks for the given snapshot, and upload it to
+-- the haddock bucket.
 createHoogleDB :: SnapshotId -> SnapName -> RIO StackageCron (Maybe FilePath)
 createHoogleDB snapshotId snapName =
     handleAny logException $ do

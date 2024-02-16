@@ -167,25 +167,48 @@ ltsBefore x y = do
     go (Entity _ lts) = (ltsSnap lts, SNLts (ltsMajor lts) (ltsMinor lts))
 
 
+-- | Queries the database for the latest LTS and nightly snapshots that do not
+-- have corresponding entries in the SnapshotHoogleDb table with the current
+-- Hoogle version.
 lastLtsNightlyWithoutHoogleDb :: Int -> Int -> RIO StackageCron [(SnapshotId, SnapName)]
 lastLtsNightlyWithoutHoogleDb ltsCount nightlyCount = do
     currentHoogleVersionId <- scHoogleVersionId <$> ask
     let getSnapshotsWithoutHoogeDb snapId snapCount =
             map (unValue *** unValue) <$>
             select
+                -- "snap" is either Lts or Nightly, while "snapshot" is indeed
+                -- "snapshot"
                 (from $ \(snap `InnerJoin` snapshot) -> do
                      on $ snap ^. snapId ==. snapshot ^. SnapshotId
                      where_ $
                          notExists $
                          from $ \snapshotHoogleDb ->
                              where_ $
-                             (snapshotHoogleDb ^. SnapshotHoogleDbSnapshot ==. snapshot ^.
-                              SnapshotId) &&.
-                             (snapshotHoogleDb ^. SnapshotHoogleDbVersion ==.
-                              val currentHoogleVersionId)
+                             (snapshotHoogleDb ^. SnapshotHoogleDbSnapshot
+                                ==. snapshot ^. SnapshotId)
+                             &&. (snapshotHoogleDb ^. SnapshotHoogleDbVersion
+                                    ==. val currentHoogleVersionId)
                      orderBy [desc (snapshot ^. SnapshotCreated)]
                      limit $ fromIntegral snapCount
                      pure (snapshot ^. SnapshotId, snapshot ^. SnapshotName))
+                -- In sql, this query would be
+                --
+                --     select snapshot.id, snapshot.name
+                --     from snapshot
+                --     join $foo as snap -- either Lts or Nightly
+                --     on snap.snap = snapshot.id
+                --     where not exists (
+                --       select 1
+                --       from snapshot_hoogle_db
+                --       where snapshot_hoogle_db.snapshot = snapshot.id
+                --       and snapshot_hoogle_db.version = $currentHoogleVersionId
+                --     )
+                --     order by snapshot.created desc
+                --     limit $snapCount
+                --
+                -- So it returns a list of snapshots where there is no
+                -- corresponding entry in the snapshot_hoogle_db table for the
+                -- current hoogle version.
     run $ do
         lts <- getSnapshotsWithoutHoogeDb LtsSnap ltsCount
         nightly <- getSnapshotsWithoutHoogeDb NightlySnap nightlyCount
@@ -1159,10 +1182,27 @@ checkInsertSnapshotHoogleDb shouldInsert snapshotId = do
                         (from
                              (\v -> do
                                   where_ $ v ^. VersionId ==. val hoogleVersionId
+                                  -- This is reaching into the *pantry*
+                                  -- database!
                                   pure (v ^. VersionVersion)))
+                    -- in sql, this query would be
+                    --
+                    --     select version.version
+                    --     from version
+                    --     where version.id = $hoogleVersionId
+                    --
+                    -- So it returns the "version"s that corresponds to the
+                    -- current hoogle version id.
+                -- mhver is now Maybe Version, and corresponds to the current
+                -- hoogle version, assuming it exists in the Version table
                 forM_ mhver $ \hver ->
                     lift $
                     logInfo $
                     "Marking hoogle database for version " <> display hver <> " as available."
+                -- whether or not the version exists, we still put it into snapshot_hoogle_db
+                -- So literally the only use of the above query is to log the
+                -- action we're taking.
                 isJust <$> P.insertUniqueEntity sh
+            -- if we're not inserting, we're just checking if it already exists
+            -- in snapshot_hoogle_db.
             else isJust <$> P.checkUnique sh
