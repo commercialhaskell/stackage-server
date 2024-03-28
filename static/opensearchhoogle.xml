@@ -3,7 +3,6 @@
     <LongName>Hoogle Stackage.org</LongName>
     <Description>Search modules on Stackage.org using hoogle</Description>
     <Developer>FP Complete CORP.</Developer>
-    <Attribution>Copyright FP Complete CORP.</Attribution>
     <AdultContent>false</AdultContent>
     <Language>en-us</Language>
     <InputEncoding>UTF-8</InputEncoding>
