@@ -137,6 +137,7 @@ newHoogleLocker env man bucketUrl = mkSingleRun hoogleLocker
                                     return Nothing
                                 | otherwise -> do
                                     body <- liftIO $ brConsume $ responseBody res
+                                    logWarn $ "Unexpected status: " <> displayShow status
                                     mapM_ (logWarn . displayBytesUtf8) body
                                     return Nothing
 
