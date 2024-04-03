@@ -29,3 +29,4 @@ nix:
     - zlib
     - postgresql
     - pkg-config
+    - haskell-language-server
