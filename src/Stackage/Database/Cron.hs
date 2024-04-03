@@ -18,6 +18,7 @@ module Stackage.Database.Cron
 import Conduit
 import Control.DeepSeq
 import Control.SingleRun
+import Control.Lens ((?~))
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Conduit.Binary as CB
 import Data.Conduit.Tar (FileInfo(..), FileType(..), untar)
@@ -424,7 +425,7 @@ checkForDocs snapshotId snapName = do
         display snapName
   where
     prefix = textDisplay snapName <> "/"
-    req bucketName = newListObjectsV2 (BucketName bucketName) & listObjectsV2_prefix .~ Just prefix
+    req bucketName = newListObjectsV2 (BucketName bucketName) & listObjectsV2_prefix ?~ prefix
     -- | This function records all package modules that have documentation available, the ones
     -- that are not found in the snapshot reported back as an error.  Besides being run
     -- concurrently this function optimizes the SnapshotPackageId lookup as well, since that can
