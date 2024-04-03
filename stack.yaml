@@ -1,16 +1,32 @@
-resolver: lts-18.28
+resolver: lts-22.6
 extra-deps:
-- amazonka-1.6.1
-- barrier-0.1.1
-- classy-prelude-yesod-1.5.0
-- unliftio-core-0.1.2.0
-- yesod-gitrepo-0.3.0
-- static-bytes-0.1.0
-- companion-0.1.0
-- aeson-warning-parser-0.1.0
-- hpack-0.35.0
+# WARNING: Changing the hoogle version causes stackage-server-cron to regenerate
+# Hoogle databases FOR EVERY SNAPSHOT, EVER. Usually, that's ok! But don't
+# forget! The consequences are: (1) More disk usage. Hoogle databases are not
+# cleaned up on the stackage-server-cron side, nor on the stackage-server side.
+# (Yet. This will change.) (2) More bucket usage. While it's easy to say it's a
+# drop in the literal bucket, such excessive misuse of storage makes
+# administration, backups, disaster recovery, and many other DevOps concerns
+# harder and harder. All but the latest LTS's database are literally never used
+# anyway. (3) The Hoogle database schema is defined by the first three
+# version components. Any more frequent regeneration is pure unadulterated
+# waste. (4) Stackage's Hoogle search will be unavailable until the new
+# databases have been generated.
+- hoogle-5.0.18.4@sha256:1372458e97dff541fcda099236af7936bf93ee6b8c5d15695ee6d9426dff5eed,3171
+- safe-0.3.20@sha256:7813ad56161f57d5162a924de5597d454162a2faed06be6e268b37bb5c19d48d,2312
+- Cabal-3.8.1.0@sha256:77121d8e1aff14a0fd95684b751599db78a7dd26d55862d9fcef27c88b193e9d,12609
+- Cabal-syntax-3.8.1.0@sha256:ed2d937ba6c6a20b75850349eedd41374885fc42369ef152d69e2ba70f44f593,7620
 - git: https://github.com/commercialhaskell/pantry.git
   commit: 5df643cc1deb561d9c52a9cb6f593aba2bc4c08e
+# This amazonka patched to support Cloudflare, which kinda has a bug. See
+# https://github.com/brendanhay/amazonka/issues/975 for details.
+- github: chreekat/amazonka
+  commit: b/r2-compat
+  subdirs: [lib/amazonka-core]
 
-drop-packages:
-- Cabal
+nix:
+  packages:
+    - zlib
+    - postgresql
+    - pkg-config
+    - haskell-language-server

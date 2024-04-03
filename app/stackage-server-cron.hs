@@ -38,17 +38,24 @@ optsParser =
              \their yaml files from stackage-snapshots repo have been updated or not.") <*>
     option
         readText
-        (long "download-bucket" <> value haddockBucketName <> metavar "DOWNLOAD_BUCKET" <>
+        (long "download-bucket" <> value defHaddockBucketName <> metavar "DOWNLOAD_BUCKET" <>
          help
              ("S3 Bucket name where things like haddock and current hoogle files should \
-              \be downloaded from. Default is: " <>
-              T.unpack haddockBucketName)) <*>
+              \be downloaded from. Used in S3 API read operations. Default is: " <>
+              T.unpack defHaddockBucketName)) <*>
     option
         readText
-        (long "upload-bucket" <> value haddockBucketName <> metavar "UPLOAD_BUCKET" <>
+        (long "download-bucket-url" <> value defHaddockBucketUrl <> metavar "DOWNLOAD_BUCKET_URL" <>
+         help
+             ("Publicly accessible URL where the download bucket can be accessed. Used for \
+              \serving the Haddocks on the website. Default is: " <>
+              T.unpack defHaddockBucketUrl)) <*>
+    option
+        readText
+        (long "upload-bucket" <> value defHaddockBucketName <> metavar "UPLOAD_BUCKET" <>
          help
              ("S3 Bucket where hoogle db and snapshots.json file will be uploaded to. Default is: " <>
-              T.unpack haddockBucketName)) <*>
+              T.unpack defHaddockBucketName)) <*>
     switch
         (long "do-not-upload" <>
          help "Stop from hoogle db and snapshots.json from being generated and uploaded") <*>

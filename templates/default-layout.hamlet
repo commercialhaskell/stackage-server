@@ -30,6 +30,10 @@ $else
   <div .container>
       <div .row>
           <div .span12>
-              A service provided by
-              <a href="http://www.fpcomplete.com/">
+              A service created by
+              <a href="https://www.fpcomplete.com/">
                   FP Complete
+              in 2014 | Donated to the
+              <a href="https://haskell.foundation">
+                  Haskell Foundation
+              in 2024.

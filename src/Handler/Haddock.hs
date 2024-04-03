@@ -8,13 +8,14 @@ import Import
 import qualified Data.Text as T (takeEnd)
 import Stackage.Database
 
-makeURL :: SnapName -> [Text] -> Text
-makeURL snapName rest = concat
-    $ "https://s3.amazonaws.com/"
-    : haddockBucketName
-    : "/"
-    : toPathPiece snapName
-    : map (cons '/') rest
+makeURL :: SnapName -> [Text] -> Handler Text
+makeURL snapName rest = do
+    bucketUrl <- getsYesod (appDownloadBucketUrl . appSettings)
+    pure . concat
+        $ bucketUrl
+        : "/"
+        : toPathPiece snapName
+        : map (cons '/') rest
 
 shouldRedirect :: Bool
 shouldRedirect = False
@@ -27,7 +28,7 @@ getHaddockR snapName rest
         result <- redirectWithVersion snapName rest
         case result of
             Just route -> redirect route
-            Nothing -> redirect $ makeURL snapName rest
+            Nothing -> redirect =<< makeURL snapName rest
     | Just docType <- mdocType = do
         cacheSeconds $ 60 * 60 * 24 * 7
         result <- redirectWithVersion snapName rest
@@ -41,7 +42,7 @@ getHaddockR snapName rest
                             return ("text/html; charset=utf-8", mstyle /= Just "stackage")
                         DocJson ->
                             return ("application/jsontml; charset=utf-8", True)
-                req <- parseRequest $ unpack $ makeURL snapName rest
+                req <- parseRequest =<< unpack <$> makeURL snapName rest
                 man <- getHttpManager <$> getYesod
                 (_, res) <- runReaderT (acquireResponse req >>= allocateAcquire) man
                 if plain
@@ -54,7 +55,7 @@ getHaddockR snapName rest
                                 peekC >>= maybe (return ()) (const $ yield $ encodeUtf8 extra)
                                 mapC id) .|
                             mapC (Chunk . toBuilder)
-    | otherwise = redirect $ makeURL snapName rest
+    | otherwise = redirect =<< makeURL snapName rest
   where
     mdocType =
         case T.takeEnd 5 <$> headMay (reverse rest) of
@@ -141,6 +142,9 @@ getHaddockBackupR (snap':rest)
   | Just branch <- fromPathPiece snap' = track "Handler.Haddock.getHaddockBackupR" $ do
       snapName <- newestSnapshot branch >>= maybe notFound pure
       redirect $ HaddockR snapName rest
-getHaddockBackupR rest = track "Handler.Haddock.getHaddockBackupR" $ redirect $ concat
-    $ "https://s3.amazonaws.com/haddock.stackage.org"
-    : map (cons '/') rest
+getHaddockBackupR rest = track "Handler.Haddock.getHaddockBackupR" $ do
+    bucketUrl <- getsYesod (appDownloadBucketUrl . appSettings)
+    redirect
+        $ concat
+        $ bucketUrl
+        : map (cons '/') rest

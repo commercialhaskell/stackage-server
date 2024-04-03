@@ -15,6 +15,7 @@ module Stackage.Snapshot.Diff
 
 import ClassyPrelude (sortOn, toCaseFold)
 import Data.Aeson
+import Data.Aeson.Key
 import qualified Data.Text as T (commonPrefixes)
 import Data.These
 import RIO
@@ -61,7 +62,7 @@ newtype VersionChange = VersionChange { unVersionChange :: These VersionP Versio
                       deriving (Show, Eq, Generic, Typeable)
 
 instance ToJSON (WithSnapshotNames VersionChange) where
-    toJSON (WithSnapshotNames (toPathPiece -> aKey) (toPathPiece -> bKey) change) =
+    toJSON (WithSnapshotNames (fromText . toPathPiece -> aKey) (fromText . toPathPiece -> bKey) change) =
         case change of
             VersionChange (This a)    -> object [ aKey .= a ]
             VersionChange (That b)    -> object [ bKey .= b ]

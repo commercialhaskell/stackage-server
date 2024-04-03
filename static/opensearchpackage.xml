@@ -1,15 +1,14 @@
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
     <ShortName>Stackage Packages</ShortName>
     <LongName>Stackage.org package page</LongName>
-    <Description>Just to a Stackage.org package page</Description>
+    <Description>Jump to a Stackage.org package page</Description>
     <Developer>FP Complete CORP.</Developer>
-    <Attribution>Copyright FP Complete CORP.</Attribution>
     <AdultContent>false</AdultContent>
     <Language>en-us</Language>
     <InputEncoding>UTF-8</InputEncoding>
     <OutputEncoding>UTF-8</OutputEncoding>
     <Image width="222" height="222" type="image/x-icon">https://www.stackage.org/static/img/stackage.png</Image>
     <Url type="text/html" method="GET" template="https://www.stackage.org/package/{searchTerms}"/>
-    <Query role="example" searchTerms="E.g. bytestring"/>
+    <Query role="example" searchTerms="bytestring"/>
     <moz:SearchForm>https://www.stackage.org</moz:SearchForm>
 </OpenSearchDescription>

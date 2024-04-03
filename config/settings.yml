@@ -24,3 +24,6 @@ force-ssl: false
 
 postgres-string: "_env:PGSTRING:host=localhost port=5432 user=stackage dbname=stackage password=stackage"
 postgres-poolsize: "_env:PGPOOLSIZE:8"
+
+# Publicly-accessible URL for the bucket holding Haddock contents.
+download-bucket-url: "_env:DOWNLOAD_BUCKET_URL:https://s3.amazonaws.com/haddock.stackage.org"

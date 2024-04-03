@@ -84,6 +84,12 @@ singleRun sr@(SingleRun var f) k =
 
                         -- OK, we're done running, so let other
                         -- threads run this again.
+
+                        -- NB: as soon as we've modified the MVar, the next
+                        -- call to singleRun will think no thread is working and
+                        -- start over. Anything waiting on us will get our
+                        -- result, but nobody else will. That's ok: singleRun
+                        -- just provides a little caching on top of a mutex.
                         modifyMVar_ var $ return . filter (\(k', _) -> k /= k')
 
                         case eres of

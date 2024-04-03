@@ -15,6 +15,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TypeOperators #-}
 module Stackage.Database.Schema
     ( -- * Database
       run
@@ -23,6 +24,7 @@ module Stackage.Database.Schema
     , GetStackageDatabase(..)
     , withStackageDatabase
     , runStackageMigrations
+    , runStackageMigrations'
     , getCurrentHoogleVersionId
     , getCurrentHoogleVersionIdWithPantryConfig
     -- * Tables
@@ -217,25 +219,33 @@ withStackageDatabase shouldLog dbs inner = do
     bracket (liftIO getPoolIO) (liftIO . destroyAllResources) $ \pool -> do
         inner (StackageDatabase (`runSqlPool` pool))
 
-getSchema :: (HasLogFunc env, GetStackageDatabase env (RIO env)) => RIO env (Maybe Int)
+getSchema :: ReaderT SqlBackend (RIO RIO.LogFunc) (Maybe Int)
 getSchema =
-    run $ do
+    do
         eres <- tryAny (selectList [] [])
         lift $ logInfo $ "getSchema result: " <> displayShow eres
         case eres of
             Right [Entity _ (Schema v)] -> return $ Just v
             _                           -> return Nothing
 
+runStackageMigrations' :: PantryConfig -> RIO RIO.LogFunc () -- HasLogFunc env => PantryConfig -> RIO env ()
+runStackageMigrations' pantryConfig = do
+    stackageDb <- getStackageDatabaseFromPantry pantryConfig
+    runDatabase stackageDb stackageMigrations
+
+
 runStackageMigrations :: (HasLogFunc env, GetStackageDatabase env (RIO env)) => RIO env ()
-runStackageMigrations = do
+runStackageMigrations = run stackageMigrations
+
+stackageMigrations :: ReaderT SqlBackend (RIO RIO.LogFunc) () -- ReaderT SqlBackend (RIO RIO.LogFunc) ()
+stackageMigrations = do
+    runMigration Pantry.migrateAll
+    runMigration migrateAll
     actualSchema <- getSchema
-    run $ do
-        runMigration Pantry.migrateAll
-        runMigration migrateAll
-        unless (actualSchema == Just currentSchema) $ do
-            lift $
-                logWarn $
-                "Current schema does not match actual schema: " <>
-                displayShow (actualSchema, currentSchema)
-            deleteWhere ([] :: [Filter Schema])
-            insert_ $ Schema currentSchema
+    unless (actualSchema == Just currentSchema) $ do
+        lift $
+            logWarn $
+            "Current schema does not match actual schema: " <>
+            displayShow (actualSchema, currentSchema)
+        deleteWhere ([] :: [Filter Schema])
+        insert_ $ Schema currentSchema

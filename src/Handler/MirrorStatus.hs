@@ -12,6 +12,8 @@ import RIO.Time (diffUTCTime, addUTCTime, getCurrentTime)
 import Text.XML.Stream.Parse
 import Data.XML.Types (Event (EventContent), Content (ContentText))
 import qualified Prelude
+import qualified Data.Aeson.Key as Aeson
+import qualified Data.Aeson.KeyMap as Aeson
 
 getMirrorStatusR :: Handler Html
 getMirrorStatusR = do
@@ -148,7 +150,7 @@ getLastModifiedGit org repo ref = do
 
 lookupJ :: MonadThrow m => Text -> Value -> m Value
 lookupJ key (Object o) =
-    case lookup key o of
+    case Aeson.lookup (Aeson.fromText key) o of
         Nothing -> error $ "Key not found: " ++ show key
         Just x -> return x
 lookupJ key val = error $ concat

@@ -5,18 +5,20 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Stackage.Database.Cron
     ( stackageServerCron
     , newHoogleLocker
     , singleRun
     , StackageCronOptions(..)
-    , haddockBucketName
+    , defHaddockBucketName
+    , defHaddockBucketUrl
     ) where
 
 import Conduit
 import Control.DeepSeq
-import qualified Control.Monad.Trans.AWS as AWS (paginate)
 import Control.SingleRun
+import Control.Lens ((?~))
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Conduit.Binary as CB
 import Data.Conduit.Tar (FileInfo(..), FileType(..), untar)
@@ -28,9 +30,12 @@ import Data.Yaml (decodeFileEither)
 import Database.Persist hiding (exists)
 import Database.Persist.Postgresql hiding (exists)
 import qualified Hoogle
-import Network.AWS hiding (Request, Response)
-import Network.AWS.Data.Text (toText)
-import Network.AWS.S3
+import Amazonka hiding (Request, length, error)
+import Amazonka.Data.Text (toText)
+import Amazonka.S3
+import Amazonka.S3.ListObjectsV2
+import Amazonka.S3.Lens
+import Amazonka.Lens
 import Network.HTTP.Client
 import Network.HTTP.Client.Conduit (bodyReaderSource)
 import Network.HTTP.Simple (getResponseBody, httpJSONEither)
@@ -59,6 +64,7 @@ import Stackage.Database.PackageInfo
 import Stackage.Database.Query
 import Stackage.Database.Schema
 import Stackage.Database.Types
+import System.Environment (getEnvironment)
 import UnliftIO.Concurrent (getNumCapabilities)
 import Web.PathPieces (fromPathPiece, toPathPiece)
 import qualified Control.Retry as Retry
@@ -73,10 +79,9 @@ hoogleKey name = T.concat
     , ".hoo"
     ]
 
-hoogleUrl :: SnapName -> Text
-hoogleUrl n = T.concat
-    [ "https://s3.amazonaws.com/"
-    , haddockBucketName
+hoogleUrl :: SnapName -> Text -> Text
+hoogleUrl n haddockBucketUrl = T.concat
+    [ haddockBucketUrl
     , "/"
     , hoogleKey n
     ]
@@ -99,9 +104,14 @@ getStackageSnapshotsDir = do
 withResponseUnliftIO :: MonadUnliftIO m => Request -> Manager -> (Response BodyReader -> m b) -> m b
 withResponseUnliftIO req man f = withRunInIO $ \ runInIO -> withResponse req man (runInIO . f)
 
+-- | Under the SingleRun wrapper that ensures only one thing at a time is
+-- writing the file in question, ensure that a Hoogle database exists on the
+-- filesystem for the given SnapName. But only going so far as downloading it
+-- from the haddock bucket. See 'createHoogleDB' for the function that puts it
+-- there in the first place.
 newHoogleLocker ::
-       (HasLogFunc env, MonadIO m) => env -> Manager -> m (SingleRun SnapName (Maybe FilePath))
-newHoogleLocker env man = mkSingleRun hoogleLocker
+       (HasLogFunc env, MonadIO m) => env -> Manager -> Text -> m (SingleRun SnapName (Maybe FilePath))
+newHoogleLocker env man bucketUrl = mkSingleRun hoogleLocker
   where
     hoogleLocker :: MonadIO n => SnapName -> n (Maybe FilePath)
     hoogleLocker name =
@@ -111,7 +121,7 @@ newHoogleLocker env man = mkSingleRun hoogleLocker
             if exists
                 then return $ Just fp
                 else do
-                    req' <- parseRequest $ T.unpack $ hoogleUrl name
+                    req' <- parseRequest $ T.unpack $ hoogleUrl name bucketUrl
                     let req = req' {decompress = const False}
                     withResponseUnliftIO req man $ \res ->
                         case responseStatus res of
@@ -124,11 +134,12 @@ newHoogleLocker env man = mkSingleRun hoogleLocker
                                         sinkHandle h
                                     return $ Just fp
                                 | status == status404 -> do
-                                    logDebug $ "NotFound: " <> display (hoogleUrl name)
+                                    logWarn $ "NotFound: " <> display (hoogleUrl name bucketUrl)
                                     return Nothing
                                 | otherwise -> do
                                     body <- liftIO $ brConsume $ responseBody res
-                                    mapM_ (logDebug . displayBytesUtf8) body
+                                    logWarn $ "Unexpected status: " <> displayShow status
+                                    mapM_ (logWarn . displayBytesUtf8) body
                                     return Nothing
 
 getHackageDeprecations ::
@@ -163,7 +174,12 @@ stackageServerCron StackageCronOptions {..} = do
         cabalMutable <- newIORef Map.empty
         gpdCache <- newIORef IntMap.empty
         defaultProcessContext <- mkDefaultProcessContext
-        aws <- newEnv Discover
+        aws <- do
+            aws' <- newEnv discover
+            endpoint <- lookup "AWS_S3_ENDPOINT" <$> getEnvironment
+            pure $ case endpoint of
+                Nothing -> aws'
+                Just ep -> configureService (setEndpoint True (BS8.pack ep) 443 Amazonka.S3.defaultService) aws'
         withLogFunc (setLogMinLevel scoLogLevel lo) $ \logFunc -> do
             let pantryConfig =
                     PantryConfig
@@ -179,8 +195,9 @@ stackageServerCron StackageCronOptions {..} = do
                         , pcCasaMaxPerRequest = defaultCasaMaxPerRequest
                         , pcSnapshotLocation = defaultSnapshotLocation
                         }
-            currentHoogleVersionId <-
-                runRIO logFunc $ getCurrentHoogleVersionIdWithPantryConfig pantryConfig
+            currentHoogleVersionId <- runRIO logFunc $ do
+                runStackageMigrations' pantryConfig
+                getCurrentHoogleVersionIdWithPantryConfig pantryConfig
             let stackage =
                     StackageCron
                         { scPantryConfig = pantryConfig
@@ -191,6 +208,7 @@ stackageServerCron StackageCronOptions {..} = do
                         , scCachedGPD = gpdCache
                         , scEnvAWS = aws
                         , scDownloadBucketName = scoDownloadBucketName
+                        , scDownloadBucketUrl = scoDownloadBucketUrl
                         , scUploadBucketName = scoUploadBucketName
                         , scSnapshotsRepo = scoSnapshotsRepo
                         , scReportProgress = scoReportProgress
@@ -218,7 +236,6 @@ runStackageUpdate doNotUpload = do
     unless doNotUpload uploadSnapshotsJSON
     buildAndUploadHoogleDB doNotUpload
     logInfo "Finished building and uploading Hoogle DBs"
-    run $ rawExecute "TRUNCATE TABLE latest_version" []
 
 
 -- | This will look at 'global-hints.yaml' and will create core package getters that are reused
@@ -386,10 +403,11 @@ addPantryPackage sid compiler isHidden flags (PantryPackage pc treeKey) = do
 checkForDocs :: SnapshotId -> SnapName -> ResourceT (RIO StackageCron) ()
 checkForDocs snapshotId snapName = do
     bucketName <- lift (scDownloadBucketName <$> ask)
+    env <- asks scEnvAWS
     mods <-
         runConduit $
-        AWS.paginate (req bucketName) .| concatMapC (^. lovrsContents) .|
-        mapC (\obj -> toText (obj ^. oKey)) .|
+        paginate env (req bucketName) .| concatMapC (fromMaybe [] . (^. listObjectsV2Response_contents)) .|
+        mapC (\obj -> toText (obj ^. object_key)) .|
         concatMapC (T.stripSuffix ".html" >=> T.stripPrefix prefix >=> pathToPackageModule) .|
         sinkList
     -- it is faster to download all modules in this snapshot, than process them with a conduit all
@@ -398,16 +416,16 @@ checkForDocs snapshotId snapName = do
     -- Cache is for SnapshotPackageId, there will be many modules per peckage, no need to look into
     -- the database for each one of them.
     n <- max 1 . (`div` 2) <$> getNumCapabilities
-    notFoundList <- lift $ pooledMapConcurrentlyN n (markModules sidsCacheRef) mods
-    forM_ (Set.fromList $ catMaybes notFoundList) $ \pid ->
+    unexpectedPackages <- lift $ pooledMapConcurrentlyN n (markModules sidsCacheRef) mods
+    forM_ (Set.fromList $ catMaybes unexpectedPackages) $ \pid ->
         lift $
         logWarn $
-        "Documentation available for package '" <> display pid <>
-        "' but was not found in this snapshot: " <>
+        "Documentation found for package '" <> display pid <>
+        "', which does not exist in this snapshot: " <>
         display snapName
   where
     prefix = textDisplay snapName <> "/"
-    req bucketName = listObjectsV2 (BucketName bucketName) & lovPrefix .~ Just prefix
+    req bucketName = newListObjectsV2 (BucketName bucketName) & listObjectsV2_prefix ?~ prefix
     -- | This function records all package modules that have documentation available, the ones
     -- that are not found in the snapshot reported back as an error.  Besides being run
     -- concurrently this function optimizes the SnapshotPackageId lookup as well, since that can
@@ -417,7 +435,7 @@ checkForDocs snapshotId snapName = do
         let mSnapshotPackageId = Map.lookup pid sidsCache
         mFound <- run $ markModuleHasDocs snapshotId pid mSnapshotPackageId modName
         case mFound of
-            Nothing -> pure $ Just pid
+            Nothing -> pure $ Just pid -- This package doesn't exist in the snapshot!
             Just snapshotPackageId
                 | Nothing <- mSnapshotPackageId -> do
                     atomicModifyIORef'
@@ -663,9 +681,9 @@ uploadSnapshotsJSON = do
     uploadBucket <- scUploadBucketName <$> ask
     let key = ObjectKey "snapshots.json"
     uploadFromRIO key $
-        set poACL (Just OPublicRead) $
-        set poContentType (Just "application/json") $
-        putObject (BucketName uploadBucket) key (toBody snapshots)
+        set putObject_acl (Just ObjectCannedACL_Public_read) $
+        set putObject_contentType (Just "application/json") $
+        newPutObject (BucketName uploadBucket) key (toBody snapshots)
 
 -- | Writes a gzipped version of hoogle db into temporary file onto the file system and then uploads
 -- it to S3. Temporary file is removed upon completion
@@ -677,14 +695,14 @@ uploadHoogleDB fp key =
         body <- toBody <$> readFileBinary fpgz
         uploadBucket <- scUploadBucketName <$> ask
         uploadFromRIO key $
-            set poACL (Just OPublicRead) $ putObject (BucketName uploadBucket) key body
+            set putObject_acl (Just ObjectCannedACL_Public_read) $ newPutObject (BucketName uploadBucket) key body
 
 
-uploadFromRIO :: AWSRequest a => ObjectKey -> a -> RIO StackageCron ()
+uploadFromRIO :: (AWSRequest a, Typeable a,  Typeable (AWSResponse a)) => ObjectKey -> a -> RIO StackageCron ()
 uploadFromRIO key po = do
     logInfo $ "Uploading " <> displayShow key <> " to S3 bucket."
-    env <- ask
-    eres <- runResourceT $ runAWS env $ trying _Error $ send po
+    env <- asks scEnvAWS
+    eres <- runResourceT $ trying _Error $ send env po
     case eres of
         Left e ->
             logError $ "Couldn't upload " <> displayShow key <> " to S3 becuase " <> displayShow e
@@ -693,18 +711,30 @@ uploadFromRIO key po = do
 buildAndUploadHoogleDB :: Bool -> RIO StackageCron ()
 buildAndUploadHoogleDB doNotUpload = do
     snapshots <- lastLtsNightlyWithoutHoogleDb 5 5
+    -- currentHoogleVersionId <- scHoogleVersionId <$> ask
     env <- ask
-    locker <- newHoogleLocker (env ^. logFuncL) (env ^. envManager)
+    awsEnv <- asks scEnvAWS
+    bucketUrl <- asks scDownloadBucketUrl
+    -- locker is an action that returns the path to a hoogle db, if one exists
+    -- in the haddock bucket already.
+    locker <- newHoogleLocker (env ^. logFuncL) (awsEnv ^. env_manager) bucketUrl
+    let insertH = checkInsertSnapshotHoogleDb True
+        checkH = checkInsertSnapshotHoogleDb False
     for_ snapshots $ \(snapshotId, snapName) ->
-        unlessM (checkInsertSnapshotHoogleDb False snapshotId) $ do
+        -- Even though we just got a list of snapshots that don't have hoogle
+        -- databases, we check again. For some reason. I don't see how this can
+        -- actually be useful. both lastLtsNightlyWithoutHoogleDb and
+        -- checkInsertSnapshotHoogleDb just check against SnapshotHoogleDb.
+        -- Perhaps the check can be removed.
+        unlessM (checkH snapshotId) $ do
             logInfo $ "Starting Hoogle database download: " <> display (hoogleKey snapName)
             mfp <- singleRun locker snapName
             case mfp of
                 Just _ -> do
                     logInfo $ "Current hoogle database exists for: " <> display snapName
-                    void $ checkInsertSnapshotHoogleDb True snapshotId
+                    void $ insertH snapshotId
                 Nothing -> do
-                    logInfo $ "Current hoogle database does not yet exist for: " <> display snapName
+                    logInfo $ "Current hoogle database does not yet exist in the bucket for: " <> display snapName
                     mfp' <- createHoogleDB snapshotId snapName
                     forM_ mfp' $ \fp -> do
                         let key = hoogleKey snapName
@@ -713,24 +743,27 @@ buildAndUploadHoogleDB doNotUpload = do
                         renamePath fp dest
                         unless doNotUpload $ do
                             uploadHoogleDB dest (ObjectKey key)
-                            void $ checkInsertSnapshotHoogleDb True snapshotId
+                            void $ insertH snapshotId
 
+-- | Create a hoogle db from haddocks for the given snapshot, and upload it to
+-- the haddock bucket.
 createHoogleDB :: SnapshotId -> SnapName -> RIO StackageCron (Maybe FilePath)
 createHoogleDB snapshotId snapName =
     handleAny logException $ do
         logInfo $ "Creating Hoogle DB for " <> display snapName
-        downloadBucket <- scDownloadBucketName <$> ask
+        downloadBucketUrl <- scDownloadBucketUrl <$> ask
         let root = "hoogle-gen"
             bindir = root </> "bindir"
             outname = root </> "output.hoo"
             tarKey = toPathPiece snapName <> "/hoogle/orig.tar"
-            tarUrl = "https://s3.amazonaws.com/" <> downloadBucket <> "/" <> tarKey
+            tarUrl = downloadBucketUrl <> "/" <> tarKey
             tarFP = root </> T.unpack tarKey
         -- When tarball is downloaded it is saved with durability and atomicity, so if it
         -- is present it is not in a corrupted state
         unlessM (doesFileExist tarFP) $ do
             req <- parseRequest $ T.unpack tarUrl
-            man <- view envManager
+            env <- asks scEnvAWS
+            let man = env ^. env_manager
             withResponseUnliftIO req {decompress = const True} man $ \res -> do
                 throwErrorStatusCodes req res
                 createDirectoryIfMissing True $ takeDirectory tarFP

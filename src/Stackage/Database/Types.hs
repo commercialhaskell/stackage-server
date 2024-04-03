@@ -40,7 +40,8 @@ module Stackage.Database.Types
     , Origin(..)
     , LatestInfo(..)
     , Deprecation(..)
-    , haddockBucketName
+    , defHaddockBucketName
+    , defHaddockBucketUrl
     , Changelog(..)
     , Readme(..)
     , StackageCronOptions(..)
@@ -49,7 +50,7 @@ module Stackage.Database.Types
 import Data.Aeson
 import qualified Data.Text as T
 import Data.Text.Read (decimal)
-import Network.AWS (Env, HasEnv(..))
+import Amazonka (Env)
 import Pantry (BlobKey(..), CabalFileInfo(..), FileSize(..),
                HasPantryConfig(..), PantryConfig, PackageIdentifierRevision(..), TreeKey(..))
 import Pantry.SHA256 (fromHexText)
@@ -61,12 +62,16 @@ import Stackage.Database.Schema
 import Text.Blaze (ToMarkup(..))
 import Types
 
-haddockBucketName :: Text
-haddockBucketName = "haddock.stackage.org"
+defHaddockBucketName :: Text
+defHaddockBucketName = "haddock.stackage.org"
+
+defHaddockBucketUrl :: Text
+defHaddockBucketUrl = "https://s3.amazonaws.com/" <> defHaddockBucketName
 
 data StackageCronOptions = StackageCronOptions
   { scoForceUpdate        :: !Bool
   , scoDownloadBucketName :: !Text
+  , scoDownloadBucketUrl  :: !Text
   , scoUploadBucketName   :: !Text
   , scoDoNotUpload        :: !Bool
   , scoLogLevel           :: !LogLevel
@@ -84,15 +89,13 @@ data StackageCron = StackageCron
     , scCachedGPD          :: !(IORef (IntMap GenericPackageDescription))
     , scEnvAWS             :: !Env
     , scDownloadBucketName :: !Text
+    , scDownloadBucketUrl  :: !Text
     , scUploadBucketName   :: !Text
     , scSnapshotsRepo      :: !GithubRepo
     , scReportProgress     :: !Bool
     , scCacheCabalFiles    :: !Bool
     , scHoogleVersionId    :: !VersionId
     }
-
-instance HasEnv StackageCron where
-    environment = lens scEnvAWS (\c f -> c {scEnvAWS = f})
 
 instance HasLogFunc StackageCron where
     logFuncL = lens scLogFunc (\c f -> c {scLogFunc = f})

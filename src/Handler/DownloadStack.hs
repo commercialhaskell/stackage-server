@@ -11,6 +11,7 @@ import Data.Conduit.Attoparsec (sinkParser)
 import Data.WebsiteContent
 import Import
 import Yesod.GitRepo
+import qualified Data.Aeson.KeyMap as Aeson
 
 getDownloadStackListR :: Handler Html
 getDownloadStackListR = track "Handler.DownloadStack.getDownloadStackListR" $ do
@@ -35,14 +36,14 @@ getLatestMatcher man = do
     return $ \pattern' -> do
         let pattern'' = pattern' ++ "."
         Object top <- return val
-        Array assets <- lookup "assets" top
+        Array assets <- Aeson.lookup "assets" top
         headMay $ preferZip $ catMaybes $ map (findMatch pattern'') assets
   where
     findMatch pattern' (Object o) = do
-        String name <- lookup "name" o
+        String name <- Aeson.lookup "name" o
         guard $ not $ ".asc" `isSuffixOf` name
         guard $ pattern' `isInfixOf` name
-        String url <- lookup "browser_download_url" o
+        String url <- Aeson.lookup "browser_download_url" o
         Just url
     findMatch _ _ = Nothing
 

@@ -23,7 +23,7 @@ import Distribution.Compiler (CompilerFlavor(GHC))
 import Distribution.Package (Dependency(..))
 import Distribution.PackageDescription (CondTree(..), Condition(..),
                                         ConfVar(..),
-                                        Flag(flagDefault, flagName), FlagName,
+                                        PackageFlag(..), flagDefault, flagName, FlagName,
                                         GenericPackageDescription, author,
                                         condExecutables, condLibrary,
                                         description, genPackageFlags, homepage,
@@ -152,7 +152,7 @@ getCheckCond compiler overrideFlags gpd = go
   where
     go (Var (OS os)) = os == Linux -- arbitrary
     go (Var (Arch arch)) = arch == X86_64 -- arbitrary
-    go (Var (Flag flag)) = fromMaybe False $ Map.lookup flag flags
+    go (Var (PackageFlag flag)) = fromMaybe False $ Map.lookup flag flags
     go (Var (Impl flavor range)) = flavor == compilerFlavor && compilerVersion `withinRange` range
     go (Lit b) = b
     go (CNot c) = not $ go c

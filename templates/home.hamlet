@@ -60,4 +60,7 @@
                 <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github</a>.
 
             <p>
-                Stackage's infrastructure, build machines, initial creation and ongoing maintenance, are proudly sponsored by <a href="https://www.fpcomplete.com">FP Complete</a>.
+                Stackage's infrastructure, build machines, initial creation and ongoing maintenance were proudly sponsored by <a href="https://www.fpcomplete.com">FP Complete</a> from 2014 to 2024.
+
+            <p>
+                Today it is a service provided by the <a href="https://haskell.foundation">Haskell Foundation</a>.
