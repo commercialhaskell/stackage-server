@@ -414,12 +414,12 @@ checkForDocs snapshotId snapName = do
     -- Cache is for SnapshotPackageId, there will be many modules per peckage, no need to look into
     -- the database for each one of them.
     n <- max 1 . (`div` 2) <$> getNumCapabilities
-    notFoundList <- lift $ pooledMapConcurrentlyN n (markModules sidsCacheRef) mods
-    forM_ (Set.fromList $ catMaybes notFoundList) $ \pid ->
+    unexpectedPackages <- lift $ pooledMapConcurrentlyN n (markModules sidsCacheRef) mods
+    forM_ (Set.fromList $ catMaybes unexpectedPackages) $ \pid ->
         lift $
         logWarn $
-        "Documentation available for package '" <> display pid <>
-        "' but was not found in this snapshot: " <>
+        "Documentation found for package '" <> display pid <>
+        "', which does not exist in this snapshot: " <>
         display snapName
   where
     prefix = textDisplay snapName <> "/"
@@ -433,7 +433,7 @@ checkForDocs snapshotId snapName = do
         let mSnapshotPackageId = Map.lookup pid sidsCache
         mFound <- run $ markModuleHasDocs snapshotId pid mSnapshotPackageId modName
         case mFound of
-            Nothing -> pure $ Just pid
+            Nothing -> pure $ Just pid -- This package doesn't exist in the snapshot!
             Just snapshotPackageId
                 | Nothing <- mSnapshotPackageId -> do
                     atomicModifyIORef'
