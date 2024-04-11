@@ -28,12 +28,11 @@ $else
 
 <div .footer>
   <div .container>
-      <div .row>
-          <div .span12>
-              A service created by
-              <a href="https://www.fpcomplete.com/">
-                  FP Complete
-              in 2014 | Donated to the
-              <a href="https://haskell.foundation">
-                  Haskell Foundation
-              in 2024.
+    <div .row>
+      <div .span12>
+        Stackage is a service provided by the
+        <a href="https://haskell.foundation">
+          Haskell Foundation
+        \ | Originally developed by
+        <a href="https://www.fpcomplete.com/">
+          FP Complete
