@@ -30,3 +30,4 @@ nix:
     - postgresql
     - pkg-config
     - haskell-language-server
+    - cacert
