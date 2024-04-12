@@ -21,7 +21,7 @@ extra-deps:
 # This amazonka patched to support Cloudflare, which kinda has a bug. See
 # https://github.com/brendanhay/amazonka/issues/975 for details.
 - github: chreekat/amazonka
-  commit: b/r2-compat
+  commit: '85e0289f8dc23c54b00f7f1a09845be7e032a1eb'
   subdirs: [lib/amazonka-core]
 
 nix:
