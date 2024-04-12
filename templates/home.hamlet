@@ -21,10 +21,10 @@
               <li><a href="https://haskellstack.org">stack</a> makes using Stackage easy
         <div .span6>
             $maybe post <- mrecentBlog
-              <h3>News</h3>
-                <p>
-                  <a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}</a>,
-                  <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}</abbr>
+              <h3>News
+              <p>
+                \<a href=@{BlogPostR (postYear post) (postMonth post) (postSlug post)}>#{postTitle post}</a>,
+                <abbr title=#{show $ postTime post}>#{dateDiff now' (utctDay $ postTime post)}
         <div .span6>
             <h3>
                 Latest releases per GHC version
@@ -49,15 +49,15 @@
             <p>
                 We recommend using the <a href="https://haskellstack.org">stack</a> tool, which makes using Stackage snapshots easy and convenient.
                 But Stackage can also be used in other ways: as a source of consistent packages that work well together, or to ensure that Haskell packages you author or care about work well with others.
-                <a href="https://haskell.fpcomplete.com/get-started">Get started with Stack</a>
+                \<a href="https://haskell.fpcomplete.com/get-started">Get started with Stack</a>.
             <p>
                 Stackage is a community project: Haskell users around the world work together to keep Stackage snapshots up to date with recent package versions:
                 Stackage itself and all the tools surrounding it are open-source.
-                See <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package">
-                  <b>how to add packages to Stackage</b></a>
+                See #
+                \<a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>.
             <p>
                 Have more questions? We have a #
-                <a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github</a>.
+                \<a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github</a>.
 
             <p>
                 Stackage's infrastructure, build machines, initial creation and ongoing maintenance were proudly sponsored by <a href="https://www.fpcomplete.com">FP Complete</a> from 2014 to 2024.
