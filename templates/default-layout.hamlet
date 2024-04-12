@@ -26,13 +26,11 @@ $if insideContainer
 $else
   ^{widget}
 
-<div .footer>
-  <div .container>
-    <div .row>
-      <div .span12>
-        Stackage is a service provided by the
-        <a href="https://haskell.foundation">
-          Haskell Foundation
-        \ | Originally developed by
-        <a href="https://www.fpcomplete.com/">
-          FP Complete
+<footer .text-center>
+  <p>
+    Stackage is a service provided by the
+    <a href="https://haskell.foundation">
+      Haskell Foundation
+    │&nbsp;Originally developed by
+    <a href="https://www.fpcomplete.com/">
+      FP Complete
