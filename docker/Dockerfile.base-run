@@ -1,4 +1,4 @@
-FROM fpco/pid1:18.04
+FROM fpco/pid1:20.04
 
 RUN export DEBIAN_FRONTEND=noninteractive && \
     apt-get update && \
