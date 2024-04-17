@@ -2,8 +2,7 @@
     <div .row>
         <div .span12>
             <h1>Snapshots containing #{toHtml pn}
-            <p>Back to
-                <a href=@{PackageR pn}>#{toHtml pn}
+            <p>Back to <a href=@{PackageR pn}>#{toHtml pn}</a>
             <table .table .snapshots>
                 <thead>
                     <tr>
