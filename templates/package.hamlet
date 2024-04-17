@@ -120,7 +120,7 @@ $newline never
                     $if (sppiForwardDepsCount sppi > 0)
                       <div .dependencies #dependencies>
                         Depends on #{renderNumPackages (sppiForwardDepsCount sppi)}
-                        <em>(<a href=@{makeDepsLink spi SnapshotPackageDepsR}>full list with versions</a>)</em>:
+                        \<em>(<a href=@{makeDepsLink spi SnapshotPackageDepsR}>full list with versions</a>)</em>:
                         <div .dep-list>
                             $forall (i, (name, range)) <- enumerate (sppiForwardDeps sppi)
                                 $if i /= 0
@@ -132,7 +132,7 @@ $newline never
                     $if (sppiReverseDepsCount sppi > 0)
                         <div .reverse-dependencies #reverse-dependencies>
                           Used by #{renderNumPackages (sppiReverseDepsCount sppi)} in <b>#{spiSnapName spi}</b>
-                          <em>(<a href=@{makeDepsLink spi SnapshotPackageRevDepsR}>full list with versions</a>)</em>:
+                          \<em>(<a href=@{makeDepsLink spi SnapshotPackageRevDepsR}>full list with versions</a>)</em>:
                           <div .dep-list>
                               $forall (i, (name, range)) <- enumerate (sppiReverseDeps sppi)
                                   $if i /= 0

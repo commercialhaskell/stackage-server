@@ -1,18 +1,20 @@
-$newline never
 <div .container #snapshot-home .content>
     <div .row>
         <div .span12>
             <h1>Snapshots containing #{toHtml pn}
-            <p>Back to <a href=@{PackageR pn}>#{toHtml pn}
+            <p>Back to
+                <a href=@{PackageR pn}>#{toHtml pn}
             <table .table .snapshots>
                 <thead>
-                    <th>
-                        Package version
-                    <th>
-                        Snapshot
-                $forall (compiler, spi) <- snapshots
                     <tr>
-                        <td>
-                            #{spiVersionRev spi}
-                        <td>
-                            <a href=@{SnapshotR (spiSnapName spi) $ StackageSdistR $ PNVName pn}>#{snapshotPrettyName (spiSnapName spi) compiler}
+                        <th>
+                            Package version
+                        <th>
+                            Snapshot
+                <tbody>
+                    $forall (compiler, spi) <- snapshots
+                        <tr>
+                            <td>
+                                #{spiVersionRev spi}
+                            <td>
+                                <a href=@{SnapshotR (spiSnapName spi) $ StackageSdistR $ PNVName pn}>#{snapshotPrettyName (spiSnapName spi) compiler}
