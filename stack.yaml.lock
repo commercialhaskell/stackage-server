@@ -46,16 +46,16 @@ packages:
 - completed:
     name: amazonka-core
     pantry-tree:
-      sha256: 666a1da17211b80ea463c921ac0197aa784408d66e2629df700e3dccc7dd0de0
+      sha256: 236fcc48e8d6cdedc31800c40c853aa6cb8c640ae3d93686a584d513679a5181
       size: 3222
-    sha256: 562e8f8bf38e6c50016b295197bf059cc0592dc96fc0b4df5f84d01d9ce3a1f3
-    size: 34764493
+    sha256: 39038d8934ad8ba164e3d21aa227a80a12fbdd4cf371a6311ea8cc95a6265385
+    size: 34733906
     subdir: lib/amazonka-core
-    url: https://github.com/chreekat/amazonka/archive/b/r2-compat.tar.gz
+    url: https://github.com/chreekat/amazonka/archive/85e0289f8dc23c54b00f7f1a09845be7e032a1eb.tar.gz
     version: '2.0'
   original:
     subdir: lib/amazonka-core
-    url: https://github.com/chreekat/amazonka/archive/b/r2-compat.tar.gz
+    url: https://github.com/chreekat/amazonka/archive/85e0289f8dc23c54b00f7f1a09845be7e032a1eb.tar.gz
 snapshots:
 - completed:
     sha256: 1b4c2669e26fa828451830ed4725e4d406acc25a1fa24fcc039465dd13d7a575
