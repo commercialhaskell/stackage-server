@@ -248,10 +248,8 @@ makeCorePackageGetters = do
     coreCabalFiles <- getCoreCabalFiles rootDir
     liftIO (decodeFileEither (contentDir </> "stack" </> "global-hints.yaml")) >>= \case
         Right (hints :: Map CompilerP (Map PackageNameP VersionP)) ->
-            Map.traverseWithKey
-                (\compiler ->
-                     fmap Map.elems .
-                     Map.traverseMaybeWithKey (makeCorePackageGetter compiler coreCabalFiles))
+            traverse
+                (fmap Map.elems . Map.traverseMaybeWithKey (makeCorePackageGetter backupCoreCabalFiles))
                 hints
         Left exc -> do
             logError $
@@ -282,12 +280,11 @@ getCoreCabalFiles rootDir = do
 -- a memoized version that will do it once initiall and then return information aboat a
 -- package on subsequent invocations.
 makeCorePackageGetter ::
-       CompilerP
-    -> Map PackageIdentifierP (GenericPackageDescription, CabalFileIds)
+       Map PackageIdentifierP (GenericPackageDescription, CabalFileIds)
     -> PackageNameP
     -> VersionP
     -> RIO StackageCron (Maybe CorePackageGetter)
-makeCorePackageGetter _compiler fallbackCabalFileMap pname ver =
+makeCorePackageGetter fallbackCabalFileMap pname ver =
     run (getHackageCabalByRev0 pid) >>= \case
         Nothing -> do
             logWarn $
