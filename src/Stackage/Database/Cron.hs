@@ -239,13 +239,13 @@ runStackageUpdate doNotUpload = do
 
 
 -- | This will look at 'global-hints.yaml' and will create core package getters that are reused
--- later for adding those package to individual snapshot.
+-- later for adding those package to individual snapshots.
 makeCorePackageGetters ::
        RIO StackageCron (Map CompilerP [CorePackageGetter])
 makeCorePackageGetters = do
     rootDir <- scStackageRoot <$> ask
     contentDir <- getStackageContentDir rootDir
-    coreCabalFiles <- getCoreCabalFiles rootDir
+    backupCoreCabalFiles <- getBackupCoreCabalFiles rootDir
     liftIO (decodeFileEither (contentDir </> "stack" </> "global-hints.yaml")) >>= \case
         Right (hints :: Map CompilerP (Map PackageNameP VersionP)) ->
             traverse
@@ -256,12 +256,19 @@ makeCorePackageGetters = do
                 "Error parsing 'global-hints.yaml' file: " <> fromString (displayException exc)
             return mempty
 
-getCoreCabalFiles ::
+-- | Packages distributed with GHC aren't taken from Hackage like normal
+-- packages. Release managers do upload them, however, so that their docs are
+-- available.
+--
+-- Or at least, they should. The release process was fragile, and some packages
+-- weren't uploaded. This mechanism gives us a chance to fill in missing
+-- packages.
+getBackupCoreCabalFiles ::
        FilePath
     -> RIO StackageCron (Map PackageIdentifierP (GenericPackageDescription, CabalFileIds))
-getCoreCabalFiles rootDir = do
-    coreCabalFilesDir <- getCoreCabalFilesDir rootDir
-    cabalFileNames <- getDirectoryContents coreCabalFilesDir
+getBackupCoreCabalFiles rootDir = do
+    backupCoreCabalFilesDir <- getBackupCoreCabalFilesDir rootDir
+    cabalFileNames <- getDirectoryContents backupCoreCabalFilesDir
     cabalFiles <-
         forM (filter (isExtensionOf ".cabal") cabalFileNames) $ \cabalFileName ->
             let pidTxt = T.pack (dropExtension (takeFileName cabalFileName))
@@ -270,14 +277,14 @@ getCoreCabalFiles rootDir = do
                         logError $ "Invalid package identifier: " <> fromString cabalFileName
                         pure Nothing
                     Just pid -> do
-                        cabalBlob <- readFileBinary (coreCabalFilesDir </> cabalFileName)
+                        cabalBlob <- readFileBinary (backupCoreCabalFilesDir </> cabalFileName)
                         mCabalInfo <- run $ addCabalFile pid cabalBlob
                         pure ((,) pid <$> mCabalInfo)
     pure $ Map.fromList $ catMaybes cabalFiles
 
 -- | Core package info rarely changes between the snapshots, therefore it would be wasteful to
--- load, parse and update all packages from gloabl-hints for each snapshot, instead we produce
--- a memoized version that will do it once initiall and then return information aboat a
+-- load, parse and update all packages from gloabl-hints for each snapshot. Instead we produce
+-- a memoized version that will do it once initially and then return information about a
 -- package on subsequent invocations.
 makeCorePackageGetter ::
        Map PackageIdentifierP (GenericPackageDescription, CabalFileIds)
@@ -333,64 +340,70 @@ makeCorePackageGetter fallbackCabalFileMap pname ver =
         PackageIdentifierRevision (unPackageNameP pname) (unVersionP ver) (CFIRevision (Revision 0))
 
 
--- TODO: for now it is only from hackage, PantryPackage needs an update to use other origins
--- | A pantry package is being added to a particular snapshot. Extra information like compiler and
--- flags are passed on in order to properly figure out dependencies and modules
+-- | Populates the database with information about a package?
+--
+-- Specifically, a pantry package is being added to a particular snapshot.
+--
+-- Extra information like compiler and flags are passed on in order to properly
+-- figure out dependencies and modules.
+--
+-- TODO: for now it is only from hackage. PantryPackage needs an update to use other origins
 addPantryPackage ::
        SnapshotId -> CompilerP -> Bool -> Map FlagNameP Bool -> PantryPackage -> RIO StackageCron Bool
-addPantryPackage sid compiler isHidden flags (PantryPackage pc treeKey) = do
+addPantryPackage snapId compiler isHidden flags (PantryPackage pcabal pTreeKey) = do
     env <- ask
-    let gpdCachedRef = scCachedGPD env
-        cache = scCacheCabalFiles env
+    let pkgDescCache = scCachedGPD env
+        cacheP = scCacheCabalFiles env
     let blobKeyToInt = fromIntegral . unSqlBackendKey . unBlobKey
-    let updateCacheGPD blobId gpd =
-            gpd `deepseq`
-            atomicModifyIORef' gpdCachedRef (\cacheMap -> (IntMap.insert blobId gpd cacheMap, gpd))
-    let getCachedGPD treeCabal =
+    let cachedPkgDesc cabalBlobId pkgDesc =
+            pkgDesc `deepseq`
+            atomicModifyIORef' pkgDescCache (\cacheMap -> (IntMap.insert cabalBlobId pkgDesc cacheMap, pkgDesc))
+    let getPkgDesc cabalBlobId =
             \case
-                Just gpd | cache -> updateCacheGPD (blobKeyToInt treeCabal) gpd
-                Just gpd -> pure gpd
-                Nothing | cache -> do
-                    cacheMap <- readIORef gpdCachedRef
-                    case IntMap.lookup (blobKeyToInt treeCabal) cacheMap of
-                        Just gpd -> pure gpd
+                Just pkgDesc | cacheP -> cachedPkgDesc (blobKeyToInt cabalBlobId) pkgDesc
+                Just pkgDesc -> pure pkgDesc
+                Nothing | cacheP -> do
+                    cacheMap <- readIORef pkgDescCache
+                    case IntMap.lookup (blobKeyToInt cabalBlobId) cacheMap of
+                        Just pkgDesc -> pure pkgDesc
                         Nothing ->
-                            loadBlobById treeCabal >>=
-                            updateCacheGPD (blobKeyToInt treeCabal) . parseCabalBlob
-                Nothing -> parseCabalBlob <$> loadBlobById treeCabal
-    let storeHackageSnapshotPackage hcid mtid mgpd =
-            getTreeForKey treeKey >>= \case
-                Just (Entity treeId _)
-                    | Just tid <- mtid
-                    , tid /= treeId -> do
-                        lift $ logError $ "Pantry Tree Key mismatch for: " <> display pc
+                            loadBlobById cabalBlobId >>=
+                            cachedPkgDesc (blobKeyToInt cabalBlobId) . parseCabalBlob
+                Nothing -> parseCabalBlob <$> loadBlobById cabalBlobId
+    let storeHackageSnapshotPackage hackageCabalId mTreeId mpkgDesc =
+            getTreeForKey pTreeKey >>= \case
+                -- error case #1
+                Just (Entity treeId' _)
+                    | Just treeId <- mTreeId
+                    , treeId /= treeId' -> do
+                        lift $ logError $ "Pantry Tree Key mismatch for: " <> display pcabal
                         pure False
-                Just tree@(Entity _ Tree {treeCabal})
-                    | Just treeCabal' <- treeCabal -> do
-                        gpd <- getCachedGPD treeCabal' mgpd
-                        let mhcid = Just hcid
-                            eTree = Right tree
-                        addSnapshotPackage sid compiler Hackage eTree mhcid isHidden flags pid gpd
+                -- happy case
+                Just pkgTree@(Entity _ Tree {treeCabal})
+                    | Just cabalBlobId <- treeCabal -> do
+                        pkgDesc <- getPkgDesc cabalBlobId mpkgDesc
+                        addSnapshotPackage snapId compiler Hackage (Right pkgTree) (Just hackageCabalId) isHidden flags packageId pkgDesc
                         pure True
+                -- error case #2
                 _ -> do
-                  lift $ logError $ "Pantry is missing the source tree for " <> display pc
+                  lift $ logError $ "Pantry is missing the source tree for " <> display pcabal
                   pure False
-    mHackageCabalInfo <- run $ getHackageCabalByKey pid (pcCabalKey pc)
+    mHackageCabalInfo <- run $ getHackageCabalByKey packageId (pcCabalKey pcabal)
     case mHackageCabalInfo of
         Nothing -> do
-          logError $ "Could not find the cabal file for: " <> display pc
+          logError $ "Could not find the cabal file for: " <> display pcabal
           pure False
-        Just (hcid, Nothing) -> do
+        Just (hackageCabalId, Nothing) -> do
             mHPI <-
                 htrFreshPackageInfo <$>
-                getHackageTarball (toPackageIdentifierRevision pc) (Just treeKey)
+                getHackageTarball (toPackageIdentifierRevision pcabal) (Just pTreeKey)
             run $
                 case mHPI of
-                    Just (gpd, treeId) -> storeHackageSnapshotPackage hcid (Just treeId) (Just gpd)
-                    Nothing -> storeHackageSnapshotPackage hcid Nothing Nothing
-        Just (hcid, mtid) -> run $ storeHackageSnapshotPackage hcid mtid Nothing
+                    Just (pkgDesc, treeId) -> storeHackageSnapshotPackage hackageCabalId (Just treeId) (Just pkgDesc)
+                    Nothing -> storeHackageSnapshotPackage hackageCabalId Nothing Nothing
+        Just (hackageCabalId, mTreeId) -> run $ storeHackageSnapshotPackage hackageCabalId mTreeId Nothing
   where
-    pid = PackageIdentifierP (pcPackageName pc) (pcVersion pc)
+    packageId = PackageIdentifierP (pcPackageName pcabal) (pcVersion pcabal)
 
 
 
@@ -547,9 +560,7 @@ createOrUpdateSnapshot ::
     -> ResourceT (RIO StackageCron) ()
     -> SnapshotFileInfo
     -> ResourceT (RIO StackageCron) (ResourceT (RIO StackageCron) ())
-createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { sfiSnapName
-                                                                              , sfiUpdatedOn
-                                                                              } = do
+createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { sfiSnapName , sfiUpdatedOn } = do
     finishedDocs <- newIORef False
     runConcurrently
         (Concurrently (prevAction >> writeIORef finishedDocs True) *>
@@ -572,11 +583,15 @@ createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { 
             logSticky "Still loading the docs for previous snapshot ..."
         pure loadDocs
 
--- | Updates all packages in the snapshot. If any missing they will be created. Returns an action
--- that will check for available documentation for modules that are known to exist and mark as
--- documented when haddock is present on AWS S3. Only after documentation has been checked this
--- snapshot will be marked as completely updated. This is required in case something goes wrong and
--- process is interrupted
+-- | Creates snapshot name (FIXME: Why not do this when creating the snapshot?)
+-- and updates all packages in the snapshot. If any packages are missing they
+-- will be created. Returns an action that will (a) check for available
+-- documentation for the packages' modules and (b) mark the packages as
+-- documented when haddock is present on AWS S3.
+--
+-- (Only after documentation has been checked will this snapshot be marked as
+-- completely updated. This is required in case something goes wrong and process
+-- is interrupted.)
 updateSnapshot ::
        Map CompilerP [CorePackageGetter]
     -> SnapshotId
