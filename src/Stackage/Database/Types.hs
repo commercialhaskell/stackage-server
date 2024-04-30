@@ -117,6 +117,7 @@ data SnapshotFile = SnapshotFile
     } deriving (Show)
 
 
+-- Is this a reference to a cabal file stored in Pantry?
 data PantryCabal = PantryCabal
     { pcPackageName :: !PackageNameP
     , pcVersion     :: !VersionP
