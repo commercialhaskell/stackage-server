@@ -510,39 +510,52 @@ sourceSnapshots = do
                 return Nothing
 
 
+data DecisionResult a e = NothingToDo | NoSnapshotFile | NeedsUpdate a e | DoesntExist e
+
 -- | Creates a new `Snapshot` if it is not yet present in the database and decides if update
 -- is necessary when it already exists.
+--
+-- sfiSnapshotFileGetter is a mystery. Silently ignoring snapshots where the
+-- getter returns Nothing seems like a potential problem.
 decideOnSnapshotUpdate :: SnapshotFileInfo -> RIO StackageCron (Maybe (SnapshotId, SnapshotFile))
 decideOnSnapshotUpdate SnapshotFileInfo {sfiSnapName, sfiUpdatedOn, sfiSnapshotFileGetter} = do
     forceUpdate <- scForceFullUpdate <$> ask
     let mkLogMsg rest = "Snapshot with name: " <> display sfiSnapName <> " " <> rest
     mKeySnapFile <-
         run (getBy (UniqueSnapshot sfiSnapName)) >>= \case
+            -- exists, up to date, no force-updated requested; nothing to do
             Just (Entity _key snap)
                 | snapshotUpdatedOn snap == Just sfiUpdatedOn && not forceUpdate -> do
                     logInfo $ mkLogMsg "already exists and is up to date."
-                    return Nothing
+                    return NothingToDo
+            -- exists but updatedOn was not previously set.
             Just entity@(Entity _key snap)
                 | Nothing <- snapshotUpdatedOn snap -> do
                     logWarn $ mkLogMsg "did not finish updating last time."
-                    fmap (Just entity, ) <$> sfiSnapshotFileGetter
+                    maybe NoSnapshotFile (NeedsUpdate entity) <$> sfiSnapshotFileGetter
+            -- exists, but updatedOn does not match or force-update was requested.
             Just entity -> do
                 unless forceUpdate $ logWarn $ mkLogMsg "was updated, applying new patch."
-                fmap (Just entity, ) <$> sfiSnapshotFileGetter
-            Nothing -> fmap (Nothing, ) <$> sfiSnapshotFileGetter
+                maybe NoSnapshotFile (NeedsUpdate entity) <$> sfiSnapshotFileGetter
+            -- does not exist
+            Nothing -> maybe NoSnapshotFile DoesntExist <$> sfiSnapshotFileGetter
     -- Add new snapshot to the database, when necessary
     case mKeySnapFile of
-        Just (Just (Entity snapKey snap), sf@SnapshotFile {sfCompiler, sfPublishDate})
+        NothingToDo -> return Nothing
+        NoSnapshotFile -> return Nothing
+        NeedsUpdate (Entity oldSnapKey oldSnap) sf@SnapshotFile {sfCompiler, sfPublishDate}
             | Just publishDate <- sfPublishDate -> do
                 let updatedSnap =
-                        Snapshot sfiSnapName sfCompiler publishDate (snapshotUpdatedOn snap)
-                run $ replace snapKey updatedSnap
-                pure $ Just (snapKey, sf)
-        Just (Nothing, sf@SnapshotFile {sfCompiler, sfPublishDate})
+                        Snapshot sfiSnapName sfCompiler publishDate (snapshotUpdatedOn oldSnap)
+                run $ replace oldSnapKey updatedSnap
+                pure $ Just (oldSnapKey, sf)
+            | otherwise -> return Nothing
+
+        DoesntExist sf@SnapshotFile {sfCompiler, sfPublishDate}
             | Just publishDate <- sfPublishDate ->
                 fmap (, sf) <$>
                 run (insertUnique (Snapshot sfiSnapName sfCompiler publishDate Nothing))
-        _ -> return Nothing
+            | otherwise -> return Nothing
 
 type CorePackageGetter
      = RIO StackageCron ( Either CabalFileIds (Entity Tree)
