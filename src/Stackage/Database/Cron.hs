@@ -525,8 +525,7 @@ decideOnSnapshotUpdate SnapshotFileInfo {sfiSnapName, sfiUpdatedOn, sfiSnapshotF
         run (getBy (UniqueSnapshot sfiSnapName)) >>= \case
             -- exists, up to date, no force-updated requested; nothing to do
             Just (Entity _key snap)
-                | snapshotUpdatedOn snap == Just sfiUpdatedOn && not forceUpdate -> do
-                    logInfo $ mkLogMsg "already exists and is up to date."
+                | snapshotUpdatedOn snap == Just sfiUpdatedOn && not forceUpdate ->
                     return NothingToDo
             -- exists but updatedOn was not previously set.
             Just entity@(Entity _key snap)
@@ -541,8 +540,8 @@ decideOnSnapshotUpdate SnapshotFileInfo {sfiSnapName, sfiUpdatedOn, sfiSnapshotF
             Nothing -> maybe NoSnapshotFile DoesntExist <$> sfiSnapshotFileGetter
     -- Add new snapshot to the database, when necessary
     case mKeySnapFile of
-        NothingToDo -> return Nothing
-        NoSnapshotFile -> return Nothing
+        NothingToDo -> Nothing <$ logInfo (mkLogMsg "already exists and is up to date.")
+        NoSnapshotFile -> Nothing <$ logWarn (mkLogMsg "has no (readable?) snapshot file.")
         NeedsUpdate (Entity oldSnapKey oldSnap) sf@SnapshotFile {sfCompiler, sfPublishDate}
             | Just publishDate <- sfPublishDate -> do
                 let updatedSnap =
