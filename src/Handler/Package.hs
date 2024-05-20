@@ -43,21 +43,40 @@ getPackageBadgeR pname branch = track "Handler.Package.getPackageBadgeR" $ do
 
     mLabel <- lookupGetParam "label"
     mStyle <- lookupGetParam "style"
+    mColor <- lookupGetParam "color"
+    let color = decodeColor mColor
 
     respond typeSvg $ case mStyle of
-      Just "plastic"     -> renderStackageBadge plastic    mLabel snapName mVersion
-      Just "flat-square" -> renderStackageBadge flatSquare mLabel snapName mVersion
-      _                  -> renderStackageBadge flat       mLabel snapName mVersion
+      Just "plastic"     -> renderStackageBadge plastic    mLabel snapName color mVersion
+      Just "flat-square" -> renderStackageBadge flatSquare mLabel snapName color mVersion
+      _                  -> renderStackageBadge flat       mLabel snapName color mVersion
+
+decodeColor :: Maybe Text -> Color
+decodeColor = \case
+  Nothing -> brightgreen
+  Just colorName ->
+    case colorName of
+      "brightgreen" -> brightgreen
+      "green" -> green
+      "yellow" -> yellow
+      "yellowgreen" -> yellowgreen
+      "orange" -> orange
+      "red" -> red
+      "blue" -> blue
+      "gray" -> gray
+      "lightgray" -> lightgray
+      _ -> Color colorName
 
 renderStackageBadge :: (Badge b, HasRightColor b)
                     => b          -- ^ Style
                     -> Maybe Text -- ^ Label
                     -> SnapName
+                    -> Color
                     -> Maybe VersionP
                     -> LByteString
-renderStackageBadge style mLabel snapName = \case
+renderStackageBadge style mLabel snapName color = \case
     Nothing -> renderBadge (style & right .~ lightgray) badgeLabel "not available"
-    Just v -> renderBadge style badgeLabel $ toPathPiece v
+    Just v -> renderBadge (style & right .~ color) badgeLabel $ toPathPiece v
   where
     badgeLabel = fromMaybe ("stackage " <> badgeSnapName snapName) mLabel
 
