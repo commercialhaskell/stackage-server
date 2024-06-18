@@ -173,7 +173,7 @@ ltsBefore x y = do
 lastLtsNightlyWithoutHoogleDb :: Int -> Int -> RIO StackageCron [(SnapshotId, SnapName)]
 lastLtsNightlyWithoutHoogleDb ltsCount nightlyCount = do
     currentHoogleVersionId <- scHoogleVersionId <$> ask
-    let getSnapshotsWithoutHoogeDb snapId snapCount =
+    let getSnapshotsWithoutHoogleDb snapId snapCount =
             map (unValue *** unValue) <$>
             select
                 -- "snap" is either Lts or Nightly, while "snapshot" is indeed
@@ -206,12 +206,12 @@ lastLtsNightlyWithoutHoogleDb ltsCount nightlyCount = do
                 --     order by snapshot.created desc
                 --     limit $snapCount
                 --
-                -- So it returns a list of snapshots where there is no
+                -- So it returns a limited list of snapshots where there is no
                 -- corresponding entry in the snapshot_hoogle_db table for the
                 -- current hoogle version.
     run $ do
-        lts <- getSnapshotsWithoutHoogeDb LtsSnap ltsCount
-        nightly <- getSnapshotsWithoutHoogeDb NightlySnap nightlyCount
+        lts <- getSnapshotsWithoutHoogleDb LtsSnap ltsCount
+        nightly <- getSnapshotsWithoutHoogleDb NightlySnap nightlyCount
         pure $ lts ++ nightly
 
 
@@ -1100,6 +1100,8 @@ getHackageCabalByKey (PackageIdentifierP pname ver) (BlobKey sha size) =
         return (hc ^. HackageCabalId, hc ^. HackageCabalTree)
 
 
+-- | Gets the id for the SnapshotPackage that corresponds to the given Snapshot
+-- and PackageIdentifier.
 getSnapshotPackageId ::
        SnapshotId
     -> PackageIdentifierP
@@ -1114,6 +1116,18 @@ getSnapshotPackageId snapshotId (PackageIdentifierP pname ver) =
              (pn ^. PackageNameName ==. val pname) &&.
              (v ^. VersionVersion ==. val ver))
         return (sp ^. SnapshotPackageId)
+    --
+    -- i.e.
+    --
+    -- select sp.id
+    -- from snapshot_package sp
+    -- join version
+    -- on version.id = sp.version
+    -- join package_name pn
+    -- on pn.id = sp.package_name
+    -- where sp.snapshot = $snapshot_id
+    -- and pn.name = $name
+    -- and v.version = $version
 
 
 getSnapshotPackageCabalBlob ::
@@ -1127,6 +1141,16 @@ getSnapshotPackageCabalBlob snapshotId pname =
             ((sp ^. SnapshotPackageSnapshot ==. val snapshotId) &&.
              (pn ^. PackageNameName ==. val pname))
         return (blob ^. BlobContents)
+    -- i.e.
+    --
+    -- select blob.content
+    -- from snapshot_package sp
+    -- join package_name pn
+    -- on pn.id = sp.package_name
+    -- join blob
+    -- on blob.id = sp.cabal
+    -- where sp.snapshot = $snapshotId
+    -- and pn.name = $name
 
 -- | Idempotent and thread safe way of adding a new module.
 insertModuleSafe :: ModuleNameP -> ReaderT SqlBackend (RIO env) ModuleNameId
@@ -1164,6 +1188,7 @@ markModuleHasDocs snapshotId pid mSnapshotPackageId modName =
                 \AND snapshot_package_module.snapshot_package = ?"
                 [toPersistValue modName, toPersistValue snapshotPackageId]
             return $ Just snapshotPackageId
+        -- FIXME: The Nothing case seems like it should not happen.
         Nothing -> return Nothing
 
 
