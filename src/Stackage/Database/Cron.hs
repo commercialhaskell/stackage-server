@@ -104,11 +104,12 @@ getStackageSnapshotsDir = do
 withResponseUnliftIO :: MonadUnliftIO m => Request -> Manager -> (Response BodyReader -> m b) -> m b
 withResponseUnliftIO req man f = withRunInIO $ \ runInIO -> withResponse req man (runInIO . f)
 
--- | Under the SingleRun wrapper that ensures only one thing at a time is
--- writing the file in question, ensure that a Hoogle database exists on the
--- filesystem for the given SnapName. But only going so far as downloading it
--- from the haddock bucket. See 'createHoogleDB' for the function that puts it
--- there in the first place.
+-- | Returns an action that, under the SingleRun wrapper that ensures only one
+-- thing at a time is writing the file in question, ensure that a Hoogle
+-- database exists on the filesystem for the given SnapName. But only going so
+-- far as downloading it from the haddock bucket. See 'createHoogleDB' for the
+-- function that puts it there in the first place. If no db exists in the
+-- bucket, the action will return 'Nothing'.
 newHoogleLocker ::
        (HasLogFunc env, MonadIO m) => env -> Manager -> Text -> m (SingleRun SnapName (Maybe FilePath))
 newHoogleLocker env man bucketUrl = mkSingleRun hoogleLocker
@@ -232,6 +233,9 @@ runStackageUpdate doNotUpload = do
     corePackageGetters <- makeCorePackageGetters
     runResourceT $
         join $
+        -- @createOrUpdateSnapshot@ processes package N while processing docs for
+        -- package N-1. This @pure ()@ is the "documentation processing action"
+        -- for the -1'th package.
         runConduit $ sourceSnapshots .| foldMC (createOrUpdateSnapshot corePackageGetters) (pure ())
     unless doNotUpload uploadSnapshotsJSON
     buildAndUploadHoogleDB doNotUpload
@@ -318,6 +322,9 @@ makeCorePackageGetter _compiler fallbackCabalFileMap pname ver =
                         Nothing -> do
                             whenM (scReportProgress <$> ask) $
                                 logSticky $ "Loading core package: " <> display pid
+                            -- I have no idea what's happening here. I guess I
+                            -- don't know what it means to "load" a package.
+                            -- What is actually going on?
                             htr <- getHackageTarball pir Nothing
                             case htrFreshPackageInfo htr of
                                 Just (gpd, treeId) -> do
@@ -419,33 +426,33 @@ checkForDocs :: SnapshotId -> SnapName -> ResourceT (RIO StackageCron) ()
 checkForDocs snapshotId snapName = do
     bucketName <- lift (scDownloadBucketName <$> ask)
     env <- asks scEnvAWS
-    mods <-
+    -- it is faster to download all modules in this snapshot separately, rather
+    -- than process them with a conduit all the way to the database.
+    packageModules <-
         runConduit $
-        paginate env (req bucketName) .| concatMapC (fromMaybe [] . (^. listObjectsV2Response_contents)) .|
-        mapC (\obj -> toText (obj ^. object_key)) .|
-        concatMapC (T.stripSuffix ".html" >=> T.stripPrefix prefix >=> pathToPackageModule) .|
-        sinkList
-    -- it is faster to download all modules in this snapshot, than process them with a conduit all
-    -- the way to the database.
+            paginate env (listSnapshotObjects bucketName)
+            .| concatMapC (fromMaybe [] . (^. listObjectsV2Response_contents))
+            .| mapC (\obj -> toText (obj ^. object_key))
+            .| concatMapC (T.stripSuffix ".html" >=> T.stripPrefix prefix >=> pathToPackageModule)
+            .| sinkList
+    -- Cache SnapshotPackageId rather than look it up many times for each module in the package.
     sidsCacheRef <- newIORef Map.empty
-    -- Cache is for SnapshotPackageId, there will be many modules per peckage, no need to look into
-    -- the database for each one of them.
+    -- The other half of the cores are used in 'updateSnapshot'
     n <- max 1 . (`div` 2) <$> getNumCapabilities
-    unexpectedPackages <- lift $ pooledMapConcurrentlyN n (markModules sidsCacheRef) mods
+    unexpectedPackages <- lift $ pooledMapConcurrentlyN n (markModule sidsCacheRef) packageModules
     forM_ (Set.fromList $ catMaybes unexpectedPackages) $ \pid ->
-        lift $
-        logWarn $
-        "Documentation found for package '" <> display pid <>
-        "', which does not exist in this snapshot: " <>
+        lift $ logWarn $
+            "Documentation found for package '" <> display pid <>
+            "', which does not exist in this snapshot: " <>
         display snapName
   where
     prefix = textDisplay snapName <> "/"
-    req bucketName = newListObjectsV2 (BucketName bucketName) & listObjectsV2_prefix ?~ prefix
+    listSnapshotObjects bucketName = newListObjectsV2 (BucketName bucketName) & listObjectsV2_prefix ?~ prefix
     -- | This function records all package modules that have documentation available, the ones
     -- that are not found in the snapshot reported back as an error.  Besides being run
     -- concurrently this function optimizes the SnapshotPackageId lookup as well, since that can
     -- be shared amongst many modules of one package.
-    markModules sidsCacheRef (pid, modName) = do
+    markModule sidsCacheRef (pid, modName) = do
         sidsCache <- readIORef sidsCacheRef
         let mSnapshotPackageId = Map.lookup pid sidsCache
         mFound <- run $ markModuleHasDocs snapshotId pid mSnapshotPackageId modName
@@ -471,8 +478,7 @@ sourceSnapshots :: ConduitT a SnapshotFileInfo (ResourceT (RIO StackageCron)) ()
 sourceSnapshots = do
     snapshotsDir <- lift $ lift getStackageSnapshotsDir
     sourceDirectoryDeep False (snapshotsDir </> "lts") .| concatMapMC (getLtsParser snapshotsDir)
-    sourceDirectoryDeep False (snapshotsDir </> "nightly") .|
-        concatMapMC (getNightlyParser snapshotsDir)
+    sourceDirectoryDeep False (snapshotsDir </> "nightly") .| concatMapMC (getNightlyParser snapshotsDir)
   where
     makeSnapshotFileInfo gitDir fp mFileNameDate snapName = do
         let parseSnapshot updatedOn = do
@@ -517,11 +523,11 @@ sourceSnapshots = do
 
 data DecisionResult a e = NothingToDo | NoSnapshotFile | NeedsUpdate a e | DoesntExist e
 
--- | Creates a new `Snapshot` if it is not yet present in the database and decides if update
+-- | Creates a new `Snapshot` if it is not yet present in the database, and decides if update
 -- is necessary when it already exists.
 --
 -- TODO: Silently ignoring snapshots where the getter returns Nothing seems like
--- a potential problem.
+-- a potential problem. Anyway I'd rather run it beforehand!
 decideOnSnapshotUpdate :: SnapshotFileInfo -> RIO StackageCron (Maybe (SnapshotId, SnapshotFile))
 decideOnSnapshotUpdate SnapshotFileInfo {sfiSnapName, sfiUpdatedOn, sfiSnapshotFileGetter} = do
     forceUpdate <- scForceFullUpdate <$> ask
@@ -556,10 +562,11 @@ decideOnSnapshotUpdate SnapshotFileInfo {sfiSnapName, sfiUpdatedOn, sfiSnapshotF
             | otherwise -> return Nothing
 
         DoesntExist sf@SnapshotFile {sfCompiler, sfPublishDate}
-            | Just publishDate <- sfPublishDate ->
+            | Just publishDate <- sfPublishDate -> do
+                logInfo $ mkLogMsg "is new, adding to the database."
                 fmap (, sf) <$>
-                run (insertUnique (Snapshot sfiSnapName sfCompiler publishDate Nothing))
-            | otherwise -> return Nothing
+                    run (insertUnique (Snapshot sfiSnapName sfCompiler publishDate Nothing))
+            | otherwise -> Nothing <$ logWarn (mkLogMsg "has no publish date, skipping.")
 
 type CorePackageGetter
      = RIO StackageCron ( Either CabalFileIds (Entity Tree)
@@ -572,6 +579,32 @@ type CorePackageGetter
 -- current snapshot as well as an action that was passed as an argument. At the end it will return
 -- an action that should be invoked in order to mark modules that have documentation available,
 -- which in turn can be passed as an argument to the next snapshot loader.
+-- Something something ouroboros.
+--
+-- Question: When do the docs for the last snapshot get loaded?
+--
+-- Well, this binding is called as @join $ runConduit $ foldMC (createOrUpdateSnapshot corePackageInfoGetters) (pure ())@
+--
+-- So the answer: the doc-loading action for the last snapshot gets returned by @runConduit $ foldMC ...@,
+-- which means it gets executed by @join $ runConduit $ foldMC ...@.
+--
+-- Evidence:
+--
+-- Since @foldMC :: (a -> b -> m a) -> a -> ConduitT b o m a@, we see
+--
+-- @@
+-- a ~ ResourceT (RIO Stackage Cron) () -- this is the doc-loading action
+-- b ~ SnapshotFileInfo
+-- m ~ ResourceT (RIO StackageCron)
+-- @@
+
+-- and the foldMC creates a @ConduitT SnapshotFileInfo o (ResourceT (RIO StackageCron)) (ResourceT (RIO StackageCron) ())@
+--
+-- TODO: It might be more efficient to just put all the actions (snapshot
+-- creation and documentation writing both) on a queue and let a bunch of
+-- workers chew on it. The current impl creates arbitrary synchronization points
+-- with 'runConcurrently'. Granted, I don't know what a good chunk size would
+-- actually be.
 createOrUpdateSnapshot ::
        Map CompilerP [CorePackageGetter]
     -> ResourceT (RIO StackageCron) ()
@@ -586,6 +619,7 @@ createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { 
     loadCurrentSnapshot finishedDocs = do
         loadDocs <-
             decideOnSnapshotUpdate sfi >>= \case
+                -- Nothing to do, and thus no docs to process
                 Nothing -> return $ pure ()
                 Just (snapshotId, snapshotFile) ->
                     updateSnapshot
@@ -600,11 +634,12 @@ createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { 
             logSticky "Still loading the docs for previous snapshot ..."
         pure loadDocs
 
--- | Creates snapshot name (FIXME: Why not do this when creating the snapshot?)
--- and updates all packages in the snapshot. If any packages are missing they
--- will be created. Returns an action that will (a) check for available
--- documentation for the packages' modules and (b) mark the packages as
--- documented when haddock is present on AWS S3.
+-- | Creates Lts or Nightly entity [Question(bryan): Why not do this when
+-- creating the snapshot? Why is this a separate table anyway?] and updates all
+-- packages in the snapshot. If any packages are missing they will be created.
+-- Returns an action that will (a) check for available documentation for the
+-- packages' modules and (b) mark the packages as documented when haddock is
+-- present on AWS S3.
 --
 -- (Only after documentation has been checked will this snapshot be marked as
 -- completely updated. This is required in case something goes wrong and process
@@ -615,11 +650,14 @@ updateSnapshot ::
     -> SnapName
     -> UTCTime
     -> SnapshotFile
-    -> RIO StackageCron (ResourceT (RIO StackageCron) ())
+    -> RIO StackageCron (ResourceT (RIO StackageCron) ()) -- ^ Returns the action for processing docs
 updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..} = do
     insertSnapshotName snapshotId snapName
     loadedPackageCountRef <- newIORef (0 :: Int)
     let totalPackages = length sfPackages
+        -- A wrapper for 'addPantryPackage' that extracts the package info from
+        -- snapshot info, increments the count of loaded packages, and reports success
+        -- as a Bool.
         addPantryPackageWithReport pp = do
             let PantryCabal {pcPackageName} = ppPantryCabal pp
                 isHidden = fromMaybe False (Map.lookup pcPackageName sfHidden)
@@ -747,7 +785,8 @@ buildAndUploadHoogleDB doNotUpload = do
     -- locker is an action that returns the path to a hoogle db, if one exists
     -- in the haddock bucket already.
     locker <- newHoogleLocker (env ^. logFuncL) (awsEnv ^. env_manager) bucketUrl
-    let insertH = checkInsertSnapshotHoogleDb True
+    let -- These bindings undo a questionable conflation of operations
+        insertH = checkInsertSnapshotHoogleDb True
         checkH = checkInsertSnapshotHoogleDb False
     for_ snapshots $ \(snapshotId, snapName) ->
         -- Even though we just got a list of snapshots that don't have hoogle
@@ -760,6 +799,8 @@ buildAndUploadHoogleDB doNotUpload = do
             mfp <- singleRun locker snapName
             case mfp of
                 Just _ -> do
+                    -- Something bad must have happened: we created the Hoogle db
+                    -- previously, but didn't get to record it in our database.
                     logInfo $ "Current hoogle database exists for: " <> display snapName
                     void $ insertH snapshotId
                 Nothing -> do
@@ -778,6 +819,8 @@ buildAndUploadHoogleDB doNotUpload = do
 -- the haddock bucket.
 createHoogleDB :: SnapshotId -> SnapName -> RIO StackageCron (Maybe FilePath)
 createHoogleDB snapshotId snapName =
+    -- FIXME: this handles *any* exception, which means it will swallow most
+    -- signals
     handleAny logException $ do
         logInfo $ "Creating Hoogle DB for " <> display snapName
         downloadBucketUrl <- scDownloadBucketUrl <$> ask
@@ -853,7 +896,10 @@ restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName fileInfo =
         _ -> yield False
 
 
-pathToPackageModule :: Text -> Maybe (PackageIdentifierP, ModuleNameP)
+pathToPackageModule
+    :: Text
+    -- ^ Input is like @ace-0.6/ACE-Combinators@
+    -> Maybe (PackageIdentifierP, ModuleNameP)
 pathToPackageModule txt =
     case T.split (== '/') txt of
         [pkgIdentifier, moduleNameDashes] -> do

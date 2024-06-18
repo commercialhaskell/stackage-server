@@ -132,6 +132,7 @@ instance Display PantryCabal where
 instance ToMarkup PantryCabal where
     toMarkup = toMarkup . textDisplay
 
+-- A Cabal file (package name, version, blob) and source tree
 data PantryPackage = PantryPackage
     { ppPantryCabal :: !PantryCabal
     , ppPantryKey   :: !TreeKey
