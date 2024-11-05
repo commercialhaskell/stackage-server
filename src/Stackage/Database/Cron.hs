@@ -825,7 +825,6 @@ createHoogleDB snapshotId snapName =
         logInfo $ "Creating Hoogle DB for " <> display snapName
         downloadBucketUrl <- scDownloadBucketUrl <$> ask
         let root = "hoogle-gen"
-            bindir = root </> "bindir"
             outname = root </> "output.hoo"
             tarKey = toPathPiece snapName <> "/hoogle/orig.tar"
             tarUrl = downloadBucketUrl <> "/" <> tarKey
@@ -841,9 +840,7 @@ createHoogleDB snapshotId snapName =
                 createDirectoryIfMissing True $ takeDirectory tarFP
                 withBinaryFileDurableAtomic tarFP WriteMode $ \tarHandle ->
                     runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
-        void $ tryIO $ removeDirectoryRecursive bindir
         void $ tryIO $ removeFile outname
-        createDirectoryIfMissing True bindir
         withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
             Any hasRestored <-
                 runConduitRes $
