@@ -815,53 +815,50 @@ buildAndUploadHoogleDB doNotUpload = do
                             uploadHoogleDB dest (ObjectKey key)
                             void $ insertH snapshotId
 
--- | Create a hoogle db from haddocks for the given snapshot, and upload it to
--- the haddock bucket.
+-- | Create a hoogle db from haddocks for the given snapshot.
+--
+-- Haddocks are downloaded from the documentation bucket, where they were
+-- uploaded as a tar file.
+--
+-- Returns the path to the .hoo database.
 createHoogleDB :: SnapshotId -> SnapName -> RIO StackageCron (Maybe FilePath)
-createHoogleDB snapshotId snapName =
-    -- FIXME: this handles *any* exception, which means it will swallow most
-    -- signals
-    handleAny logException $ do
-        logInfo $ "Creating Hoogle DB for " <> display snapName
-        downloadBucketUrl <- scDownloadBucketUrl <$> ask
-        let root = "hoogle-gen"
-            outname = root </> "output.hoo"
-            tarKey = toPathPiece snapName <> "/hoogle/orig.tar"
-            tarUrl = downloadBucketUrl <> "/" <> tarKey
-            tarFP = root </> T.unpack tarKey
-        -- When tarball is downloaded it is saved with durability and atomicity, so if it
-        -- is present it is not in a corrupted state
-        unlessM (doesFileExist tarFP) $ do
-            req <- parseRequest $ T.unpack tarUrl
-            env <- asks scEnvAWS
-            let man = env ^. env_manager
-            withResponseUnliftIO req {decompress = const True} man $ \res -> do
-                throwErrorStatusCodes req res
-                createDirectoryIfMissing True $ takeDirectory tarFP
-                withBinaryFileDurableAtomic tarFP WriteMode $ \tarHandle ->
-                    runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
-        void $ tryIO $ removeFile outname
-        withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
-            Any hasRestored <-
-                runConduitRes $
-                sourceFile tarFP .|
-                untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
-                foldMapC Any
-            unless hasRestored $ error "No Hoogle .txt files found"
-            let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
-            logInfo $
-                mconcat
-                    [ "Merging databases... ("
-                    , foldMap fromString $ L.intersperse " " ("hoogle" : args)
-                    , ")"
-                    ]
-            liftIO $ Hoogle.hoogle args
-            logInfo "Merge done"
-            return $ Just outname
-  where
-    logException exc =
-        logError ("Problem creating hoogle db for " <> display snapName <> ": " <> displayShow exc) $>
-        Nothing
+createHoogleDB snapshotId snapName = do
+    logInfo $ "Creating Hoogle DB for " <> display snapName
+    downloadBucketUrl <- scDownloadBucketUrl <$> ask
+    let root = "hoogle-gen"
+        outname = root </> "output.hoo"
+        tarKey = toPathPiece snapName <> "/hoogle/orig.tar"
+        tarUrl = downloadBucketUrl <> "/" <> tarKey
+        tarFP = root </> T.unpack tarKey
+    -- When tarball is downloaded it is saved with durability and atomicity, so if it
+    -- is present it is not in a corrupted state
+    unlessM (doesFileExist tarFP) $ do
+        req <- parseRequest $ T.unpack tarUrl
+        env <- asks scEnvAWS
+        let man = env ^. env_manager
+        withResponseUnliftIO req {decompress = const True} man $ \res -> do
+            throwErrorStatusCodes req res
+            createDirectoryIfMissing True $ takeDirectory tarFP
+            withBinaryFileDurableAtomic tarFP WriteMode $ \tarHandle ->
+                runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
+    void $ tryIO $ removeFile outname
+    withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
+        Any hasRestored <-
+            runConduitRes $
+            sourceFile tarFP .|
+            untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
+            foldMapC Any
+        unless hasRestored $ error "No Hoogle .txt files found"
+        let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
+        logInfo $
+            mconcat
+                [ "Merging databases... ("
+                , foldMap fromString $ L.intersperse " " ("hoogle" : args)
+                , ")"
+                ]
+        liftIO $ Hoogle.hoogle args
+        logInfo "Merge done"
+        return $ Just outname
 
 
 -- | Grabs hoogle txt file from the tarball and a matching cabal file from pantry.  Writes
