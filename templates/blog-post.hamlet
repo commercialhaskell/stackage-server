@@ -16,4 +16,4 @@
           <a href=@?{addPreview $ BlogPostR (postYear post') (postMonth post') (postSlug post')}>
             #{postTitle post'}
           &mdash;
-          <abbr title=#{show $ postTime post}>#{dateDiff now (utctDay $ postTime post')}
+          <abbr title=#{show $ postTime post'}>#{dateDiff now (utctDay $ postTime post')}
