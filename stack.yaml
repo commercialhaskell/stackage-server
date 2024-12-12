@@ -18,6 +18,7 @@ extra-deps:
 # databases have been generated.
 - hoogle-5.0.18.4@sha256:1372458e97dff541fcda099236af7936bf93ee6b8c5d15695ee6d9426dff5eed,3171
 # for patched pantry-0.5.7
+- safe-0.3.20@sha256:7813ad56161f57d5162a924de5597d454162a2faed06be6e268b37bb5c19d48d,2312
 - Cabal-3.8.1.0@sha256:77121d8e1aff14a0fd95684b751599db78a7dd26d55862d9fcef27c88b193e9d,12609
 - Cabal-syntax-3.8.1.0@sha256:ed2d937ba6c6a20b75850349eedd41374885fc42369ef152d69e2ba70f44f593,7620
 - git: https://github.com/commercialhaskell/pantry.git
