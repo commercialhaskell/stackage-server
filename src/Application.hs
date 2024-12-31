@@ -47,7 +47,7 @@ import Yesod.Core.Types (loggerSet)
 import Yesod.Default.Config2
 import Yesod.Default.Handlers
 import Yesod.GitRepo
-import Yesod.GitRev (tGitRev)
+import Yesod.GitRev (GitRev(..))
 
 -- Import all relevant handler modules here.
 import Handler.Blog
@@ -159,7 +159,14 @@ withFoundation appLogFunc appSettings inner = do
         appMirrorStatus <- mkUpdateMirrorStatus
         hoogleLocker <- newHoogleLocker appLogFunc appHttpManager (appDownloadBucketUrl appSettings)
         let appGetHoogleDB = singleRun hoogleLocker
-        let appGitRev = $$tGitRev
+        let appGitRev = GitRev
+                { gitRevHash = "invalid"
+                , gitRevBranch = "invalid"
+                , gitRevDirty = False
+                , gitRevCommitDate = "2024-12-31"
+                , gitRevCommitCount = 0
+                , gitRevCommitMessage = "This page has been deprecated. Comment on https://github.com/commercialhaskell/stackage-server/issues/339 if this broke your workflow!"
+                }
         runConcurrently $ runContentUpdates *> Concurrently (inner App {..})
 
 getLogOpts :: AppSettings -> IO LogOptions
