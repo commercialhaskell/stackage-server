@@ -30,11 +30,11 @@ packages:
     sha256: 39038d8934ad8ba164e3d21aa227a80a12fbdd4cf371a6311ea8cc95a6265385
     size: 34733906
     subdir: lib/amazonka-core
-    url: https://github.com/chreekat/amazonka/archive/85e0289f8dc23c54b00f7f1a09845be7e032a1eb.tar.gz
+    url: https://github.com/brendanhay/amazonka/archive/85e0289f8dc23c54b00f7f1a09845be7e032a1eb.tar.gz
     version: '2.0'
   original:
     subdir: lib/amazonka-core
-    url: https://github.com/chreekat/amazonka/archive/85e0289f8dc23c54b00f7f1a09845be7e032a1eb.tar.gz
+    url: https://github.com/brendanhay/amazonka/archive/85e0289f8dc23c54b00f7f1a09845be7e032a1eb.tar.gz
 snapshots:
 - completed:
     sha256: 08bd13ce621b41a8f5e51456b38d5b46d7783ce114a50ab604d6bbab0d002146
