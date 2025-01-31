@@ -12,27 +12,6 @@ packages:
   original:
     hackage: hoogle-5.0.18.4@sha256:1372458e97dff541fcda099236af7936bf93ee6b8c5d15695ee6d9426dff5eed,3171
 - completed:
-    hackage: safe-0.3.20@sha256:7813ad56161f57d5162a924de5597d454162a2faed06be6e268b37bb5c19d48d,2312
-    pantry-tree:
-      sha256: c33e79ed6e5b044babefd5e985bd774b6a0ceae4cc666cb2f56759f004c400a6
-      size: 564
-  original:
-    hackage: safe-0.3.20@sha256:7813ad56161f57d5162a924de5597d454162a2faed06be6e268b37bb5c19d48d,2312
-- completed:
-    hackage: Cabal-3.8.1.0@sha256:77121d8e1aff14a0fd95684b751599db78a7dd26d55862d9fcef27c88b193e9d,12609
-    pantry-tree:
-      sha256: 69af34caaaae2fa5ad24c69b7eead612b896d5c00d742d40ba0c1ae3ab6afd4f
-      size: 8955
-  original:
-    hackage: Cabal-3.8.1.0@sha256:77121d8e1aff14a0fd95684b751599db78a7dd26d55862d9fcef27c88b193e9d,12609
-- completed:
-    hackage: Cabal-syntax-3.8.1.0@sha256:ed2d937ba6c6a20b75850349eedd41374885fc42369ef152d69e2ba70f44f593,7620
-    pantry-tree:
-      sha256: ea286f643cc7b11dd7efe98982403515419e0c91909c48007927538358bfc4a3
-      size: 11052
-  original:
-    hackage: Cabal-syntax-3.8.1.0@sha256:ed2d937ba6c6a20b75850349eedd41374885fc42369ef152d69e2ba70f44f593,7620
-- completed:
     commit: 5df643cc1deb561d9c52a9cb6f593aba2bc4c08e
     git: https://github.com/commercialhaskell/pantry.git
     name: pantry
