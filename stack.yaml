@@ -2,7 +2,7 @@
 # OS.
 # I.e. changes here need to be synced with changes to
 # https://github.com/haskellfoundation/hf-infrastructure
-resolver: lts-22.4
+resolver: lts-22.43
 extra-deps:
 # WARNING: Changing the hoogle version causes stackage-server-cron to regenerate
 # Hoogle databases FOR EVERY SNAPSHOT, EVER. Usually, that's ok! But don't
