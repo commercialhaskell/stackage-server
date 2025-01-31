@@ -1,7 +1,5 @@
 # stackage-server
 
-![Runtime image](https://github.com/fpco/stackage-server/workflows/Runtime%20image/badge.svg)
-
 Server for stable, curated Haskell package sets
 
 This repo is part of the [Stackage project](https://github.com/fpco/stackage),
