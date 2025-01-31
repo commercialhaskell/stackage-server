@@ -9,6 +9,12 @@ let
         preConfigure = ''
           ${pkgs.hpack}/bin/hpack .
         '';
+        # During build, static files are generated into the source tree's
+        # static/ dir. Plus, config/ is needed at runtime.
+        postInstall = ''
+          mkdir -p $out/run
+          cp -a {static,config} $out/run
+        '';
         src = pkgs.lib.cleanSource old.src;
       });
 
