@@ -180,8 +180,7 @@ newtype PackageSetIdent = PackageSetIdent { unPackageSetIdent :: Text }
 instance PersistFieldSql PackageSetIdent where
     sqlType = sqlType . fmap unPackageSetIdent
 
-data PackageNameVersion = PNVTarball !PackageNameP !VersionP
-                        | PNVNameVersion !PackageNameP !VersionP
+data PackageNameVersion = PNVNameVersion !PackageNameP !VersionP
                         | PNVName !PackageNameP
     deriving (Read, Show, Eq, Ord)
 
@@ -254,13 +253,8 @@ instance ToMarkup PackageVersionRev where
 
 
 instance PathPiece PackageNameVersion where
-    toPathPiece (PNVTarball x y) = T.concat [toPathPiece x, "-", toPathPiece y, ".tar.gz"]
     toPathPiece (PNVNameVersion x y) = T.concat [toPathPiece x, "-", toPathPiece y]
     toPathPiece (PNVName x) = toPathPiece x
-    fromPathPiece t'
-        | Just t <- T.stripSuffix ".tar.gz" t' = do
-            PackageIdentifierP name version <- fromPathPiece t
-            return $ PNVTarball name version
     fromPathPiece t =
         case T.breakOnEnd "-" t of
             ("", _) -> PNVName <$> fromPathPiece t
