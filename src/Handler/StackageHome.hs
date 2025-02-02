@@ -97,7 +97,7 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
         yield $ Chunk $ toBuilder '\n'
 
     revisionsWarning =
-        toBuilder (asText "-- NOTE: Due to revisions, this file may not work. See:\n-- https://github.com/fpco/stackage-server/issues/232\n\n")
+        toBuilder (asText "-- NOTE: Due to revisions, this file may not work. See:\n-- https://github.com/commercialhaskell/stackage-server/issues/232\n\n")
 
     headerGlobal render = yield $ Chunk $
         revisionsWarning ++

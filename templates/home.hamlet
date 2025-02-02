@@ -17,7 +17,7 @@
             <h3>Stable Haskell package sets
             <ul>
               <li>A distribution of compatible Haskell packages from <a href="https://hackage.haskell.org">Hackage</a> that build together
-              <li>Stackage is a community project: <a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>
+              <li>Stackage is a community project: <a href="https://github.com/commercialhaskell/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>
               <li><a href="https://haskellstack.org">stack</a> makes using Stackage easy
         <div .span6>
             $maybe post <- mrecentBlog
@@ -43,7 +43,7 @@
                 About Stackage
             <p>
                 Stackage provides consistent sets of Haskell packages, known to build together and pass their tests before becoming <a href="/nightly">Stackage Nightly</a> snapshots and <a href="/lts">LTS</a>
-                (<a href="https://github.com/fpco/lts-haskell#readme">Long Term Support</a>) releases.
+                (<a href="https://github.com/commercialhaskell/lts-haskell#readme">Long Term Support</a>) releases.
             <p>
                 It is a distribution of a subset of packages from <a href="https://hackage.haskell.org">Hackage</a>, each package chosen at a version to make the set self-consistent. Note that Stackage does not patch any packages.
             <p>
@@ -54,10 +54,10 @@
                 Stackage is a community project: Haskell users around the world work together to keep Stackage snapshots up to date with recent package versions:
                 Stackage itself and all the tools surrounding it are open-source.
                 See #
-                \<a href="https://github.com/fpco/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>.
+                \<a href="https://github.com/commercialhaskell/stackage/blob/master/MAINTAINERS.md#adding-a-package"><b>how to add packages to Stackage</b></a>.
             <p>
                 Have more questions? We have a #
-                \<a href="https://github.com/fpco/stackage#frequently-asked-questions">FAQ section on Github</a>.
+                \<a href="https://github.com/commercialhaskell/stackage#frequently-asked-questions">FAQ section on Github</a>.
 
             <p>
                 Stackage's infrastructure, build machines, initial creation and ongoing maintenance were proudly sponsored by <a href="https://www.fpcomplete.com">FP Complete</a> from 2014 to 2024.

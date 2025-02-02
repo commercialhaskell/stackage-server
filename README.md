@@ -2,7 +2,7 @@
 
 Server for stable, curated Haskell package sets
 
-This repo is part of the [Stackage project](https://github.com/fpco/stackage),
+This repo is part of the [Stackage project](https://github.com/commercialhaskell/stackage),
 and the live server can be viewed at https://www.stackage.org.
 
 ## Building locally

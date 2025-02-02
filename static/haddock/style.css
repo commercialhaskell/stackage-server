@@ -311,7 +311,7 @@ div#style-menu-holder {
   display: none;
 }
 
-/* Fixes: https://github.com/fpco/stackage-server/issues/222 */
+/* Fixes: https://github.com/commercialhaskell/stackage-server/issues/222 */
 /* #synopsis { */
 /*   display: none; */
 /* } */
