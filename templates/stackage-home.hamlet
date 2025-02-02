@@ -3,7 +3,7 @@ $newline never
     <h1>
         #{snapshotTitle snapshot}
     <p>
-        Published on #{yearMonthDay (snapshotCreated snapshot)}
+        Published on #{yearMonthDayTime (snapshotCreated snapshot)}
         <span .separator>
         <span>
             <a href=@{StackageDiffR previousSnapName name}>View changes

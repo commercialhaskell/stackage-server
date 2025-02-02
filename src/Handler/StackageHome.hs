@@ -155,8 +155,8 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
         toBuilder (pliName p) ++
         constraint p
 
-yearMonthDay :: FormatTime t => t -> String
-yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
+yearMonthDayTime :: FormatTime t => t -> String
+yearMonthDayTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M %Z"
 
 getSnapshotPackagesR :: SnapName -> Handler () -- FIXME move to OldLinks?
 getSnapshotPackagesR name = track "Handler.StackageHome.getSnapshotPackagesR" $
