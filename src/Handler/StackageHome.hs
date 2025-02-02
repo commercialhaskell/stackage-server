@@ -53,7 +53,8 @@ instance ToJSON SnapshotInfo where
 getStackageDiffR :: SnapName -> SnapName -> Handler TypedContent
 getStackageDiffR name1 name2 = track "Handler.StackageHome.getStackageDiffR" $ do
     cacheSeconds $ 60 * 60 * 48
-    Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
+    Entity sid1 prevSnap <- lookupSnapshot name1 >>= maybe notFound return
+    mprevprevSnapName <- map snd <$> snapshotBefore (snapshotName prevSnap)
     Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
     snapDiff <- getSnapshotDiff sid1 sid2
     selectRep $ do
