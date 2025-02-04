@@ -1,5 +1,10 @@
 <h1>Compare Stackage snapshots
 
+$maybe prevprev <- mprevprevSnapName
+  <div .snapshot-nav>
+    <a href=@{StackageDiffR prevprev name1}>
+      \< previous diff
+
 <div .container .content>
   <div .packages>
     <table .table>

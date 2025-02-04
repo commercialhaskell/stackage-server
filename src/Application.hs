@@ -138,7 +138,7 @@ withFoundation appLogFunc appSettings inner = do
             then do
                 fp <- runSimpleApp $ getStackageContentDir "."
                 gitRepoDev fp loadWebsiteContent
-            else gitRepo "https://github.com/fpco/stackage-content.git" "master" loadWebsiteContent
+            else gitRepo "https://github.com/commercialhaskell/stackage-content.git" "master" loadWebsiteContent
     let runContentUpdates =
             Concurrently $
             forever $

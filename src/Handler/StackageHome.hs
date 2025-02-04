@@ -53,7 +53,8 @@ instance ToJSON SnapshotInfo where
 getStackageDiffR :: SnapName -> SnapName -> Handler TypedContent
 getStackageDiffR name1 name2 = track "Handler.StackageHome.getStackageDiffR" $ do
     cacheSeconds $ 60 * 60 * 48
-    Entity sid1 _ <- lookupSnapshot name1 >>= maybe notFound return
+    Entity sid1 prevSnap <- lookupSnapshot name1 >>= maybe notFound return
+    mprevprevSnapName <- map snd <$> snapshotBefore (snapshotName prevSnap)
     Entity sid2 _ <- lookupSnapshot name2 >>= maybe notFound return
     snapDiff <- getSnapshotDiff sid1 sid2
     selectRep $ do
@@ -97,7 +98,7 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
         yield $ Chunk $ toBuilder '\n'
 
     revisionsWarning =
-        toBuilder (asText "-- NOTE: Due to revisions, this file may not work. See:\n-- https://github.com/fpco/stackage-server/issues/232\n\n")
+        toBuilder (asText "-- NOTE: Due to revisions, this file may not work. See:\n-- https://github.com/commercialhaskell/stackage-server/issues/232\n\n")
 
     headerGlobal render = yield $ Chunk $
         revisionsWarning ++
@@ -155,8 +156,8 @@ getStackageCabalConfigR name = track "Handler.StackageHome.getStackageCabalConfi
         toBuilder (pliName p) ++
         constraint p
 
-yearMonthDay :: FormatTime t => t -> String
-yearMonthDay = formatTime defaultTimeLocale "%Y-%m-%d"
+yearMonthDayTime :: FormatTime t => t -> String
+yearMonthDayTime = formatTime defaultTimeLocale "%Y-%m-%d %H:%M %Z"
 
 getSnapshotPackagesR :: SnapName -> Handler () -- FIXME move to OldLinks?
 getSnapshotPackagesR name = track "Handler.StackageHome.getSnapshotPackagesR" $

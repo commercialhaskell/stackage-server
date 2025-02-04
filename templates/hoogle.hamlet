@@ -5,7 +5,7 @@
         <p style="font-size:0.8em">
             <i>Note that Stackage only displays results for the latest LTS and Nightly snapshot.
             \ #
-            <a href="https://github.com/fpco/stackage-server/issues/305">Learn more.
+            <a href="https://github.com/commercialhaskell/stackage-server/issues/305">Learn more.
         ^{hoogleForm}
         $if null results
             <p>Your search produced no results.

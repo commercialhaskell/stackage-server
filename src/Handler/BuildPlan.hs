@@ -6,7 +6,7 @@ import Import
 
 getBuildPlanR :: SnapName -> Handler TypedContent
 getBuildPlanR _slug = track "Handler.BuildPlan.getBuildPlanR" $ do
-    error "temporarily disabled, please open on issue on https://github.com/fpco/stackage-server/issues/ if you need it"
+    error "temporarily disabled, please open on issue on https://github.com/commercialhaskell/stackage-server/issues/ if you need it"
     {-
     fullDeps <- (== Just "true") <$> lookupGetParam "full-deps"
     spec <- parseSnapshotSpec $ toPathPiece slug
