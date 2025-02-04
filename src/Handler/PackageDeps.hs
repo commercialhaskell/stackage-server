@@ -22,7 +22,7 @@ getPackageDepsR pname = do
 getSnapshotPackageDepsR :: SnapName -> PackageNameVersion -> Handler Html
 getSnapshotPackageDepsR snapName pnv = do
     cacheSeconds $ 60 * 60
-    pnvToSnapshotPackageInfo snapName pnv (\_ _ -> notFound) $ \isSameVersion spi ->
+    pnvToSnapshotPackageInfo snapName pnv $ \isSameVersion spi ->
         if isSameVersion
             then helper Deps spi
             else redirect $
@@ -40,7 +40,7 @@ getPackageRevDepsR pname = do
 getSnapshotPackageRevDepsR :: SnapName -> PackageNameVersion -> Handler Html
 getSnapshotPackageRevDepsR snapName pnv = do
     cacheSeconds $ 60 * 60
-    pnvToSnapshotPackageInfo snapName pnv (\_ _ -> notFound) $ \isSameVersion spi ->
+    pnvToSnapshotPackageInfo snapName pnv $ \isSameVersion spi ->
         if isSameVersion
             then helper RevDeps spi
             else redirect $
