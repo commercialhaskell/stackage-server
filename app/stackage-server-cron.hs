@@ -58,7 +58,7 @@ optsParser =
               T.unpack defHaddockBucketName)) <*>
     switch
         (long "do-not-upload" <>
-         help "Stop from hoogle db and snapshots.json from being generated and uploaded") <*>
+         help "Disable upload of Hoogle database and snapshots.json") <*>
     option
         readLogLevel
         (long "log-level" <> metavar "LOG_LEVEL" <> short 'l' <> value LevelInfo <>

@@ -4,7 +4,7 @@ module Stackage.Database.Github
     ( cloneOrUpdate
     , lastGitFileUpdate
     , getStackageContentDir
-    , getCoreCabalFilesDir
+    , getBackupCoreCabalFilesDir
     , GithubRepo(..)
     ) where
 
@@ -81,9 +81,9 @@ getStackageContentDir rootDir =
     cloneOrUpdate rootDir (GithubRepo "commercialhaskell" "stackage-content")
 
 -- | Use backup location with cabal files, hackage doesn't have all of them.
-getCoreCabalFilesDir ::
+getBackupCoreCabalFilesDir ::
        (MonadReader env m, HasLogFunc env, HasProcessContext env, MonadIO m)
     => FilePath
     -> m FilePath
-getCoreCabalFilesDir rootDir =
+getBackupCoreCabalFilesDir rootDir =
     cloneOrUpdate rootDir (GithubRepo "commercialhaskell" "core-cabal-files")
