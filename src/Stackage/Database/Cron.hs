@@ -823,12 +823,16 @@ buildAndUploadHoogleDBs doNotUpload = do
             -- stackage-server downloads its own version separately.
             mfp <- singleRun locker snapName
             case mfp of
-                Just _ -> do
+                Just fp -> do
                     -- Something bad must have happened: we created the hoogle db
                     -- previously, but didn't get to record it as available.
                     logWarn $ "Unregistered hoogle database found for: " <> display snapName
                             <> ". Registering now."
                     void $ insertH snapshotId
+                    -- FIXME: For now we need to delete this file we just
+                    -- downloaded. We probably shouldn't download it in the
+                    -- first place, though (just use HEAD).
+                    liftIO $ removeFile fp
                 Nothing -> do
                     logInfo $ "Current hoogle database does not yet exist in the bucket for: " <> display snapName
                     -- NB: createHoogleDB will fail if something goes wrong.
