@@ -814,6 +814,7 @@ buildAndUploadHoogleDBs doNotUpload = do
         -- checkInsertSnapshotHoogleDb just check against SnapshotHoogleDb.
         -- Perhaps the check can be removed.
         unlessM (checkH snapshotId) $ do
+          withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
             logInfo $ "Starting Hoogle database download: " <> display (hoogleKey snapName)
             -- Check if the database already exists (by downloading it).
             -- FIXME: Why not just send a HEAD?
@@ -830,15 +831,12 @@ buildAndUploadHoogleDBs doNotUpload = do
                     void $ insertH snapshotId
                 Nothing -> do
                     logInfo $ "Current hoogle database does not yet exist in the bucket for: " <> display snapName
-                    mfp' <- createHoogleDB snapshotId snapName
-                    forM_ mfp' $ \fp -> do
-                        let key = hoogleKey snapName
-                            dest = T.unpack key
-                        createDirectoryIfMissing True $ takeDirectory dest
-                        renamePath fp dest
-                        unless doNotUpload $ do
-                            uploadHoogleDB dest (ObjectKey key)
-                            void $ insertH snapshotId
+                    -- NB: createHoogleDB will fail if something goes wrong.
+                    fp <- createHoogleDB tmpdir snapshotId snapName
+                    let key = hoogleKey snapName
+                    unless doNotUpload $ do
+                        uploadHoogleDB fp (ObjectKey key)
+                        void $ insertH snapshotId
 
 -- | Create a hoogle db from haddocks for the given snapshot.
 --
@@ -847,31 +845,30 @@ buildAndUploadHoogleDBs doNotUpload = do
 --
 -- Returns the path to the .hoo database, which will be found in the first
 -- argument. It will look like @<rootDir>/hoogle-gen/output.hoo@.
-createHoogleDB :: SnapshotId -> SnapName -> RIO StackageCron FilePath
-createHoogleDB snapshotId snapName = do
+createHoogleDB :: FilePath -> SnapshotId -> SnapName -> RIO StackageCron FilePath
+createHoogleDB rootDir snapshotId snapName = do
     logInfo $ "Creating Hoogle DB for " <> display snapName
     downloadBucketUrl <- scDownloadBucketUrl <$> ask
-    let root = "hoogle-gen"
+    let root = rootDir </> "hoogle-gen"
         outname = root </> "output.hoo"
-        tarKey = toPathPiece snapName <> "/hoogle/orig.tar"
-        tarUrl = downloadBucketUrl <> "/" <> tarKey
-        tarFP = root </> T.unpack tarKey
-    -- When tarball is downloaded it is saved with durability and atomicity, so if it
-    -- is present it is not in a corrupted state
-    unlessM (doesFileExist tarFP) $ do
-        req <- parseRequest $ T.unpack tarUrl
-        env <- asks scEnvAWS
-        let man = env ^. env_manager
-        withResponseUnliftIO req {decompress = const True} man $ \res -> do
-            throwErrorStatusCodes req res
-            createDirectoryIfMissing True $ takeDirectory tarFP
-            withBinaryFileDurableAtomic tarFP WriteMode $ \tarHandle ->
-                runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
-    void $ tryIO $ removeFile outname
+        inputTarKey = toPathPiece snapName <> "/hoogle/orig.tar"
+        inputTarUrl = downloadBucketUrl <> "/" <> inputTarKey
+        outputTarFP = root </> T.unpack inputTarKey
+    -- Fetch the tarball with Hoogle inputs
+    req <- parseRequest $ T.unpack inputTarUrl
+    env <- asks scEnvAWS
+    let man = env ^. env_manager
+    withResponseUnliftIO req {decompress = const True} man $ \res -> do
+        throwErrorStatusCodes req res
+        createDirectoryIfMissing True $ takeDirectory outputTarFP
+        withBinaryFileDurableAtomic outputTarFP WriteMode $ \tarHandle ->
+            runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
+    -- Extract the Hoogle inputs from the tarball into a separate temp dir, then
+    -- generate the hoogle database.
     withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
         Any hasRestored <-
             runConduitRes $
-            sourceFile tarFP .|
+            sourceFile outputTarFP .|
             untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
             foldMapC Any
         -- We just check if we have any Hoogle .txt file at all.
@@ -888,7 +885,7 @@ createHoogleDB snapshotId snapName = do
         -- goes wrong. That's good.
         liftIO $ Hoogle.hoogle args
         logInfo "Merge done"
-        return $ Just outname
+        pure outname
 
 
 -- | Grabs hoogle txt file from the tarball and a matching cabal file from pantry.  Writes
