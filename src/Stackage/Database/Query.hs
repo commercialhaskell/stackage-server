@@ -1224,9 +1224,10 @@ checkInsertSnapshotHoogleDb shouldInsert snapshotId = do
                     lift $
                     logInfo $
                     "Marking hoogle database for version " <> display hver <> " as available."
-                -- whether or not the version exists, we still put it into snapshot_hoogle_db
-                -- So literally the only use of the above query is to log the
-                -- action we're taking.
+                -- whether or not the version exists, we still put it into
+                -- snapshot_hoogle_db. So literally the only use of the above
+                -- query is to log the action we're taking. Whether or not it
+                -- exists is immaterial to the following action.
                 isJust <$> P.insertUniqueEntity sh
             -- if we're not inserting, we're just checking if it already exists
             -- in snapshot_hoogle_db.
