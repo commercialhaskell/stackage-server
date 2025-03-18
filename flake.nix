@@ -6,9 +6,13 @@
   outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem
       (system:
-        let pkgs = nixpkgs.legacyPackages.${system}; in
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          package = pkgs.callPackage ./package.nix {};
+        in
         {
-          packages.default = pkgs.callPackage ./package.nix {};
+          packages.default = package.app;
+          devShells.default = package.shell;
 
           checks = {
             # I used to put these into $out/lib, but justStaticExecutables

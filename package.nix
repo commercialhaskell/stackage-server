@@ -36,4 +36,10 @@ let
     };
   };
 in
-hlib.justStaticExecutables hpkgs.stackage-server
+{
+  app = hlib.justStaticExecutables hpkgs.stackage-server;
+  shell = hpkgs.shellFor {
+    packages = p: [ p.stackage-server ];
+    buildInputs = [ pkgs.cabal-install pkgs.haskell-language-server pkgs.ghcid ];
+  };
+}
