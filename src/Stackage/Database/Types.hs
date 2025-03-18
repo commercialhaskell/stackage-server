@@ -117,6 +117,7 @@ data SnapshotFile = SnapshotFile
     } deriving (Show)
 
 
+-- Is this a reference to a cabal file stored in Pantry?
 data PantryCabal = PantryCabal
     { pcPackageName :: !PackageNameP
     , pcVersion     :: !VersionP
@@ -131,6 +132,7 @@ instance Display PantryCabal where
 instance ToMarkup PantryCabal where
     toMarkup = toMarkup . textDisplay
 
+-- A Cabal file (package name, version, blob) and source tree
 data PantryPackage = PantryPackage
     { ppPantryCabal :: !PantryCabal
     , ppPantryKey   :: !TreeKey

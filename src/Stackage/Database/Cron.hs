@@ -104,11 +104,15 @@ getStackageSnapshotsDir = do
 withResponseUnliftIO :: MonadUnliftIO m => Request -> Manager -> (Response BodyReader -> m b) -> m b
 withResponseUnliftIO req man f = withRunInIO $ \ runInIO -> withResponse req man (runInIO . f)
 
--- | Under the SingleRun wrapper that ensures only one thing at a time is
--- writing the file in question, ensure that a Hoogle database exists on the
--- filesystem for the given SnapName. But only going so far as downloading it
--- from the haddock bucket. See 'createHoogleDB' for the function that puts it
--- there in the first place.
+-- | Returns an action that, under the SingleRun wrapper that ensures only one
+-- thing at a time is writing the file in question, ensure that a Hoogle
+-- database exists on the filesystem for the given SnapName. But only going so
+-- far as downloading it from the haddock bucket. See 'buildAndUploadHoogleDBs' for the
+-- function that puts it there in the first place. If no db exists in the
+-- bucket, the action will return 'Nothing'.
+--
+-- The location searched is $PWD/hoogle/<snapshot>/<hoogle-version>.hoo
+-- E.g. in production, ~stackage-update/hoogle/lts-22.20/5.0.18.4.hoo (for stackage-update).
 newHoogleLocker ::
        (HasLogFunc env, MonadIO m) => env -> Manager -> Text -> m (SingleRun SnapName (Maybe FilePath))
 newHoogleLocker env man bucketUrl = mkSingleRun hoogleLocker
@@ -232,38 +236,48 @@ runStackageUpdate doNotUpload = do
     corePackageGetters <- makeCorePackageGetters
     runResourceT $
         join $
+        -- @createOrUpdateSnapshot@ processes package N while processing docs for
+        -- package N-1. This @pure ()@ is the "documentation processing action"
+        -- for the -1'th package.
         runConduit $ sourceSnapshots .| foldMC (createOrUpdateSnapshot corePackageGetters) (pure ())
     unless doNotUpload uploadSnapshotsJSON
-    buildAndUploadHoogleDB doNotUpload
+    buildAndUploadHoogleDBs doNotUpload
     logInfo "Finished building and uploading Hoogle DBs"
 
 
 -- | This will look at 'global-hints.yaml' and will create core package getters that are reused
--- later for adding those package to individual snapshot.
+-- later for adding those package to individual snapshots.
 makeCorePackageGetters ::
        RIO StackageCron (Map CompilerP [CorePackageGetter])
 makeCorePackageGetters = do
     rootDir <- scStackageRoot <$> ask
     contentDir <- getStackageContentDir rootDir
-    coreCabalFiles <- getCoreCabalFiles rootDir
+    backupCoreCabalFiles <- getBackupCoreCabalFiles rootDir
     liftIO (decodeFileEither (contentDir </> "stack" </> "global-hints.yaml")) >>= \case
         Right (hints :: Map CompilerP (Map PackageNameP VersionP)) ->
             Map.traverseWithKey
                 (\compiler ->
                      fmap Map.elems .
-                     Map.traverseMaybeWithKey (makeCorePackageGetter compiler coreCabalFiles))
+                     Map.traverseMaybeWithKey (makeCorePackageGetter compiler backupCoreCabalFiles))
                 hints
         Left exc -> do
             logError $
                 "Error parsing 'global-hints.yaml' file: " <> fromString (displayException exc)
             return mempty
 
-getCoreCabalFiles ::
+-- | Packages distributed with GHC aren't taken from Hackage like normal
+-- packages. Release managers do upload them, however, so that their docs are
+-- available.
+--
+-- Or at least, they should. The release process was fragile, and some packages
+-- weren't uploaded. This mechanism gives us a chance to fill in missing
+-- packages.
+getBackupCoreCabalFiles ::
        FilePath
     -> RIO StackageCron (Map PackageIdentifierP (GenericPackageDescription, CabalFileIds))
-getCoreCabalFiles rootDir = do
-    coreCabalFilesDir <- getCoreCabalFilesDir rootDir
-    cabalFileNames <- getDirectoryContents coreCabalFilesDir
+getBackupCoreCabalFiles rootDir = do
+    backupCoreCabalFilesDir <- getBackupCoreCabalFilesDir rootDir
+    cabalFileNames <- getDirectoryContents backupCoreCabalFilesDir
     cabalFiles <-
         forM (filter (isExtensionOf ".cabal") cabalFileNames) $ \cabalFileName ->
             let pidTxt = T.pack (dropExtension (takeFileName cabalFileName))
@@ -272,15 +286,17 @@ getCoreCabalFiles rootDir = do
                         logError $ "Invalid package identifier: " <> fromString cabalFileName
                         pure Nothing
                     Just pid -> do
-                        cabalBlob <- readFileBinary (coreCabalFilesDir </> cabalFileName)
+                        cabalBlob <- readFileBinary (backupCoreCabalFilesDir </> cabalFileName)
                         mCabalInfo <- run $ addCabalFile pid cabalBlob
                         pure ((,) pid <$> mCabalInfo)
     pure $ Map.fromList $ catMaybes cabalFiles
 
 -- | Core package info rarely changes between the snapshots, therefore it would be wasteful to
--- load, parse and update all packages from gloabl-hints for each snapshot, instead we produce
--- a memoized version that will do it once initiall and then return information aboat a
+-- load, parse and update all packages from gloabl-hints for each snapshot. Instead we produce
+-- a memoized version that will do it once initially and then return information about a
 -- package on subsequent invocations.
+--
+-- FIXME: The compiler argument is unused (and never has been). Should it be used?
 makeCorePackageGetter ::
        CompilerP
     -> Map PackageIdentifierP (GenericPackageDescription, CabalFileIds)
@@ -309,6 +325,9 @@ makeCorePackageGetter _compiler fallbackCabalFileMap pname ver =
                         Nothing -> do
                             whenM (scReportProgress <$> ask) $
                                 logSticky $ "Loading core package: " <> display pid
+                            -- I have no idea what's happening here. I guess I
+                            -- don't know what it means to "load" a package.
+                            -- What is actually going on?
                             htr <- getHackageTarball pir Nothing
                             case htrFreshPackageInfo htr of
                                 Just (gpd, treeId) -> do
@@ -336,64 +355,70 @@ makeCorePackageGetter _compiler fallbackCabalFileMap pname ver =
         PackageIdentifierRevision (unPackageNameP pname) (unVersionP ver) (CFIRevision (Revision 0))
 
 
--- TODO: for now it is only from hackage, PantryPackage needs an update to use other origins
--- | A pantry package is being added to a particular snapshot. Extra information like compiler and
--- flags are passed on in order to properly figure out dependencies and modules
+-- | Populates the database with information about a package?
+--
+-- Specifically, a pantry package is being added to a particular snapshot.
+--
+-- Extra information like compiler and flags are passed on in order to properly
+-- figure out dependencies and modules.
+--
+-- TODO: for now it is only from hackage. PantryPackage needs an update to use other origins
 addPantryPackage ::
        SnapshotId -> CompilerP -> Bool -> Map FlagNameP Bool -> PantryPackage -> RIO StackageCron Bool
-addPantryPackage sid compiler isHidden flags (PantryPackage pc treeKey) = do
+addPantryPackage snapId compiler isHidden flags (PantryPackage pcabal pTreeKey) = do
     env <- ask
-    let gpdCachedRef = scCachedGPD env
-        cache = scCacheCabalFiles env
+    let pkgDescCache = scCachedGPD env
+        cacheP = scCacheCabalFiles env
     let blobKeyToInt = fromIntegral . unSqlBackendKey . unBlobKey
-    let updateCacheGPD blobId gpd =
-            gpd `deepseq`
-            atomicModifyIORef' gpdCachedRef (\cacheMap -> (IntMap.insert blobId gpd cacheMap, gpd))
-    let getCachedGPD treeCabal =
+    let cachedPkgDesc cabalBlobId pkgDesc =
+            pkgDesc `deepseq`
+            atomicModifyIORef' pkgDescCache (\cacheMap -> (IntMap.insert cabalBlobId pkgDesc cacheMap, pkgDesc))
+    let getPkgDesc cabalBlobId =
             \case
-                Just gpd | cache -> updateCacheGPD (blobKeyToInt treeCabal) gpd
-                Just gpd -> pure gpd
-                Nothing | cache -> do
-                    cacheMap <- readIORef gpdCachedRef
-                    case IntMap.lookup (blobKeyToInt treeCabal) cacheMap of
-                        Just gpd -> pure gpd
+                Just pkgDesc | cacheP -> cachedPkgDesc (blobKeyToInt cabalBlobId) pkgDesc
+                Just pkgDesc -> pure pkgDesc
+                Nothing | cacheP -> do
+                    cacheMap <- readIORef pkgDescCache
+                    case IntMap.lookup (blobKeyToInt cabalBlobId) cacheMap of
+                        Just pkgDesc -> pure pkgDesc
                         Nothing ->
-                            loadBlobById treeCabal >>=
-                            updateCacheGPD (blobKeyToInt treeCabal) . parseCabalBlob
-                Nothing -> parseCabalBlob <$> loadBlobById treeCabal
-    let storeHackageSnapshotPackage hcid mtid mgpd =
-            getTreeForKey treeKey >>= \case
-                Just (Entity treeId _)
-                    | Just tid <- mtid
-                    , tid /= treeId -> do
-                        lift $ logError $ "Pantry Tree Key mismatch for: " <> display pc
+                            loadBlobById cabalBlobId >>=
+                            cachedPkgDesc (blobKeyToInt cabalBlobId) . parseCabalBlob
+                Nothing -> parseCabalBlob <$> loadBlobById cabalBlobId
+    let storeHackageSnapshotPackage hackageCabalId mTreeId mpkgDesc =
+            getTreeForKey pTreeKey >>= \case
+                -- error case #1
+                Just (Entity treeId' _)
+                    | Just treeId <- mTreeId
+                    , treeId /= treeId' -> do
+                        lift $ logError $ "Pantry Tree Key mismatch for: " <> display pcabal
                         pure False
-                Just tree@(Entity _ Tree {treeCabal})
-                    | Just treeCabal' <- treeCabal -> do
-                        gpd <- getCachedGPD treeCabal' mgpd
-                        let mhcid = Just hcid
-                            eTree = Right tree
-                        addSnapshotPackage sid compiler Hackage eTree mhcid isHidden flags pid gpd
+                -- happy case
+                Just pkgTree@(Entity _ Tree {treeCabal})
+                    | Just cabalBlobId <- treeCabal -> do
+                        pkgDesc <- getPkgDesc cabalBlobId mpkgDesc
+                        addSnapshotPackage snapId compiler Hackage (Right pkgTree) (Just hackageCabalId) isHidden flags packageId pkgDesc
                         pure True
+                -- error case #2
                 _ -> do
-                  lift $ logError $ "Pantry is missing the source tree for " <> display pc
+                  lift $ logError $ "Pantry is missing the source tree for " <> display pcabal
                   pure False
-    mHackageCabalInfo <- run $ getHackageCabalByKey pid (pcCabalKey pc)
+    mHackageCabalInfo <- run $ getHackageCabalByKey packageId (pcCabalKey pcabal)
     case mHackageCabalInfo of
         Nothing -> do
-          logError $ "Could not find the cabal file for: " <> display pc
+          logError $ "Could not find the cabal file for: " <> display pcabal
           pure False
-        Just (hcid, Nothing) -> do
+        Just (hackageCabalId, Nothing) -> do
             mHPI <-
                 htrFreshPackageInfo <$>
-                getHackageTarball (toPackageIdentifierRevision pc) (Just treeKey)
+                getHackageTarball (toPackageIdentifierRevision pcabal) (Just pTreeKey)
             run $
                 case mHPI of
-                    Just (gpd, treeId) -> storeHackageSnapshotPackage hcid (Just treeId) (Just gpd)
-                    Nothing -> storeHackageSnapshotPackage hcid Nothing Nothing
-        Just (hcid, mtid) -> run $ storeHackageSnapshotPackage hcid mtid Nothing
+                    Just (pkgDesc, treeId) -> storeHackageSnapshotPackage hackageCabalId (Just treeId) (Just pkgDesc)
+                    Nothing -> storeHackageSnapshotPackage hackageCabalId Nothing Nothing
+        Just (hackageCabalId, mTreeId) -> run $ storeHackageSnapshotPackage hackageCabalId mTreeId Nothing
   where
-    pid = PackageIdentifierP (pcPackageName pc) (pcVersion pc)
+    packageId = PackageIdentifierP (pcPackageName pcabal) (pcVersion pcabal)
 
 
 
@@ -404,33 +429,33 @@ checkForDocs :: SnapshotId -> SnapName -> ResourceT (RIO StackageCron) ()
 checkForDocs snapshotId snapName = do
     bucketName <- lift (scDownloadBucketName <$> ask)
     env <- asks scEnvAWS
-    mods <-
+    -- it is faster to download all modules in this snapshot separately, rather
+    -- than process them with a conduit all the way to the database.
+    packageModules <-
         runConduit $
-        paginate env (req bucketName) .| concatMapC (fromMaybe [] . (^. listObjectsV2Response_contents)) .|
-        mapC (\obj -> toText (obj ^. object_key)) .|
-        concatMapC (T.stripSuffix ".html" >=> T.stripPrefix prefix >=> pathToPackageModule) .|
-        sinkList
-    -- it is faster to download all modules in this snapshot, than process them with a conduit all
-    -- the way to the database.
+            paginate env (listSnapshotObjects bucketName)
+            .| concatMapC (fromMaybe [] . (^. listObjectsV2Response_contents))
+            .| mapC (\obj -> toText (obj ^. object_key))
+            .| concatMapC (T.stripSuffix ".html" >=> T.stripPrefix prefix >=> pathToPackageModule)
+            .| sinkList
+    -- Cache SnapshotPackageId rather than look it up many times for each module in the package.
     sidsCacheRef <- newIORef Map.empty
-    -- Cache is for SnapshotPackageId, there will be many modules per peckage, no need to look into
-    -- the database for each one of them.
+    -- The other half of the cores are used in 'updateSnapshot'
     n <- max 1 . (`div` 2) <$> getNumCapabilities
-    unexpectedPackages <- lift $ pooledMapConcurrentlyN n (markModules sidsCacheRef) mods
+    unexpectedPackages <- lift $ pooledMapConcurrentlyN n (markModule sidsCacheRef) packageModules
     forM_ (Set.fromList $ catMaybes unexpectedPackages) $ \pid ->
-        lift $
-        logWarn $
-        "Documentation found for package '" <> display pid <>
-        "', which does not exist in this snapshot: " <>
+        lift $ logWarn $
+            "Documentation found for package '" <> display pid <>
+            "', which does not exist in this snapshot: " <>
         display snapName
   where
     prefix = textDisplay snapName <> "/"
-    req bucketName = newListObjectsV2 (BucketName bucketName) & listObjectsV2_prefix ?~ prefix
+    listSnapshotObjects bucketName = newListObjectsV2 (BucketName bucketName) & listObjectsV2_prefix ?~ prefix
     -- | This function records all package modules that have documentation available, the ones
     -- that are not found in the snapshot reported back as an error.  Besides being run
     -- concurrently this function optimizes the SnapshotPackageId lookup as well, since that can
     -- be shared amongst many modules of one package.
-    markModules sidsCacheRef (pid, modName) = do
+    markModule sidsCacheRef (pid, modName) = do
         sidsCache <- readIORef sidsCacheRef
         let mSnapshotPackageId = Map.lookup pid sidsCache
         mFound <- run $ markModuleHasDocs snapshotId pid mSnapshotPackageId modName
@@ -456,8 +481,7 @@ sourceSnapshots :: ConduitT a SnapshotFileInfo (ResourceT (RIO StackageCron)) ()
 sourceSnapshots = do
     snapshotsDir <- lift $ lift getStackageSnapshotsDir
     sourceDirectoryDeep False (snapshotsDir </> "lts") .| concatMapMC (getLtsParser snapshotsDir)
-    sourceDirectoryDeep False (snapshotsDir </> "nightly") .|
-        concatMapMC (getNightlyParser snapshotsDir)
+    sourceDirectoryDeep False (snapshotsDir </> "nightly") .| concatMapMC (getNightlyParser snapshotsDir)
   where
     makeSnapshotFileInfo gitDir fp mFileNameDate snapName = do
         let parseSnapshot updatedOn = do
@@ -500,39 +524,52 @@ sourceSnapshots = do
                 return Nothing
 
 
--- | Creates a new `Snapshot` if it is not yet present in the database and decides if update
+data DecisionResult a e = NothingToDo | NoSnapshotFile | NeedsUpdate a e | DoesntExist e
+
+-- | Creates a new `Snapshot` if it is not yet present in the database, and decides if update
 -- is necessary when it already exists.
+--
+-- TODO: Silently ignoring snapshots where the getter returns Nothing seems like
+-- a potential problem. Anyway I'd rather run it beforehand!
 decideOnSnapshotUpdate :: SnapshotFileInfo -> RIO StackageCron (Maybe (SnapshotId, SnapshotFile))
 decideOnSnapshotUpdate SnapshotFileInfo {sfiSnapName, sfiUpdatedOn, sfiSnapshotFileGetter} = do
     forceUpdate <- scForceFullUpdate <$> ask
     let mkLogMsg rest = "Snapshot with name: " <> display sfiSnapName <> " " <> rest
     mKeySnapFile <-
         run (getBy (UniqueSnapshot sfiSnapName)) >>= \case
+            -- exists, up to date, no force-updated requested; nothing to do
             Just (Entity _key snap)
-                | snapshotUpdatedOn snap == Just sfiUpdatedOn && not forceUpdate -> do
-                    logInfo $ mkLogMsg "already exists and is up to date."
-                    return Nothing
+                | snapshotUpdatedOn snap == Just sfiUpdatedOn && not forceUpdate ->
+                    return NothingToDo
+            -- exists but updatedOn was not previously set.
             Just entity@(Entity _key snap)
                 | Nothing <- snapshotUpdatedOn snap -> do
                     logWarn $ mkLogMsg "did not finish updating last time."
-                    fmap (Just entity, ) <$> sfiSnapshotFileGetter
+                    maybe NoSnapshotFile (NeedsUpdate entity) <$> sfiSnapshotFileGetter
+            -- exists, but updatedOn does not match or force-update was requested.
             Just entity -> do
                 unless forceUpdate $ logWarn $ mkLogMsg "was updated, applying new patch."
-                fmap (Just entity, ) <$> sfiSnapshotFileGetter
-            Nothing -> fmap (Nothing, ) <$> sfiSnapshotFileGetter
+                maybe NoSnapshotFile (NeedsUpdate entity) <$> sfiSnapshotFileGetter
+            -- does not exist
+            Nothing -> maybe NoSnapshotFile DoesntExist <$> sfiSnapshotFileGetter
     -- Add new snapshot to the database, when necessary
     case mKeySnapFile of
-        Just (Just (Entity snapKey snap), sf@SnapshotFile {sfCompiler, sfPublishDate})
+        NothingToDo -> Nothing <$ logInfo (mkLogMsg "already exists and is up to date.")
+        NoSnapshotFile -> Nothing <$ logWarn (mkLogMsg "has no (readable?) snapshot file.")
+        NeedsUpdate (Entity oldSnapKey oldSnap) sf@SnapshotFile {sfCompiler, sfPublishDate}
             | Just publishDate <- sfPublishDate -> do
                 let updatedSnap =
-                        Snapshot sfiSnapName sfCompiler publishDate (snapshotUpdatedOn snap)
-                run $ replace snapKey updatedSnap
-                pure $ Just (snapKey, sf)
-        Just (Nothing, sf@SnapshotFile {sfCompiler, sfPublishDate})
-            | Just publishDate <- sfPublishDate ->
+                        Snapshot sfiSnapName sfCompiler publishDate (snapshotUpdatedOn oldSnap)
+                run $ replace oldSnapKey updatedSnap
+                pure $ Just (oldSnapKey, sf)
+            | otherwise -> return Nothing
+
+        DoesntExist sf@SnapshotFile {sfCompiler, sfPublishDate}
+            | Just publishDate <- sfPublishDate -> do
+                logInfo $ mkLogMsg "is new, adding to the database."
                 fmap (, sf) <$>
-                run (insertUnique (Snapshot sfiSnapName sfCompiler publishDate Nothing))
-        _ -> return Nothing
+                    run (insertUnique (Snapshot sfiSnapName sfCompiler publishDate Nothing))
+            | otherwise -> Nothing <$ logWarn (mkLogMsg "has no publish date, skipping.")
 
 type CorePackageGetter
      = RIO StackageCron ( Either CabalFileIds (Entity Tree)
@@ -545,14 +582,38 @@ type CorePackageGetter
 -- current snapshot as well as an action that was passed as an argument. At the end it will return
 -- an action that should be invoked in order to mark modules that have documentation available,
 -- which in turn can be passed as an argument to the next snapshot loader.
+-- Something something ouroboros.
+--
+-- Question: When do the docs for the last snapshot get loaded?
+--
+-- Well, this binding is called as @join $ runConduit $ foldMC (createOrUpdateSnapshot corePackageInfoGetters) (pure ())@
+--
+-- So the answer: the doc-loading action for the last snapshot gets returned by @runConduit $ foldMC ...@,
+-- which means it gets executed by @join $ runConduit $ foldMC ...@.
+--
+-- Evidence:
+--
+-- Since @foldMC :: (a -> b -> m a) -> a -> ConduitT b o m a@, we see
+--
+-- @@
+-- a ~ ResourceT (RIO Stackage Cron) () -- this is the doc-loading action
+-- b ~ SnapshotFileInfo
+-- m ~ ResourceT (RIO StackageCron)
+-- @@
+
+-- and the foldMC creates a @ConduitT SnapshotFileInfo o (ResourceT (RIO StackageCron)) (ResourceT (RIO StackageCron) ())@
+--
+-- TODO: It might be more efficient to just put all the actions (snapshot
+-- creation and documentation writing both) on a queue and let a bunch of
+-- workers chew on it. The current impl creates arbitrary synchronization points
+-- with 'runConcurrently'. Granted, I don't know what a good chunk size would
+-- actually be.
 createOrUpdateSnapshot ::
        Map CompilerP [CorePackageGetter]
     -> ResourceT (RIO StackageCron) ()
     -> SnapshotFileInfo
     -> ResourceT (RIO StackageCron) (ResourceT (RIO StackageCron) ())
-createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { sfiSnapName
-                                                                              , sfiUpdatedOn
-                                                                              } = do
+createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { sfiSnapName , sfiUpdatedOn } = do
     finishedDocs <- newIORef False
     runConcurrently
         (Concurrently (prevAction >> writeIORef finishedDocs True) *>
@@ -561,6 +622,7 @@ createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { 
     loadCurrentSnapshot finishedDocs = do
         loadDocs <-
             decideOnSnapshotUpdate sfi >>= \case
+                -- Nothing to do, and thus no docs to process
                 Nothing -> return $ pure ()
                 Just (snapshotId, snapshotFile) ->
                     updateSnapshot
@@ -575,22 +637,30 @@ createOrUpdateSnapshot corePackageInfoGetters prevAction sfi@SnapshotFileInfo { 
             logSticky "Still loading the docs for previous snapshot ..."
         pure loadDocs
 
--- | Updates all packages in the snapshot. If any missing they will be created. Returns an action
--- that will check for available documentation for modules that are known to exist and mark as
--- documented when haddock is present on AWS S3. Only after documentation has been checked this
--- snapshot will be marked as completely updated. This is required in case something goes wrong and
--- process is interrupted
+-- | Creates Lts or Nightly entity [Question(bryan): Why not do this when
+-- creating the snapshot? Why is this a separate table anyway?] and updates all
+-- packages in the snapshot. If any packages are missing they will be created.
+-- Returns an action that will (a) check for available documentation for the
+-- packages' modules and (b) mark the packages as documented when haddock is
+-- present on AWS S3.
+--
+-- (Only after documentation has been checked will this snapshot be marked as
+-- completely updated. This is required in case something goes wrong and process
+-- is interrupted.)
 updateSnapshot ::
        Map CompilerP [CorePackageGetter]
     -> SnapshotId
     -> SnapName
     -> UTCTime
     -> SnapshotFile
-    -> RIO StackageCron (ResourceT (RIO StackageCron) ())
+    -> RIO StackageCron (ResourceT (RIO StackageCron) ()) -- ^ Returns the action for processing docs
 updateSnapshot corePackageGetters snapshotId snapName updatedOn SnapshotFile {..} = do
     insertSnapshotName snapshotId snapName
     loadedPackageCountRef <- newIORef (0 :: Int)
     let totalPackages = length sfPackages
+        -- A wrapper for 'addPantryPackage' that extracts the package info from
+        -- snapshot info, increments the count of loaded packages, and reports success
+        -- as a Bool.
         addPantryPackageWithReport pp = do
             let PantryCabal {pcPackageName} = ppPantryCabal pp
                 isHidden = fromMaybe False (Map.lookup pcPackageName sfHidden)
@@ -695,6 +765,9 @@ uploadHoogleDB fp key =
         body <- toBody <$> readFileBinary fpgz
         uploadBucket <- scUploadBucketName <$> ask
         uploadFromRIO key $
+            -- FIXME: I should also set content encoding explicitly here. But
+            -- then I would break stackage-server, which applies an 'ungzip' in
+            -- 'newHoogleLocker'. :(
             set putObject_acl (Just ObjectCannedACL_Public_read) $ newPutObject (BucketName uploadBucket) key body
 
 
@@ -708,17 +781,31 @@ uploadFromRIO key po = do
             logError $ "Couldn't upload " <> displayShow key <> " to S3 becuase " <> displayShow e
         Right _ -> logInfo $ "Successfully uploaded " <> displayShow key <> " to S3"
 
-buildAndUploadHoogleDB :: Bool -> RIO StackageCron ()
-buildAndUploadHoogleDB doNotUpload = do
+-- | As the name says, build and upload Hoogle DBs.
+--
+-- Which DBs? The last 5 LTS and the last 5 Nightlies that are missing their
+-- Hoogle DBs.
+--
+-- How? It downloads the Hoogle inputs that were previously generated alongside
+-- the Haddocks, runs @hoogle@ on them, and uploads the result back to the same
+-- bucket. Those inputs were generated by snapshot curation.
+--
+-- Why? I feel like this should be a short Bash script using curl and hoogle, and
+-- maybe one day it will be.
+--
+-- This action is only run by stackage-server-cron.
+buildAndUploadHoogleDBs :: Bool -> RIO StackageCron ()
+buildAndUploadHoogleDBs doNotUpload = do
     snapshots <- lastLtsNightlyWithoutHoogleDb 5 5
-    -- currentHoogleVersionId <- scHoogleVersionId <$> ask
     env <- ask
     awsEnv <- asks scEnvAWS
     bucketUrl <- asks scDownloadBucketUrl
     -- locker is an action that returns the path to a hoogle db, if one exists
-    -- in the haddock bucket already.
+    -- in the haddock bucket already. It takes the SnapName as an argument.
+    -- I think it might be overkill.
     locker <- newHoogleLocker (env ^. logFuncL) (awsEnv ^. env_manager) bucketUrl
-    let insertH = checkInsertSnapshotHoogleDb True
+    let -- These bindings undo a questionable conflation of operations
+        insertH = checkInsertSnapshotHoogleDb True
         checkH = checkInsertSnapshotHoogleDb False
     for_ snapshots $ \(snapshotId, snapName) ->
         -- Even though we just got a list of snapshots that don't have hoogle
@@ -727,72 +814,82 @@ buildAndUploadHoogleDB doNotUpload = do
         -- checkInsertSnapshotHoogleDb just check against SnapshotHoogleDb.
         -- Perhaps the check can be removed.
         unlessM (checkH snapshotId) $ do
+          withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
             logInfo $ "Starting Hoogle database download: " <> display (hoogleKey snapName)
+            -- Check if the database already exists (by downloading it).
+            -- FIXME: Why not just send a HEAD?
+            -- Perhaps the idea was to put the hoogle database somewhere the
+            -- main Stackage server process can find it? But nowadays
+            -- stackage-server downloads its own version separately.
             mfp <- singleRun locker snapName
             case mfp of
-                Just _ -> do
-                    logInfo $ "Current hoogle database exists for: " <> display snapName
+                Just fp -> do
+                    -- Something bad must have happened: we created the hoogle db
+                    -- previously, but didn't get to record it as available.
+                    logWarn $ "Unregistered hoogle database found for: " <> display snapName
+                            <> ". Registering now."
                     void $ insertH snapshotId
+                    -- FIXME: For now we need to delete this file we just
+                    -- downloaded. We probably shouldn't download it in the
+                    -- first place, though (just use HEAD).
+                    liftIO $ removeFile fp
                 Nothing -> do
                     logInfo $ "Current hoogle database does not yet exist in the bucket for: " <> display snapName
-                    mfp' <- createHoogleDB snapshotId snapName
-                    forM_ mfp' $ \fp -> do
-                        let key = hoogleKey snapName
-                            dest = T.unpack key
-                        createDirectoryIfMissing True $ takeDirectory dest
-                        renamePath fp dest
-                        unless doNotUpload $ do
-                            uploadHoogleDB dest (ObjectKey key)
-                            void $ insertH snapshotId
+                    -- NB: createHoogleDB will fail if something goes wrong.
+                    fp <- createHoogleDB tmpdir snapshotId snapName
+                    let key = hoogleKey snapName
+                    unless doNotUpload $ do
+                        uploadHoogleDB fp (ObjectKey key)
+                        void $ insertH snapshotId
 
--- | Create a hoogle db from haddocks for the given snapshot, and upload it to
--- the haddock bucket.
-createHoogleDB :: SnapshotId -> SnapName -> RIO StackageCron (Maybe FilePath)
-createHoogleDB snapshotId snapName =
-    handleAny logException $ do
-        logInfo $ "Creating Hoogle DB for " <> display snapName
-        downloadBucketUrl <- scDownloadBucketUrl <$> ask
-        let root = "hoogle-gen"
-            bindir = root </> "bindir"
-            outname = root </> "output.hoo"
-            tarKey = toPathPiece snapName <> "/hoogle/orig.tar"
-            tarUrl = downloadBucketUrl <> "/" <> tarKey
-            tarFP = root </> T.unpack tarKey
-        -- When tarball is downloaded it is saved with durability and atomicity, so if it
-        -- is present it is not in a corrupted state
-        unlessM (doesFileExist tarFP) $ do
-            req <- parseRequest $ T.unpack tarUrl
-            env <- asks scEnvAWS
-            let man = env ^. env_manager
-            withResponseUnliftIO req {decompress = const True} man $ \res -> do
-                throwErrorStatusCodes req res
-                createDirectoryIfMissing True $ takeDirectory tarFP
-                withBinaryFileDurableAtomic tarFP WriteMode $ \tarHandle ->
-                    runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
-        void $ tryIO $ removeDirectoryRecursive bindir
-        void $ tryIO $ removeFile outname
-        createDirectoryIfMissing True bindir
-        withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
-            Any hasRestored <-
-                runConduitRes $
-                sourceFile tarFP .|
-                untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
-                foldMapC Any
-            unless hasRestored $ error "No Hoogle .txt files found"
-            let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
-            logInfo $
-                mconcat
-                    [ "Merging databases... ("
-                    , foldMap fromString $ L.intersperse " " ("hoogle" : args)
-                    , ")"
-                    ]
-            liftIO $ Hoogle.hoogle args
-            logInfo "Merge done"
-            return $ Just outname
-  where
-    logException exc =
-        logError ("Problem creating hoogle db for " <> display snapName <> ": " <> displayShow exc) $>
-        Nothing
+-- | Create a hoogle db from haddocks for the given snapshot.
+--
+-- Haddocks are downloaded from the documentation bucket, where they were
+-- uploaded as a tar file.
+--
+-- Returns the path to the .hoo database, which will be found in the first
+-- argument. It will look like @<rootDir>/hoogle-gen/output.hoo@.
+createHoogleDB :: FilePath -> SnapshotId -> SnapName -> RIO StackageCron FilePath
+createHoogleDB rootDir snapshotId snapName = do
+    logInfo $ "Creating Hoogle DB for " <> display snapName
+    downloadBucketUrl <- scDownloadBucketUrl <$> ask
+    let root = rootDir </> "hoogle-gen"
+        outname = root </> "output.hoo"
+        inputTarKey = toPathPiece snapName <> "/hoogle/orig.tar"
+        inputTarUrl = downloadBucketUrl <> "/" <> inputTarKey
+        outputTarFP = root </> T.unpack inputTarKey
+    -- Fetch the tarball with Hoogle inputs
+    req <- parseRequest $ T.unpack inputTarUrl
+    env <- asks scEnvAWS
+    let man = env ^. env_manager
+    withResponseUnliftIO req {decompress = const True} man $ \res -> do
+        throwErrorStatusCodes req res
+        createDirectoryIfMissing True $ takeDirectory outputTarFP
+        withBinaryFileDurableAtomic outputTarFP WriteMode $ \tarHandle ->
+            runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
+    -- Extract the Hoogle inputs from the tarball into a separate temp dir, then
+    -- generate the hoogle database.
+    withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
+        Any hasRestored <-
+            runConduitRes $
+            sourceFile outputTarFP .|
+            untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
+            foldMapC Any
+        -- We just check if we have any Hoogle .txt file at all.
+        unless hasRestored $ error "No Hoogle .txt files found"
+        -- Generate the hoogle database
+        let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
+        logInfo $
+            mconcat
+                [ "Merging databases... ("
+                , foldMap fromString $ L.intersperse " " ("hoogle" : args)
+                , ")"
+                ]
+        -- 'Hoogle.hoogle' expects to run as an app, and crashes if something
+        -- goes wrong. That's good.
+        liftIO $ Hoogle.hoogle args
+        logInfo "Merge done"
+        pure outname
 
 
 -- | Grabs hoogle txt file from the tarball and a matching cabal file from pantry.  Writes
@@ -824,7 +921,10 @@ restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName fileInfo =
         _ -> yield False
 
 
-pathToPackageModule :: Text -> Maybe (PackageIdentifierP, ModuleNameP)
+pathToPackageModule
+    :: Text
+    -- ^ Input is like @ace-0.6/ACE-Combinators@
+    -> Maybe (PackageIdentifierP, ModuleNameP)
 pathToPackageModule txt =
     case T.split (== '/') txt of
         [pkgIdentifier, moduleNameDashes] -> do
