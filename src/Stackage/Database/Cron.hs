@@ -554,7 +554,7 @@ decideOnSnapshotUpdate SnapshotFileInfo {sfiSnapName, sfiUpdatedOn, sfiSnapshotF
             Nothing -> maybe NoSnapshotFile DoesntExist <$> sfiSnapshotFileGetter
     -- Add new snapshot to the database, when necessary
     case mKeySnapFile of
-        NothingToDo -> Nothing <$ logInfo (mkLogMsg "already exists and is up to date.")
+        NothingToDo -> Nothing <$ logDebug (mkLogMsg "already exists and is up to date.")
         NoSnapshotFile -> Nothing <$ logWarn (mkLogMsg "has no (readable?) snapshot file.")
         NeedsUpdate (Entity oldSnapKey oldSnap) sf@SnapshotFile {sfCompiler, sfPublishDate}
             | Just publishDate <- sfPublishDate -> do
