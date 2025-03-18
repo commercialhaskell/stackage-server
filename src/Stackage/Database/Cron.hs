@@ -836,11 +836,12 @@ buildAndUploadHoogleDBs doNotUpload = do
                 Nothing -> do
                     logInfo $ "Current hoogle database does not yet exist in the bucket for: " <> display snapName
                     -- NB: createHoogleDB will fail if something goes wrong.
-                    fp <- createHoogleDB tmpdir snapshotId snapName
-                    let key = hoogleKey snapName
-                    unless doNotUpload $ do
-                        uploadHoogleDB fp (ObjectKey key)
-                        void $ insertH snapshotId
+                    mhdb <- createHoogleDB tmpdir snapshotId snapName
+                    for_ mhdb $ \hdb -> do
+                        let key = hoogleKey snapName
+                        unless doNotUpload $ do
+                            uploadHoogleDB hdb (ObjectKey key)
+                            void $ insertH snapshotId
 
 -- | Create a hoogle db from haddocks for the given snapshot.
 --
@@ -849,7 +850,7 @@ buildAndUploadHoogleDBs doNotUpload = do
 --
 -- Returns the path to the .hoo database, which will be found in the first
 -- argument. It will look like @<rootDir>/hoogle-gen/output.hoo@.
-createHoogleDB :: FilePath -> SnapshotId -> SnapName -> RIO StackageCron FilePath
+createHoogleDB :: FilePath -> SnapshotId -> SnapName -> RIO StackageCron (Maybe FilePath)
 createHoogleDB rootDir snapshotId snapName = do
     logInfo $ "Creating Hoogle DB for " <> display snapName
     downloadBucketUrl <- scDownloadBucketUrl <$> ask
@@ -863,6 +864,7 @@ createHoogleDB rootDir snapshotId snapName = do
     env <- asks scEnvAWS
     let man = env ^. env_manager
     withResponseUnliftIO req {decompress = const True} man $ \res -> do
+        -- FIXME: Catch HttpExceptionRequest and give up on this snapshot?
         throwErrorStatusCodes req res
         createDirectoryIfMissing True $ takeDirectory outputTarFP
         withBinaryFileDurableAtomic outputTarFP WriteMode $ \tarHandle ->
@@ -876,20 +878,24 @@ createHoogleDB rootDir snapshotId snapName = do
             untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
             foldMapC Any
         -- We just check if we have any Hoogle .txt file at all.
-        unless hasRestored $ error "No Hoogle .txt files found"
-        -- Generate the hoogle database
-        let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
-        logInfo $
-            mconcat
-                [ "Merging databases... ("
-                , foldMap fromString $ L.intersperse " " ("hoogle" : args)
-                , ")"
-                ]
-        -- 'Hoogle.hoogle' expects to run as an app, and crashes if something
-        -- goes wrong. That's good.
-        liftIO $ Hoogle.hoogle args
-        logInfo "Merge done"
-        pure outname
+        -- If there are none, we just give up
+        if hasRestored then do
+            -- Generate the hoogle database
+            let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
+            logInfo $
+                mconcat
+                    [ "Merging databases... ("
+                    , foldMap fromString $ L.intersperse " " ("hoogle" : args)
+                    , ")"
+                    ]
+            -- 'Hoogle.hoogle' expects to run as an app, and crashes if something
+            -- goes wrong. That's good.
+            liftIO $ Hoogle.hoogle args
+            logInfo "Merge done"
+            pure $ Just outname
+        else do
+            logWarn $ "No Hoogle.txt files found for " <> display snapName <> ", skipping Hoogle DB creation."
+            pure Nothing
 
 
 -- | Grabs hoogle txt file from the tarball and a matching cabal file from pantry.  Writes
