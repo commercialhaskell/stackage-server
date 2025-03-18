@@ -858,44 +858,57 @@ createHoogleDB rootDir snapshotId snapName = do
         outname = root </> "output.hoo"
         inputTarKey = toPathPiece snapName <> "/hoogle/orig.tar"
         inputTarUrl = downloadBucketUrl <> "/" <> inputTarKey
-        outputTarFP = root </> T.unpack inputTarKey
     -- Fetch the tarball with Hoogle inputs
     req <- parseRequest $ T.unpack inputTarUrl
     env <- asks scEnvAWS
     let man = env ^. env_manager
-    withResponseUnliftIO req {decompress = const True} man $ \res -> do
+    mTarFile <- withResponseUnliftIO req {decompress = const True} man $ \res -> do
         -- FIXME: Catch HttpExceptionRequest and give up on this snapshot?
-        throwErrorStatusCodes req res
-        createDirectoryIfMissing True $ takeDirectory outputTarFP
-        withBinaryFileDurableAtomic outputTarFP WriteMode $ \tarHandle ->
-            runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
+        case responseStatus res of
+          status
+            | status == status200 -> do
+              let outputTarFP = root </> T.unpack inputTarKey
+              createDirectoryIfMissing True $ takeDirectory outputTarFP
+              withBinaryFileDurableAtomic outputTarFP WriteMode $ \tarHandle ->
+                  runConduitRes $ bodyReaderSource (responseBody res) .| sinkHandle tarHandle
+              pure $ Just outputTarFP
+            | status == status404 -> do
+                  logWarn $ "Input orig.tar is a 404 for " <> display snapName
+                  pure Nothing
+            | otherwise ->
+                  -- NOW we give up.
+                  Nothing <$ throwErrorStatusCodes req res
+
     -- Extract the Hoogle inputs from the tarball into a separate temp dir, then
     -- generate the hoogle database.
-    withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
-        Any hasRestored <-
-            runConduitRes $
-            sourceFile outputTarFP .|
-            untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
-            foldMapC Any
-        -- We just check if we have any Hoogle .txt file at all.
-        -- If there are none, we just give up
-        if hasRestored then do
-            -- Generate the hoogle database
-            let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
-            logInfo $
-                mconcat
-                    [ "Merging databases... ("
-                    , foldMap fromString $ L.intersperse " " ("hoogle" : args)
-                    , ")"
-                    ]
-            -- 'Hoogle.hoogle' expects to run as an app, and crashes if something
-            -- goes wrong. That's good.
-            liftIO $ Hoogle.hoogle args
-            logInfo "Merge done"
-            pure $ Just outname
-        else do
-            logWarn $ "No Hoogle.txt files found for " <> display snapName <> ", skipping Hoogle DB creation."
-            pure Nothing
+    case mTarFile of
+        Nothing -> pure Nothing
+        Just outputTarFP -> do
+            withSystemTempDirectory ("hoogle-" ++ T.unpack (textDisplay snapName)) $ \tmpdir -> do
+                Any hasRestored <-
+                    runConduitRes $
+                    sourceFile outputTarFP .|
+                    untar (restoreHoogleTxtFileWithCabal tmpdir snapshotId snapName) .|
+                    foldMapC Any
+                -- We just check if we have any Hoogle .txt file at all.
+                -- If there are none, we just give up
+                if hasRestored then do
+                    -- Generate the hoogle database
+                    let args = ["generate", "--database=" ++ outname, "--local=" ++ tmpdir]
+                    logInfo $
+                        mconcat
+                            [ "Merging databases... ("
+                            , foldMap fromString $ L.intersperse " " ("hoogle" : args)
+                            , ")"
+                            ]
+                    -- 'Hoogle.hoogle' expects to run as an app, and crashes if something
+                    -- goes wrong. That's good.
+                    liftIO $ Hoogle.hoogle args
+                    logInfo "Merge done"
+                    pure $ Just outname
+                else do
+                    logWarn $ "No Hoogle.txt files found for " <> display snapName <> ", skipping Hoogle DB creation."
+                    pure Nothing
 
 
 -- | Grabs hoogle txt file from the tarball and a matching cabal file from pantry.  Writes
