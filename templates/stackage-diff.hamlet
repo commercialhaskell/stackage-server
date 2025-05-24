@@ -10,8 +10,8 @@ $maybe prevprev <- mprevprevSnapName
     <table .table>
       <thead>
         <tr>
-          <th>#{name1}
-          <th>#{name2}
+          <th><a href=@{SnapshotR name1 StackageHomeR}>#{name1}
+          <th><a href=@{SnapshotR name2 StackageHomeR}>#{name2}
       <tbody>
         $forall (pkgname, VersionChange verChange, versionDiff) <- toVersionedDiffList snapDiff
           <tr>
