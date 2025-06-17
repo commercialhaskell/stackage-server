@@ -6,6 +6,7 @@
 {-# LANGUAGE ViewPatterns #-}
 module Handler.StackageHome
     ( getStackageHomeR
+    , getApiV1SnapshotR
     , getStackageDiffR
     , getStackageCabalConfigR
     , getDocsR
@@ -18,6 +19,12 @@ import RIO.Time (FormatTime)
 import Import
 import Stackage.Database
 import Stackage.Snapshot.Diff
+
+getApiV1SnapshotR :: SnapName -> Handler Value
+getApiV1SnapshotR name = track "Handler.StackageHome.getApiV1SnapshotR" $ do
+    Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
+    packages <- getPackagesForSnapshot sid
+    pure $ toJSON $ SnapshotInfo snapshot packages
 
 getStackageHomeR :: SnapName -> Handler TypedContent
 getStackageHomeR name =

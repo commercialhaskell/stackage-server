@@ -13,6 +13,8 @@
 
 /snapshot/#Text/*Texts OldSnapshotR GET
 
+/api/v1/snapshot/#SnapName ApiV1SnapshotR GET
+
 !/#SnapName SnapshotR:
     / StackageHomeR GET
     /cabal.config StackageCabalConfigR GET
