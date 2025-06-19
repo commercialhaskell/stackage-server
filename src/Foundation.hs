@@ -11,6 +11,7 @@ import Data.WebsiteContent
 import Settings
 import Settings.StaticFiles
 import Stackage.Database
+import Handler.StackageHome.Types (ApiSnapshotName(..))
 import Text.Hamlet (hamletFile)
 import Types
 import Yesod.AtomFeed

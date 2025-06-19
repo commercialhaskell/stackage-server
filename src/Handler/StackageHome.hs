@@ -14,14 +14,24 @@ module Handler.StackageHome
     ) where
 
 import Data.These
+import Handler.StackageHome.Types (ApiSnapshotName(..))
+import Import
 import RIO (textDisplay)
 import RIO.Time (FormatTime)
-import Import
 import Stackage.Database
 import Stackage.Snapshot.Diff
 
-getApiV1SnapshotR :: SnapName -> Handler Value
-getApiV1SnapshotR name = track "Handler.StackageHome.getApiV1SnapshotR" $ do
+-- | Return JSON representation of a snapshot.
+-- Redirect /lts, /nightly, /lts-X to the latest corresponding full snapshot.
+getApiV1SnapshotR :: ApiSnapshotName -> Handler Value
+getApiV1SnapshotR (ApiSnapshotNameBranch branch) = track "Handler.API.getApiV1SnapshotR.Branch" $ do
+    mLatestSnap <- case branch of
+        LtsBranch -> fmap (uncurry SNLts) <$> newestLTS
+        LtsMajorBranch x -> fmap (SNLts x) <$> newestLTSMajor x
+        NightlyBranch -> fmap SNNightly <$> newestNightly
+    maybe notFound (redirectWith found302 . ApiV1SnapshotR . ApiSnapshotName) mLatestSnap
+
+getApiV1SnapshotR (ApiSnapshotName name) = track "Handler.API.getApiV1SnapshotR.Name" $ do
     Entity sid snapshot <- lookupSnapshot name >>= maybe notFound return
     packages <- getPackagesForSnapshot sid
     pure $ toJSON $ SnapshotInfo snapshot packages
