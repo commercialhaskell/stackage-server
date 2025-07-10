@@ -13,6 +13,7 @@
 
 /snapshot/#Text/*Texts OldSnapshotR GET
 
+/api/v1/snapshots ApiV1SnapshotsR GET
 /api/v1/snapshot/#ApiSnapshotName ApiV1SnapshotR GET
 
 !/#SnapName SnapshotR:

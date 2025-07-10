@@ -1,13 +1,17 @@
 <div .container>
     <div .content>
         <h1>Snapshots
+        <p>
+            Looking for
+            <a href=@{ApiV1SnapshotsR}>
+              this data as JSON?
         ^{snapshotsNav}
         $forall stackages <- groups
-            $forall (_, _, uploaded) <- take 1 stackages
+            $forall groupLeader <- take 1 stackages
                 <h3>
-                    #{uploaded}
+                    #{groupLeader.prettyDate}
             <ul .snapshots>
-                $forall (ident, title, _uploaded) <- stackages
+                $forall SnapshotInfo ident title _ <- stackages
                     <li>
                         <strong>
                             <a href=@{SnapshotR ident StackageHomeR}>

@@ -67,10 +67,10 @@ track name inner = do
 
 dateDiff :: UTCTime -- ^ now
          -> Day -- ^ target
-         -> LText
+         -> Text
 dateDiff (UTCTime now' _) target
     | now' == target = "today"
-    | otherwise = format (diff True) $ diffUTCTime
+    | otherwise = toStrict $ format (diff True) $ diffUTCTime
         (UTCTime target 0)
         (UTCTime now' 0)
 
