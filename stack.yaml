@@ -30,8 +30,4 @@ allow-newer-deps:
   - pantry
 
 nix:
-  packages:
-    - zlib
-    - postgresql
-    - pkg-config
-    - cacert
+  shell-file: shell.nix
