@@ -107,13 +107,13 @@ library:
     else:
       ghc-options:
       - -Wall
-      - -O2
+      - -O
 
 executables:
   stackage-server:
     main: main.hs
     source-dirs: app
-    ghc-options: -Wall -threaded -O2 -rtsopts "-with-rtsopts=-N -T"
+    ghc-options: -Wall -threaded -O -rtsopts -with-rtsopts=-N
     dependencies:
     - stackage-server
     when:
@@ -134,7 +134,7 @@ executables:
     ghc-options:
     - -Wall
     - -threaded
-    - -O2
+    - -O
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
@@ -158,4 +158,4 @@ benchmarks:
     - path-io
     - casa-client
     ghc-options:
-    - -O2
+    - -O
