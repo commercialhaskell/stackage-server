@@ -35,6 +35,20 @@ packages:
   original:
     subdir: lib/amazonka-core
     url: https://github.com/brendanhay/amazonka/archive/85e0289f8dc23c54b00f7f1a09845be7e032a1eb.tar.gz
+- completed:
+    hackage: Cabal-3.12.1.0@sha256:08be296ddd941b3f9be4bd125fbb3e6857f5c707b8d10464f6f1d30c91ca3e5f,13551
+    pantry-tree:
+      sha256: a509c8164a9682e2cbd080ef8446164fbe11a9c5c0f88b61f41094a8167e6a04
+      size: 11798
+  original:
+    hackage: Cabal-3.12.1.0
+- completed:
+    hackage: Cabal-syntax-3.12.1.0@sha256:6dbb06fb08ff77520947fb4c1ef281c9cea5b8dc7fd9a41ad62273fa916cf4b2,7407
+    pantry-tree:
+      sha256: 62e4b1bbdf7fe7d5259f45811e6fd0131823a10a8ec8c5eaf25370d444ac263a
+      size: 11051
+  original:
+    hackage: Cabal-syntax-3.12.1.0
 snapshots:
 - completed:
     sha256: 08bd13ce621b41a8f5e51456b38d5b46d7783ce114a50ab604d6bbab0d002146

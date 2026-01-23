@@ -24,10 +24,18 @@ extra-deps:
 - github: brendanhay/amazonka
   commit: '85e0289f8dc23c54b00f7f1a09845be7e032a1eb'
   subdirs: [lib/amazonka-core]
+- Cabal-3.12.1.0
+- Cabal-syntax-3.12.1.0
 
 allow-newer: true
 allow-newer-deps:
   - pantry
+  - postgresql-libpq
+  - hackage-security
 
 nix:
   shell-file: shell.nix
+
+flags:
+  postgresql-libpq:
+    use-pkg-config: true
