@@ -11,12 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     name: Haskell GHC
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: haskell-actions/setup@v2
         with:
           enable-stack: true
           stack-no-global: true
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.stack
