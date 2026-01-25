@@ -17,6 +17,7 @@ module Stackage.Database.Cron
 
 import Conduit
 import Control.DeepSeq
+import Control.Exception.Lens(trying)
 import Control.SingleRun
 import Control.Lens ((?~))
 import qualified Data.ByteString.Char8 as BS8
@@ -30,6 +31,7 @@ import Data.Yaml (decodeFileEither)
 import Database.Persist hiding (exists)
 import Database.Persist.Postgresql hiding (exists)
 import qualified Hoogle
+import qualified Hpack
 import Amazonka hiding (Request, length, error)
 import Amazonka.Data.Text (toText)
 import Amazonka.S3
@@ -42,8 +44,9 @@ import Network.HTTP.Simple (getResponseBody, httpJSONEither)
 import Network.HTTP.Types (status200, status404)
 import Pantry (CabalFileInfo(..), DidUpdateOccur(..),
                HpackExecutable(HpackBundled), PackageIdentifierRevision(..),
+               defaultGlobalHintsLocation,
                defaultCasaMaxPerRequest, defaultCasaRepoPrefix,
-               defaultHackageSecurityConfig, defaultSnapshotLocation)
+               defaultPackageIndexConfig, defaultSnapshotLocation)
 import Pantry.Internal.Stackage (HackageTarballResult(..), PantryConfig(..),
                                  Storage(..), forceUpdateHackageIndex,
                                  getHackageTarball, packageTreeKey)
@@ -187,17 +190,18 @@ stackageServerCron StackageCronOptions {..} = do
         withLogFunc (setLogMinLevel scoLogLevel lo) $ \logFunc -> do
             let pantryConfig =
                     PantryConfig
-                        { pcHackageSecurity = defaultHackageSecurityConfig
+                        { pcPackageIndex = defaultPackageIndexConfig
                         , pcHpackExecutable = HpackBundled
+                        , pcHpackForce = Hpack.NoForce
                         , pcRootDir = pantryRootDir
                         , pcStorage = storage
                         , pcUpdateRef = updateRef
                         , pcParsedCabalFilesRawImmutable = cabalImmutable
                         , pcParsedCabalFilesMutable = cabalMutable
                         , pcConnectionCount = connectionCount
-                        , pcCasaRepoPrefix = defaultCasaRepoPrefix
-                        , pcCasaMaxPerRequest = defaultCasaMaxPerRequest
+                        , pcCasaConfig = Just (defaultCasaRepoPrefix, defaultCasaMaxPerRequest)
                         , pcSnapshotLocation = defaultSnapshotLocation
+                        , pcGlobalHintsLocation = defaultGlobalHintsLocation
                         }
             currentHoogleVersionId <- runRIO logFunc $ do
                 runStackageMigrations' pantryConfig
