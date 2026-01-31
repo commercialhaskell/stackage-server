@@ -8,7 +8,8 @@ import Control.Monad.Logger (runNoLoggingT, runStdoutLoggingT)
 import Data.Pool (destroyAllResources)
 import Database.Persist.Postgresql (PostgresConf(..), createPostgresqlPool)
 import Database.Persist.Sql (ConnectionPool, SqlBackend, runSqlPool)
-import Gauge
+import Criterion
+import Criterion.Main
 import Pantry.Internal.Stackage (PackageNameP(..))
 import RIO
 import Settings (getAppSettings, AppSettings(..), DatabaseSettings(..), configSettingsYmlValue)

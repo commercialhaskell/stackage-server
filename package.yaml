@@ -155,7 +155,7 @@ benchmarks:
     source-dirs: bench
     dependencies:
     - stackage-server
-    - gauge
+    - criterion
     - deepseq
     - path-io
     - casa-client
