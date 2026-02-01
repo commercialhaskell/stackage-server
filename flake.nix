@@ -1,32 +1,51 @@
 {
-  description = "stackage-server";
-
+  # This is a template created by `hix init`
+  inputs.haskellNix.url = "github:input-output-hk/haskell.nix";
+  inputs.nixpkgs.follows = "haskellNix/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
+  outputs = { self, nixpkgs, flake-utils, haskellNix }:
+    let
+      supportedSystems = [
+        "x86_64-linux"
+        "x86_64-darwin"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
+    in
+      flake-utils.lib.eachSystem supportedSystems (system:
+      let
+        overlays = [ haskellNix.overlay
+          (final: _prev: {
+            hixProject =
+              final.haskell-nix.hix.project {
+                src = ./.;
+                # uncomment with your current system for `nix flake show` to work:
+                evalSystem = "x86_64-linux";
+                # Add modules configuration here
+                modules = [
+                  {
+                    # These flags are set by GHC, but are not the default!
+                    packages.directory.flags.os-string = true;
+                    packages.process.flags.os-string = true;
+                    packages.unix.flags.os-string = true;
+                  }
+                ];
+              };
+          })
+        ];
+        pkgs = import nixpkgs { inherit system overlays; inherit (haskellNix) config; };
+        flake = pkgs.hixProject.flake {};
+      in flake // {
+        legacyPackages = pkgs;
+      });
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem
-      (system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-          package = pkgs.callPackage ./package.nix {};
-        in
-        {
-          packages.default = package.app;
-          devShells.default = package.shell;
-
-          checks = {
-            # I used to put these into $out/lib, but justStaticExecutables
-            # removes that directory. Now I feel like I'm just getting lucky. So
-            # let's double check the files are there.
-            file-check = pkgs.runCommand "check-runtime-files" {} ''
-              if [ -e ${self.packages.${system}.default}/run/config/settings.yml ]; then
-                touch $out
-              else
-                2>&1 echo "Runtime files are missing"
-                exit 1
-              fi
-            '';
-          };
-        }
-      );
+  # --- Flake Local Nix Configuration ----------------------------
+  nixConfig = {
+    # This sets the flake to use the IOG nix cache.
+    # Nix should ask for permission before using it,
+    # but remove it here if you do not want it to.
+    extra-substituters = ["https://cache.iog.io"];
+    extra-trusted-public-keys = ["hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="];
+    allow-import-from-derivation = "true";
+  };
 }
