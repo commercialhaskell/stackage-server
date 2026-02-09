@@ -1,6 +1,6 @@
 {pkgs, ...}: {
   name = "stackage-server";
-  compiler-nix-name = "ghc910"; # Version of GHC to use
+  compiler-nix-name = "ghc9103"; # Version of GHC to use
 
   # Cross compilation support:
   # crossPlatforms = p: pkgs.lib.optionals pkgs.stdenv.hostPlatform.isx86_64 ([
