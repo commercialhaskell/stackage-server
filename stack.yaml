@@ -23,11 +23,26 @@ extra-deps:
 # has a bug. See https://github.com/brendanhay/amazonka/issues/975 for details.
 - github: brendanhay/amazonka
   commit: 'a7d699be1076e2aad05a1930ca3937ffea954ad8'
-  subdirs: [lib/amazonka-core]
-
+  subdirs:
+    - lib/amazonka-core
+    - lib/services/amazonka-s3
+    - lib/amazonka
+    - lib/services/amazonka-sso
+    - lib/services/amazonka-sts
+- barrier-0.1.1
+- microlens-pro-0.2.0.3
 allow-newer: true
 allow-newer-deps:
   - pantry
+  - barrier
 
+# Minimum nix setup for running stack on NixOS.
+# Do NOT use the included shell.nix. It can create invalid successful builds on
+# NixOS that fail on other systems. This happens because Haskell packages are
+# injected into "GHC"'s package database. Packages that *should* be listed here
+# as extra-deps are silently picked up on NixOS, but missing on other systems.
 nix:
-  shell-file: shell.nix
+  packages:
+    - pkg-config
+    - zlib
+    - postgresql
