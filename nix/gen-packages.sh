@@ -23,8 +23,10 @@ cd "$(dirname "$0")"
 gen stackage-server --hpack ../.
 
 # Has my R2 patch, which is still unreleased on 2025-01-24
-#echo "...please ignore useless error below..."
-2>/dev/null gen amazonka-core https://github.com/brendanhay/amazonka/archive/85e0289f8dc23c54b00f7f1a09845be7e032a1eb.zip --subpath lib/amazonka-core
+amazonka_version=a7d699be1076e2aad05a1930ca3937ffea954ad8
+
+2>/dev/null gen amazonka-core "https://github.com/brendanhay/amazonka/archive/${amazonka_version}.zip" --subpath lib/amazonka-core
+gen amazonka-s3 "https://github.com/brendanhay/amazonka/archive/${amazonka_version}.zip" --subpath lib/services/amazonka-s3
 
 # Pinned to 5.0.18.4 to avoid accidentally regenerating hoogle files. See
 # warning in stack.yaml!

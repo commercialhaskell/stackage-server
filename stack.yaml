@@ -1,8 +1,7 @@
 # As this is built on NixOS stable, it has to stay on a GHC that exists on the
 # OS.
-# I.e. changes here need to be synced with changes to
-# https://github.com/haskellfoundation/hf-infrastructure
-resolver: lts-22.43
+# I.e. changes here need to be synced with changes to flake.nix and package.nix.
+resolver: lts-24.26
 extra-deps:
 # WARNING: Changing the hoogle version causes stackage-server-cron to regenerate
 # Hoogle databases FOR EVERY SNAPSHOT, EVER. Usually, that's ok! But don't
@@ -17,12 +16,13 @@ extra-deps:
 # waste. (4) Stackage's Hoogle search will be unavailable until the new
 # databases have been generated.
 - hoogle-5.0.18.4@sha256:1372458e97dff541fcda099236af7936bf93ee6b8c5d15695ee6d9426dff5eed,3171
+# FIXME: This version of pantry differs from upstream in a way that has not been explored yet.
 - git: https://github.com/commercialhaskell/pantry.git
   commit: 5df643cc1deb561d9c52a9cb6f593aba2bc4c08e
 # This amazonka includes the unreleased patch to support Cloudflare, which kinda
 # has a bug. See https://github.com/brendanhay/amazonka/issues/975 for details.
 - github: brendanhay/amazonka
-  commit: '85e0289f8dc23c54b00f7f1a09845be7e032a1eb'
+  commit: 'a7d699be1076e2aad05a1930ca3937ffea954ad8'
   subdirs: [lib/amazonka-core]
 
 allow-newer: true
