@@ -10,10 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-no-global: true
       - uses: actions/cache@v4
         with:
           path: |
@@ -23,6 +19,11 @@ jobs:
           # If there's no match for key, fall back to these:
           restore-keys: |
             ${{ runner.os }}-
+      - uses: haskell/ghcup-setup@v1
+        with:
+          stack-hook: true
+      - run: |
+          ghcup install stack
       - run: stack test
 
   flake-no-push:
