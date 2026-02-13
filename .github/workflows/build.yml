@@ -18,10 +18,8 @@ jobs:
           path: |
             ~/.ghcup
             ~/.stack
-          key: ${{ runner.os }}-${{ hashFiles('**/*.cabal','**/stack.yaml') }}
-          # If there's no match for key, fall back to these:
-          restore-keys: |
-            ${{ runner.os }}-
+          key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml') }}
+          restore-keys: stack-${{ runner.os }}-
       - uses: haskell/ghcup-setup@v1
         with:
           stack-hook: true
