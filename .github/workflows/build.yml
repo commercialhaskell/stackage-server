@@ -19,7 +19,9 @@ jobs:
             ~/.ghcup
             ~/.stack
           key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml') }}
-          restore-keys: stack-${{ runner.os }}-
+          restore-keys: |
+            stack-${{ runner.os }}-
+            ${{ runner.os }}-
       - uses: haskell/ghcup-setup@v1
         with:
           stack-hook: true
