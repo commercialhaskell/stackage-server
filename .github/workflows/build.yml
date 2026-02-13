@@ -13,20 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: haskell/ghcup-setup@v1
+        id: ghcup
+        with:
+          stack-hook: true
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.ghcup
+            ${{ steps.ghcup.outputs.basedir }}
             ~/.stack
           key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml') }}
           restore-keys: |
             stack-${{ runner.os }}-
             ${{ runner.os }}-
-      - uses: haskell/ghcup-setup@v1
-        with:
-          stack-hook: true
-      - run: |
-          ghcup install stack
+      - run: ghcup install stack
       - run: stack test
 
   flake-no-push:
