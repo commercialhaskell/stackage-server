@@ -19,17 +19,18 @@ let
       });
 
       # patched, see gen-package-nix.sh
-      amazonka-core = self.callPackage nix/amazonka-core.nix { };
+      amazonka-core = hlib.doJailbreak (self.callPackage nix/amazonka-core.nix { });
+      amazonka-s3 = hlib.doJailbreak (self.callPackage nix/amazonka-s3.nix { });
 
       # We have this old dependency for unexplored reasons.
       # Tests fail from attempted network access.
       pantry = pkgs.lib.pipe (self.callPackage nix/pantry.nix { }) [hlib.dontCheck hlib.doJailbreak];
 
       # Changing this has operational impacts.
-      hoogle = self.callPackage nix/hoogle.nix { };
+      hoogle = hlib.doJailbreak (self.callPackage nix/hoogle.nix { });
 
       # Outdated breakage? (TODO: upstream)
-      barrier = hlib.markUnbroken super.barrier;
+      barrier = pkgs.lib.pipe super.barrier [hlib.doJailbreak hlib.markUnbroken];
 
       # Tests fail from attempted network access (TODO: upstream)
       yesod-gitrev = hlib.markUnbroken (hlib.dontCheck super.yesod-gitrev);

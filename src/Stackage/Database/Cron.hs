@@ -19,6 +19,7 @@ import Conduit
 import Control.DeepSeq
 import Control.SingleRun
 import Control.Lens ((?~))
+import Control.Exception.Lens (trying)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Conduit.Binary as CB
 import Data.Conduit.Tar (FileInfo(..), FileType(..), untar)

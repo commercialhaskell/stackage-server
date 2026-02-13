@@ -1,27 +1,54 @@
-name: build
+name: check and push
 on:
   push:
     branches:
       - master
   pull_request:
-    branches:
-      - master
 jobs:
-  build:
+  stack-test:
+    name: stack test
     runs-on: ubuntu-latest
-    name: Haskell GHC
     steps:
       - uses: actions/checkout@v4
-      - uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-no-global: true
       - uses: actions/cache@v4
         with:
           path: |
+            ~/.ghcup
             ~/.stack
-            .stack-work
           key: ${{ runner.os }}-${{ hashFiles('**/*.cabal','**/stack.yaml') }}
+          # If there's no match for key, fall back to these:
           restore-keys: |
             ${{ runner.os }}-
-      - run: stack build
+      - uses: haskell/ghcup-setup@v1
+        with:
+          stack-hook: true
+      - run: |
+          ghcup install stack
+      - run: stack test
+
+  flake-no-push:
+    name: flake check (no push)
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v15
+        with:
+          name: stackage-infrastructure
+      - run: nix build
+      - run: nix flake check
+
+  flake-push:
+    name: flake check and push
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v31
+        with:
+          name: stackage-infrastructure
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - run: nix build
+      - run: nix flake check
