@@ -8,7 +8,7 @@ $newline never
         <span>
             <a href=@{StackageDiffR previousSnapName name}>View changes
 
-    <p .stack-resolver-yaml><a href="https://docs.haskellstack.org/en/stable/GUIDE/#resolvers-and-changing-your-compiler-version">resolver</a>: #{toPathPiece name}
+    <p .stack-resolver-yaml><a href="https://docs.haskellstack.org/en/stable/GUIDE/#resolvers-and-changing-your-compiler-version">resolver</a>: #{toPathPiece name} (<a href="cabal.config">cabal.config</a>)
 
     ^{hoogleForm}
 
