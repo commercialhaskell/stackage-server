@@ -6,4 +6,8 @@ on:
   workflow_dispatch:
 jobs:
   stack-test:
-    uses: ./.github/workflows/stack-test.yml
+    name: stack test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/stack-test

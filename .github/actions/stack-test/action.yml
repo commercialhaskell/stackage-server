@@ -1,0 +1,22 @@
+name: stack test
+description: Build and test with stack
+runs:
+  using: composite
+  steps:
+    - uses: haskell/ghcup-setup@v1
+      id: ghcup
+      with:
+        stack-hook: true
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ${{ steps.ghcup.outputs.basedir }}
+          ~/.stack
+        key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml') }}
+        restore-keys: |
+          stack-${{ runner.os }}-
+          ${{ runner.os }}-
+    - run: ghcup install stack
+      shell: bash
+    - run: stack test
+      shell: bash
