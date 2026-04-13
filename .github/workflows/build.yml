@@ -25,5 +25,7 @@ jobs:
       - uses: cachix/install-nix-action@v31
       - uses: DeterminateSystems/magic-nix-cache-action@v13
       - uses: cachix/cachix-action@v17
+        with:
+          name: stackage-infrastructure
       - run: nix build
       - run: nix flake check
