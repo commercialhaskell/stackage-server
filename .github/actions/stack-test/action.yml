@@ -7,13 +7,16 @@ runs:
       id: ghcup
       with:
         stack-hook: true
-        stack: latest
     - uses: actions/cache@v4
       with:
-        path: ~/.stack
+        path: |
+          ${{ steps.ghcup.outputs.basedir }}
+          ~/.stack
         key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml') }}
         restore-keys: |
           stack-${{ runner.os }}-
           ${{ runner.os }}-
+    - run: ghcup install stack
+      shell: bash
     - run: stack test
       shell: bash
