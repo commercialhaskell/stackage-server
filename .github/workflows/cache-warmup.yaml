@@ -1,0 +1,13 @@
+name: biweekly cache warmup
+on:
+  schedule:
+    # Every Monday and Thursday at 11:23 UTC
+    - cron: '23 11 * * mon,thu'
+  workflow_dispatch:
+jobs:
+  stack-test:
+    name: stack test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/stack-test
