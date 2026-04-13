@@ -72,13 +72,19 @@ fetchSnapshots = do
         groupUp now' = groupBy (on (==) (.prettyDate))
                      . map (uncrapify now')
 
-getAllSnapshotsR :: Handler Html
+getAllSnapshotsR :: Handler TypedContent
 getAllSnapshotsR = track "Handler.Snapshots.getAllSnapshotsR" $ do
-    (groups, Paging _ currentPage isFirstPage isLastPage) <- fetchSnapshots
-    defaultLayout $ do
-        setTitle "Stackage Server"
-        let snapshotsNav = $(widgetFile "snapshots-nav")
-        $(widgetFile "all-snapshots")
+    (groups, paging) <- fetchSnapshots
+    selectRep $ do
+        let Paging _ currentPage isFirstPage isLastPage = paging
+        provideRep $ defaultLayout $ do
+            setTitle "Stackage Server"
+            let snapshotsNav = $(widgetFile "snapshots-nav")
+            $(widgetFile "all-snapshots")
+        provideRep $ pure $ object
+            [ "snapshots" .= groups
+            , "totalCount" .= paging.totalCount
+            ]
 
 getApiV1SnapshotsR :: Handler Value
 getApiV1SnapshotsR = track "Handler.API.getApiV1SnapshotsR" $ do
