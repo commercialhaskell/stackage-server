@@ -18,7 +18,6 @@ jobs:
 
   flake-check:
     name: flake check and push
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
