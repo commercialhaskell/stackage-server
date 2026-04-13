@@ -1,0 +1,9 @@
+name: biweekly cache warmup
+on:
+  schedule:
+    # Every Monday and Thursday at 11:23 UTC
+    - cron: '23 11 * * mon,thu'
+  workflow_dispatch:
+jobs:
+  stack-test:
+    uses: ./.github/workflows/stack-test.yml

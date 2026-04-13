@@ -9,25 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   stack-test:
-    name: stack test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: haskell/ghcup-setup@v1
-        id: ghcup
-        with:
-          stack-hook: true
-      - uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.ghcup.outputs.basedir }}
-            ~/.stack
-          key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml') }}
-          restore-keys: |
-            stack-${{ runner.os }}-
-            ${{ runner.os }}-
-      - run: ghcup install stack
-      - run: stack test
+    uses: ./.github/workflows/stack-test.yml
 
   flake-no-push:
     name: flake check (no push)
