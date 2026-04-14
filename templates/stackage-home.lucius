@@ -79,7 +79,7 @@ p + ul {
 .keyword { color: #366354 }
 .url { color: #06537d }
 
-.stack-resolver-yaml {
+.stack-snapshot-yaml {
     font-size: 1.3em;
     font-weight: 600;
 }

@@ -424,7 +424,7 @@ addPantryPackage snapId compiler isHidden flags (PantryPackage pcabal pTreeKey) 
 
 
 
--- | Download a list of available .html files from S3 bucket for a particular resolver and record
+-- | Download a list of available .html files from S3 bucket for a particular snapshot and record
 -- in the database which modules have documentation available for them.
 checkForDocs :: SnapshotId -> SnapName -> ResourceT (RIO StackageCron) ()
 checkForDocs snapshotId snapName = do

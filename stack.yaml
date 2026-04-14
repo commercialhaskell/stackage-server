@@ -1,7 +1,7 @@
 # As this is built on NixOS stable, it has to stay on a GHC that exists on the
 # OS.
 # I.e. changes here need to be synced with changes to flake.nix and package.nix.
-resolver: lts-24.26
+snapshot: lts-24.26
 extra-deps:
 # WARNING: Changing the hoogle version causes stackage-server-cron to regenerate
 # Hoogle databases FOR EVERY SNAPSHOT, EVER. Usually, that's ok! But don't
